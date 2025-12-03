@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Lieferanten - pricat-converter{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Aktive Lieferanten</h2>
+
+{% if lieferanten %}
+<table class="table table-hover">
+    <thead class="table-light">
+        <tr>
+            <th>Kurzbezeichnung</th>
+            <th>VEDES-ID</th>
+            <th>GLN</th>
+            <th>Letzte Konvertierung</th>
+            <th>Aktion</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for lieferant in lieferanten %}
+        <tr>
+            <td>{{ lieferant.kurzbezeichnung }}</td>
+            <td><code>{{ lieferant.vedes_id }}</code></td>
+            <td><code>{{ lieferant.gln }}</code></td>
+            <td>
+                {% if lieferant.letzte_konvertierung %}
+                    {{ lieferant.letzte_konvertierung.strftime('%d.%m.%Y %H:%M') }}
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
+            <td>
+                <form action="{{ url_for('main.verarbeite', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
+                    <button type="submit" class="btn btn-primary btn-sm">Verarbeite</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">
+    Keine aktiven Lieferanten vorhanden. Bitte führen Sie <code>flask seed</code> aus, um Testdaten anzulegen.
+</div>
+{% endif %}
+{% endblock %}

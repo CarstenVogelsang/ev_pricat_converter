@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+ENV/
+.venv/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Environment
+.env
+.env.local
+
+# Database
+instance/*.db
+*.sqlite
+
+# Data directories (keep structure, ignore content)
+data/imports/*
+data/exports/*
+data/images/*
+!data/imports/.gitkeep
+!data/exports/.gitkeep
+!data/images/.gitkeep
+
+# OS
+.DS_Store
+Thumbs.db
+
+# VEDES directory (local data, not for repo)
+VEDES/
+
+# Logs
+*.log
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
