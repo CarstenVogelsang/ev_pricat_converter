@@ -4,6 +4,7 @@ Handles FTP connections to:
 - VEDES FTP server (download PRICAT files)
 - Target FTP server (upload Elena CSV + images)
 """
+import base64
 import ftplib
 import os
 from dataclasses import dataclass, field
@@ -11,9 +12,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
+from flask import current_app
+
 from app import db
 from app.models import Lieferant, Config
-from app.utils import parse_pricat_filename
+from app.utils import parse_pricat_filename, count_pricat_articles
 
 
 @dataclass
@@ -37,6 +40,7 @@ class FTPConfig:
     port: int = 21
     timeout: int = 30
     passive: bool = True
+    encoding: str = 'utf-8'
 
 
 class FTPService:
@@ -57,26 +61,40 @@ class FTPService:
         config_entry = Config.query.filter_by(key=key).first()
         return config_entry.value if config_entry else ''
 
+    def _decode_password(self, password_b64: str) -> str:
+        """Decode Base64-encoded password (FileZilla compatible)."""
+        if not password_b64:
+            return ''
+        try:
+            return base64.b64decode(password_b64).decode('utf-8')
+        except Exception:
+            # If decoding fails, assume it's already plain text
+            return password_b64
+
     def _load_vedes_config(self) -> FTPConfig:
         """Load VEDES FTP configuration from database."""
         port_str = self._get_config_value('vedes_ftp_port')
         port = int(port_str) if port_str and port_str.isdigit() else 21
+        password_b64 = self._get_config_value('vedes_ftp_pass')
+        encoding = self._get_config_value('vedes_ftp_encoding') or 'utf-8'
         return FTPConfig(
             host=self._get_config_value('vedes_ftp_host'),
             user=self._get_config_value('vedes_ftp_user'),
-            password=self._get_config_value('vedes_ftp_pass'),
+            password=self._decode_password(password_b64),
             basepath=self._get_config_value('vedes_ftp_basepath') or '/pricat/',
-            port=port
+            port=port,
+            encoding=encoding
         )
 
     def _load_elena_config(self) -> FTPConfig:
         """Load Elena/Target FTP configuration from database."""
         port_str = self._get_config_value('elena_ftp_port')
         port = int(port_str) if port_str and port_str.isdigit() else 21
+        password_b64 = self._get_config_value('elena_ftp_pass')
         return FTPConfig(
             host=self._get_config_value('elena_ftp_host'),
             user=self._get_config_value('elena_ftp_user'),
-            password=self._get_config_value('elena_ftp_pass'),
+            password=self._decode_password(password_b64),
             basepath='/',
             port=port
         )
@@ -439,12 +457,180 @@ class FTPService:
 
         return result
 
+    def get_file_info(
+        self,
+        ftp: ftplib.FTP,
+        filename: str
+    ) -> Optional[tuple[datetime, int]]:
+        """
+        Get file modification date and size from FTP server.
+
+        Args:
+            ftp: Connected FTP object
+            filename: Filename to check (in current directory)
+
+        Returns:
+            Tuple of (modification_datetime, size_bytes) or None if failed
+        """
+        try:
+            # Get modification time (MDTM command)
+            response = ftp.sendcmd(f'MDTM {filename}')
+            # Response format: "213 YYYYMMDDHHmmss"
+            if response.startswith('213 '):
+                time_str = response[4:].strip()
+                mod_time = datetime.strptime(time_str, '%Y%m%d%H%M%S')
+            else:
+                return None
+
+            # Get file size (SIZE command)
+            size = ftp.size(filename)
+            if size is None:
+                return None
+
+            return (mod_time, size)
+        except Exception:
+            return None
+
+    def _download_and_count(
+        self,
+        ftp: ftplib.FTP,
+        filename: str,
+        vedes_id: str,
+        target_dir: Path
+    ) -> tuple[Path, int]:
+        """
+        Download a file and count articles.
+
+        Args:
+            ftp: Connected FTP object
+            filename: Remote filename
+            vedes_id: Supplier VEDES ID
+            target_dir: Local directory to save file
+
+        Returns:
+            Tuple of (local_path, article_count)
+        """
+        # Local filename: pricat_{vedes_id}.csv (replaces any existing)
+        local_path = target_dir / f"pricat_{vedes_id}.csv"
+
+        # Download file
+        with open(local_path, 'wb') as f:
+            ftp.retrbinary(f'RETR {filename}', f.write)
+
+        # Count articles
+        article_count = count_pricat_articles(local_path)
+
+        return (local_path, article_count)
+
+    def update_single_lieferant(
+        self,
+        lieferant: Lieferant,
+        config: FTPConfig = None
+    ) -> dict:
+        """
+        Update a single supplier's PRICAT file if changed.
+
+        Checks FTP file date/size, downloads if changed, counts articles.
+
+        Args:
+            lieferant: Supplier entity
+            config: Optional FTP config
+
+        Returns:
+            dict with update results:
+            - success: bool
+            - message: str
+            - downloaded: bool
+            - artikel_anzahl: int or None
+            - errors: list
+        """
+        result = {
+            'success': False,
+            'message': '',
+            'downloaded': False,
+            'artikel_anzahl': None,
+            'errors': []
+        }
+
+        ftp_config = config or self._load_vedes_config()
+
+        if not ftp_config.host:
+            result['message'] = "VEDES FTP not configured"
+            result['errors'].append(result['message'])
+            return result
+
+        if not lieferant.ftp_quelldatei:
+            result['message'] = "No FTP source file configured for supplier"
+            result['errors'].append(result['message'])
+            return result
+
+        ftp = None
+        try:
+            ftp = self._connect(ftp_config)
+            ftp.encoding = ftp_config.encoding
+            ftp.cwd(ftp_config.basepath)
+
+            # Get remote file info
+            file_info = self.get_file_info(ftp, lieferant.ftp_quelldatei)
+            if not file_info:
+                result['message'] = f"Could not get file info for {lieferant.ftp_quelldatei}"
+                result['errors'].append(result['message'])
+                return result
+
+            remote_date, remote_size = file_info
+
+            # Check if download is needed
+            needs_download = (
+                lieferant.ftp_datei_datum is None or
+                lieferant.ftp_datei_groesse is None or
+                lieferant.ftp_datei_datum != remote_date or
+                lieferant.ftp_datei_groesse != remote_size
+            )
+
+            if needs_download:
+                # Get imports directory from config
+                imports_dir = current_app.config.get('IMPORTS_DIR', Path('imports'))
+
+                # Download and count
+                local_path, article_count = self._download_and_count(
+                    ftp,
+                    lieferant.ftp_quelldatei,
+                    lieferant.vedes_id,
+                    imports_dir
+                )
+
+                # Update lieferant
+                lieferant.ftp_datei_datum = remote_date
+                lieferant.ftp_datei_groesse = remote_size
+                lieferant.artikel_anzahl = article_count
+                db.session.commit()
+
+                result['downloaded'] = True
+                result['artikel_anzahl'] = article_count
+                result['message'] = f"Downloaded: {article_count:,} Artikel"
+            else:
+                result['artikel_anzahl'] = lieferant.artikel_anzahl
+                result['message'] = "Datei unverändert"
+
+            result['success'] = True
+
+        except Exception as e:
+            result['message'] = f"Update failed: {e}"
+            result['errors'].append(result['message'])
+            db.session.rollback()
+        finally:
+            if ftp:
+                self._disconnect(ftp)
+
+        return result
+
     def sync_lieferanten(self, config: FTPConfig = None) -> dict:
         """
         Synchronize Lieferanten table with PRICAT files on VEDES FTP.
 
         Scans the PRICAT directory, parses filenames to extract VEDES_ID
-        and supplier names, and creates missing Lieferanten entries (inactive).
+        and supplier names, creates missing Lieferanten entries (inactive),
+        downloads changed files and counts articles.
 
         Args:
             config: Optional FTP config, otherwise loaded from DB
@@ -455,6 +641,7 @@ class FTPService:
             - message: str
             - created: list of created supplier names
             - updated: list of updated supplier names
+            - downloaded: list of downloaded supplier names
             - unchanged: list of unchanged supplier names
             - errors: list of error messages
         """
@@ -463,6 +650,7 @@ class FTPService:
             'message': '',
             'created': [],
             'updated': [],
+            'downloaded': [],
             'unchanged': [],
             'errors': []
         }
@@ -474,9 +662,15 @@ class FTPService:
             sync_result['errors'].append(sync_result['message'])
             return sync_result
 
+        # Get imports directory
+        imports_dir = current_app.config.get('IMPORTS_DIR', Path('imports'))
+        imports_dir.mkdir(parents=True, exist_ok=True)
+
         ftp = None
         try:
             ftp = self._connect(ftp_config)
+            # Set encoding for filenames (configurable per FTP server)
+            ftp.encoding = ftp_config.encoding
             ftp.cwd(ftp_config.basepath)
 
             # List all CSV files
@@ -492,6 +686,10 @@ class FTPService:
 
                 vedes_id, supplier_name = parsed
 
+                # Get file info for change detection
+                file_info = self.get_file_info(ftp, filename)
+                remote_date, remote_size = file_info if file_info else (None, None)
+
                 # Check if supplier exists
                 existing = Lieferant.query.filter_by(vedes_id=vedes_id).first()
 
@@ -500,7 +698,33 @@ class FTPService:
                     if existing.ftp_quelldatei != filename:
                         existing.ftp_quelldatei = filename
                         sync_result['updated'].append(f"{supplier_name} (ID: {vedes_id})")
-                    else:
+
+                    # Check if download is needed
+                    needs_download = (
+                        file_info and (
+                            existing.ftp_datei_datum is None or
+                            existing.ftp_datei_groesse is None or
+                            existing.ftp_datei_datum != remote_date or
+                            existing.ftp_datei_groesse != remote_size
+                        )
+                    )
+
+                    if needs_download:
+                        try:
+                            local_path, article_count = self._download_and_count(
+                                ftp, filename, vedes_id, imports_dir
+                            )
+                            existing.ftp_datei_datum = remote_date
+                            existing.ftp_datei_groesse = remote_size
+                            existing.artikel_anzahl = article_count
+                            sync_result['downloaded'].append(
+                                f"{supplier_name} ({article_count:,} Artikel)"
+                            )
+                        except Exception as e:
+                            sync_result['errors'].append(
+                                f"Download failed for {supplier_name}: {e}"
+                            )
+                    elif existing.ftp_quelldatei == filename:
                         sync_result['unchanged'].append(f"{supplier_name} (ID: {vedes_id})")
                 else:
                     # Create new inactive supplier
@@ -511,6 +735,24 @@ class FTPService:
                         aktiv=False,
                         ftp_quelldatei=filename
                     )
+
+                    # Download and count for new supplier
+                    if file_info:
+                        try:
+                            local_path, article_count = self._download_and_count(
+                                ftp, filename, vedes_id, imports_dir
+                            )
+                            new_lieferant.ftp_datei_datum = remote_date
+                            new_lieferant.ftp_datei_groesse = remote_size
+                            new_lieferant.artikel_anzahl = article_count
+                            sync_result['downloaded'].append(
+                                f"{supplier_name} ({article_count:,} Artikel)"
+                            )
+                        except Exception as e:
+                            sync_result['errors'].append(
+                                f"Download failed for {supplier_name}: {e}"
+                            )
+
                     db.session.add(new_lieferant)
                     sync_result['created'].append(f"{supplier_name} (ID: {vedes_id})")
 
@@ -519,6 +761,7 @@ class FTPService:
             sync_result['message'] = (
                 f"Sync completed: {len(sync_result['created'])} created, "
                 f"{len(sync_result['updated'])} updated, "
+                f"{len(sync_result['downloaded'])} downloaded, "
                 f"{len(sync_result['unchanged'])} unchanged"
             )
 

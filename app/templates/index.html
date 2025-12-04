@@ -3,7 +3,23 @@
 {% block title %}Lieferanten - pricat-converter{% endblock %}
 
 {% block content %}
-<h2 class="mb-4">Aktive Lieferanten</h2>
+<h2 class="mb-4">{{ titel }}</h2>
+
+<!-- Filter Buttons -->
+<div class="btn-group mb-3" role="group" aria-label="Lieferanten-Filter">
+    <a href="{{ url_for('main.index', filter='aktiv') }}"
+       class="btn btn-{{ 'primary' if filter == 'aktiv' else 'outline-primary' }}">
+        Aktiv
+    </a>
+    <a href="{{ url_for('main.index', filter='inaktiv') }}"
+       class="btn btn-{{ 'primary' if filter == 'inaktiv' else 'outline-primary' }}">
+        Inaktiv
+    </a>
+    <a href="{{ url_for('main.index', filter='alle') }}"
+       class="btn btn-{{ 'primary' if filter == 'alle' else 'outline-primary' }}">
+        Alle
+    </a>
+</div>
 
 {% if lieferanten %}
 <table class="table table-hover">
@@ -12,6 +28,8 @@
             <th>Kurzbezeichnung</th>
             <th>VEDES-ID</th>
             <th>GLN</th>
+            <th>Artikel</th>
+            <th>Status</th>
             <th>Letzte Konvertierung</th>
             <th>Aktionen</th>
         </tr>
@@ -21,7 +39,21 @@
         <tr>
             <td>{{ lieferant.kurzbezeichnung }}</td>
             <td><code>{{ lieferant.vedes_id }}</code></td>
-            <td><code>{{ lieferant.gln }}</code></td>
+            <td><code>{{ lieferant.gln or '-' }}</code></td>
+            <td>
+                {% if lieferant.artikel_anzahl %}
+                    {{ '{:,}'.format(lieferant.artikel_anzahl).replace(',', '.') }}
+                {% else %}
+                    <span class="text-muted">-</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if lieferant.aktiv %}
+                    <span class="badge bg-success">Aktiv</span>
+                {% else %}
+                    <span class="badge bg-secondary">Inaktiv</span>
+                {% endif %}
+            </td>
             <td>
                 {% if lieferant.letzte_konvertierung %}
                     {{ lieferant.letzte_konvertierung.strftime('%d.%m.%Y %H:%M') }}
@@ -31,16 +63,27 @@
             </td>
             <td>
                 <div class="btn-group" role="group">
-                    <form action="{{ url_for('main.verarbeite_lokal', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
-                        <button type="submit" class="btn btn-primary btn-sm" title="Lokale PRICAT-Datei verarbeiten">
-                            Lokal verarbeiten
+                    <form action="{{ url_for('main.toggle_aktiv', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="current_filter" value="{{ filter }}">
+                        {% if lieferant.aktiv %}
+                        <button type="submit" class="btn btn-outline-warning btn-sm" title="Lieferant deaktivieren">
+                            Deaktivieren
+                        </button>
+                        {% else %}
+                        <button type="submit" class="btn btn-outline-success btn-sm" title="Lieferant aktivieren">
+                            Aktivieren
+                        </button>
+                        {% endif %}
+                    </form>
+                    <form action="{{ url_for('main.ftp_check', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="current_filter" value="{{ filter }}">
+                        <button type="submit" class="btn btn-outline-primary btn-sm" title="PRICAT-Datei von FTP prüfen/aktualisieren">
+                            FTP Check
                         </button>
                     </form>
-                    <form action="{{ url_for('main.verarbeite', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
-                        <input type="hidden" name="use_local" value="true">
-                        <input type="hidden" name="skip_images" value="true">
-                        <button type="submit" class="btn btn-outline-primary btn-sm" title="Von FTP herunterladen und verarbeiten">
-                            FTP
+                    <form action="{{ url_for('main.verarbeite_lokal', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-primary btn-sm" title="Lokale PRICAT-Datei verarbeiten">
+                            Verarbeiten
                         </button>
                     </form>
                     <a href="{{ url_for('main.status', lieferant_id=lieferant.id) }}" class="btn btn-outline-secondary btn-sm" title="Letzten Status anzeigen">
@@ -60,7 +103,13 @@
 </div>
 {% else %}
 <div class="alert alert-info">
-    Keine aktiven Lieferanten vorhanden. Bitte führen Sie <code>flask seed</code> aus, um Testdaten anzulegen.
+    {% if filter == 'inaktiv' %}
+    Keine inaktiven Lieferanten vorhanden.
+    {% elif filter == 'alle' %}
+    Keine Lieferanten vorhanden. Bitte führen Sie im Admin-Bereich "Lieferanten synchronisieren" aus.
+    {% else %}
+    Keine aktiven Lieferanten vorhanden. Wechseln Sie zu "Inaktiv" oder "Alle", um inaktive Lieferanten zu aktivieren.
+    {% endif %}
 </div>
 {% endif %}
 {% endblock %}

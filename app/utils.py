@@ -1,5 +1,6 @@
 """Utility functions for pricat-converter."""
 import re
+from pathlib import Path
 from typing import Optional, Tuple
 
 
@@ -68,3 +69,42 @@ def parse_pricat_filename(filename: str) -> Optional[Tuple[str, str]]:
         return (vedes_id, supplier_name)
 
     return None
+
+
+def count_pricat_articles(file_path: Path) -> int:
+    """
+    Count the number of articles (P-rows) in a PRICAT CSV file.
+
+    PRICAT files have:
+    - Header rows starting with 'H'
+    - Product/Article rows starting with 'P'
+
+    Args:
+        file_path: Path to the PRICAT CSV file
+
+    Returns:
+        Number of article rows (P-rows) in the file
+
+    Examples:
+        >>> count_pricat_articles(Path('pricat_1872_Lego.csv'))
+        1500
+    """
+    if not file_path or not file_path.exists():
+        return 0
+
+    count = 0
+    # Try different encodings
+    for encoding in ['utf-8', 'latin-1', 'cp1252']:
+        try:
+            with open(file_path, 'r', encoding=encoding) as f:
+                for line in f:
+                    # Article rows start with 'P;'
+                    if line.startswith('P;'):
+                        count += 1
+            return count
+        except UnicodeDecodeError:
+            continue
+        except Exception:
+            return 0
+
+    return count

@@ -404,3 +404,40 @@ class ImportTrigger:
 - **Weitere Quellformate:** Nicht-VEDES PRICAT
 - **API:** REST-Endpoints für externe Integration
 - **Monitoring:** Prometheus Metrics, Health-Checks
+
+---
+
+## 11. UI/UX Richtlinien
+
+### 11.1 Benutzer-Feedback: Toast-Meldungen
+
+**Standard:** Alle Benutzer-Feedback-Meldungen (Erfolg, Fehler, Warnung, Info) werden als **Bootstrap Toast-Meldungen** angezeigt.
+
+**Keine Alert-Boxen** im Seiteninhalt verwenden - diese führen zu schlechter UX, da der User nach Aktionen scrollen muss.
+
+**Toast-Eigenschaften:**
+- Position: Oben rechts (fixed)
+- Auto-Hide: Nach 5 Sekunden
+- Schließbar: Manuell via X-Button
+- Stapelbar: Mehrere Meldungen werden übereinander angezeigt
+
+**Farbkodierung (Bootstrap):**
+| Kategorie | CSS-Klasse | Verwendung |
+|-----------|------------|------------|
+| success | `text-bg-success` | Aktion erfolgreich |
+| danger | `text-bg-danger` | Fehler aufgetreten |
+| warning | `text-bg-warning` | Warnung/Hinweis |
+| info | `text-bg-info` | Information |
+
+**Implementierung in `base.html`:**
+```html
+<div class="toast-container position-fixed top-0 end-0 p-3" style="z-index: 1100;">
+    <!-- Flask flash messages als Toasts -->
+</div>
+```
+
+### 11.2 Weitere UI-Konventionen
+
+- **Tabellen:** Bootstrap `table-hover` für interaktive Listen
+- **Buttons:** Primäre Aktionen `btn-primary`, sekundäre `btn-outline-*`
+- **Status-Badges:** `badge bg-success/secondary` für Aktiv/Inaktiv

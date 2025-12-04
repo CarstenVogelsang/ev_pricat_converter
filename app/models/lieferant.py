@@ -18,6 +18,9 @@ class Lieferant(db.Model):
     elena_startdir = db.Column(db.String(50))
     elena_base_url = db.Column(db.String(255))
     letzte_konvertierung = db.Column(db.DateTime)
+    artikel_anzahl = db.Column(db.Integer, nullable=True)  # Number of articles in PRICAT
+    ftp_datei_datum = db.Column(db.DateTime, nullable=True)  # FTP file modification date
+    ftp_datei_groesse = db.Column(db.Integer, nullable=True)  # FTP file size in bytes
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
@@ -36,5 +39,8 @@ class Lieferant(db.Model):
             'ftp_pfad_ziel': self.ftp_pfad_ziel,
             'elena_startdir': self.elena_startdir,
             'elena_base_url': self.elena_base_url,
-            'letzte_konvertierung': self.letzte_konvertierung.isoformat() if self.letzte_konvertierung else None
+            'letzte_konvertierung': self.letzte_konvertierung.isoformat() if self.letzte_konvertierung else None,
+            'artikel_anzahl': self.artikel_anzahl,
+            'ftp_datei_datum': self.ftp_datei_datum.isoformat() if self.ftp_datei_datum else None,
+            'ftp_datei_groesse': self.ftp_datei_groesse
         }

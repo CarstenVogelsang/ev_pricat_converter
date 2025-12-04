@@ -38,9 +38,10 @@ flask seed             # Insert test data (LEGO supplier)
 
 ### Tech Stack
 - Python 3.11+ / Flask / SQLAlchemy / SQLite
-- Jinja2 + Bootstrap (Frontend)
+- Jinja2 + Bootstrap 5 (Frontend)
 - httpx/aiohttp (async image downloads)
 - openpyxl (Excel export)
+- **UI-Feedback: Bootstrap Toasts** (keine Alert-Boxen im Seiteninhalt - siehe PRD 11.1)
 
 ### Data Flow
 1. Download PRICAT from VEDES FTP
@@ -107,6 +108,7 @@ CSV format: Semicolon delimiter, UTF-8, double-quote enclosure
 - `docs/PRD_POC.md` - MVP scope, user stories, UI mockups
 - `docs/beispiel_mapping.php` - Elena field mapping reference
 - `docs/musterlieferant_stammdaten.csv` - Example Elena CSV output
+- `docs/IMPLEMENTATION_PLAN.md` - **Implementierungsplan für neue Features** (im Plan-Modus verwenden!)
 
 ## Implementation Status (POC)
 
