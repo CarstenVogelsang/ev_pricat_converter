@@ -1,14 +1,21 @@
 """Flask Application Factory."""
 import os
+from datetime import datetime
+
 import click
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
+from flask_login import LoginManager
 
 from app.config import config
 
 db = SQLAlchemy()
 migrate = Migrate()
+login_manager = LoginManager()
+login_manager.login_view = 'auth.login'
+login_manager.login_message = 'Bitte melden Sie sich an.'
+login_manager.login_message_category = 'info'
 
 
 def create_app(config_name=None):
@@ -36,13 +43,32 @@ def create_app(config_name=None):
     # Initialize extensions
     db.init_app(app)
     migrate.init_app(app, db)
+    login_manager.init_app(app)
+
+    # User loader for Flask-Login
+    from app.models import User
+
+    @login_manager.user_loader
+    def load_user(user_id):
+        return User.query.get(int(user_id))
 
     # Register blueprints
-    from app.routes import main_bp
+    from app.routes import main_bp, admin_bp
+    from app.routes.auth import auth_bp
     app.register_blueprint(main_bp)
+    app.register_blueprint(admin_bp, url_prefix='/admin')
+    app.register_blueprint(auth_bp)
 
     # Register CLI commands
     register_cli_commands(app)
+
+    # Register Jinja2 filters
+    @app.template_filter('datetime')
+    def format_datetime(timestamp):
+        """Format Unix timestamp to readable date."""
+        if timestamp:
+            return datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y %H:%M')
+        return ''
 
     return app
 
@@ -56,14 +82,15 @@ def register_cli_commands(app):
         from app.models import Lieferant, Config as ConfigModel
 
         # Create test supplier (LEGO)
-        lego = Lieferant.query.filter_by(vedes_id='0000001872').first()
+        # Note: vedes_id is stored without leading zeros
+        lego = Lieferant.query.filter_by(vedes_id='1872').first()
         if not lego:
             lego = Lieferant(
                 gln='4023017000005',
-                vedes_id='0000001872',
+                vedes_id='1872',
                 kurzbezeichnung='LEGO Spielwaren GmbH',
                 aktiv=True,
-                ftp_pfad_quelle='/pricat/pricat_1872_Lego Spielwaren GmbH_0.csv',
+                ftp_quelldatei='pricat_1872_Lego Spielwaren GmbH_0.csv',
                 elena_startdir='lego',
                 elena_base_url='https://direct.e-vendo.de'
             )
@@ -75,10 +102,12 @@ def register_cli_commands(app):
         # Create default config entries
         config_defaults = [
             ('vedes_ftp_host', 'ftp.vedes.de', 'VEDES FTP Server'),
+            ('vedes_ftp_port', '21', 'VEDES FTP Port'),
             ('vedes_ftp_user', '', 'VEDES FTP Benutzer'),
             ('vedes_ftp_pass', '', 'VEDES FTP Passwort'),
             ('vedes_ftp_basepath', '/pricat/', 'Basispfad PRICAT-Dateien'),
             ('elena_ftp_host', '', 'Ziel-FTP Server'),
+            ('elena_ftp_port', '21', 'Ziel-FTP Port'),
             ('elena_ftp_user', '', 'Ziel-FTP Benutzer'),
             ('elena_ftp_pass', '', 'Ziel-FTP Passwort'),
             ('image_download_threads', '5', 'Parallele Bild-Downloads'),
@@ -104,3 +133,44 @@ def register_cli_commands(app):
         """Initialize the database."""
         db.create_all()
         click.echo('Database initialized!')
+
+    @app.cli.command('seed-users')
+    def seed_users_command():
+        """Create initial users."""
+        from app.models import User
+
+        users = [
+            {
+                'email': 'carsten.vogelsang@e-vendo.de',
+                'vorname': 'Carsten',
+                'nachname': 'Vogelsang',
+                'rolle': 'admin',
+                'password': 'admin123'  # Should be changed on first login
+            },
+            {
+                'email': 'rainer.raschka@e-vendo.de',
+                'vorname': 'Rainer',
+                'nachname': 'Raschka',
+                'rolle': 'sachbearbeiter',
+                'password': 'user123'  # Should be changed on first login
+            }
+        ]
+
+        for user_data in users:
+            existing = User.query.filter_by(email=user_data['email']).first()
+            if not existing:
+                user = User(
+                    email=user_data['email'],
+                    vorname=user_data['vorname'],
+                    nachname=user_data['nachname'],
+                    rolle=user_data['rolle'],
+                    aktiv=True
+                )
+                user.set_password(user_data['password'])
+                db.session.add(user)
+                click.echo(f"Created user: {user_data['email']} ({user_data['rolle']})")
+            else:
+                click.echo(f"User already exists: {user_data['email']}")
+
+        db.session.commit()
+        click.echo('Users seeded successfully!')

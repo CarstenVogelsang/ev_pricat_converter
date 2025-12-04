@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+
+{% block title %}Admin - pricat-converter{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Administration</h2>
+
+<!-- Flash Messages -->
+{% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+        {% for category, message in messages %}
+        <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+        </div>
+        {% endfor %}
+    {% endif %}
+{% endwith %}
+
+<div class="row">
+    <!-- System Status -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Systemstatus</h5>
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tbody>
+                        <tr>
+                            <td>Lieferanten gesamt</td>
+                            <td><strong>{{ lieferant_count }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>Lieferanten aktiv</td>
+                            <td><strong>{{ active_lieferant_count }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td>VEDES FTP konfiguriert</td>
+                            <td>
+                                {% if config_status.vedes_ftp %}
+                                <span class="badge bg-success">Ja</span>
+                                {% else %}
+                                <span class="badge bg-warning">Nein</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Elena FTP konfiguriert</td>
+                            <td>
+                                {% if config_status.elena_ftp %}
+                                <span class="badge bg-success">Ja</span>
+                                {% else %}
+                                <span class="badge bg-warning">Nein</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- FTP Connection Tests -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">FTP Verbindungstests</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <form action="{{ url_for('admin.test_ftp_vedes') }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            VEDES FTP testen
+                        </button>
+                    </form>
+                    <form action="{{ url_for('admin.test_ftp_elena') }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-outline-primary w-100">
+                            Elena FTP testen
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Lieferanten Sync -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Lieferanten-Synchronisation</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Scannt das VEDES FTP-Verzeichnis und legt neue Lieferanten (inaktiv) an.
+                </p>
+                <form action="{{ url_for('admin.sync_lieferanten') }}" method="POST">
+                    <button type="submit" class="btn btn-primary">
+                        Lieferanten synchronisieren
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Health Check -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Health Check</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    API-Endpoint fuer Monitoring und automatische Checks.
+                </p>
+                <a href="{{ url_for('admin.health') }}" class="btn btn-outline-secondary" target="_blank">
+                    Health Check (JSON)
+                </a>
+                <a href="{{ url_for('admin.api_health') }}" class="btn btn-outline-secondary" target="_blank">
+                    Simple Health (API)
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Zurueck zur Uebersicht</a>
+</div>
+{% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Downloads - pricat-converter{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Exportierte Dateien</h2>
+
+{% if files %}
+<table class="table table-hover">
+    <thead class="table-light">
+        <tr>
+            <th>Dateiname</th>
+            <th>Typ</th>
+            <th>Größe</th>
+            <th>Erstellt</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for file in files %}
+        <tr>
+            <td><code>{{ file.name }}</code></td>
+            <td>
+                {% if file.name.endswith('.csv') %}
+                <span class="badge bg-success">CSV</span>
+                {% elif file.name.endswith('.xlsx') %}
+                <span class="badge bg-primary">XLSX</span>
+                {% else %}
+                <span class="badge bg-secondary">{{ file.name.split('.')[-1] | upper }}</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if file.size >= 1048576 %}
+                {{ "%.1f"|format(file.size / 1048576) }} MB
+                {% elif file.size >= 1024 %}
+                {{ "%.1f"|format(file.size / 1024) }} KB
+                {% else %}
+                {{ file.size }} Bytes
+                {% endif %}
+            </td>
+            <td>
+                {{ file.modified | int | datetime }}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<div class="alert alert-info">
+    Keine exportierten Dateien vorhanden.
+</div>
+{% endif %}
+
+<div class="mt-4">
+    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Zurück zur Übersicht</a>
+</div>
+{% endblock %}

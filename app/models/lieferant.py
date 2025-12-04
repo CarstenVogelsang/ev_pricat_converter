@@ -9,11 +9,11 @@ class Lieferant(db.Model):
     __tablename__ = 'lieferant'
 
     id = db.Column(db.Integer, primary_key=True)
-    gln = db.Column(db.String(13), unique=True, nullable=False, index=True)
+    gln = db.Column(db.String(13), unique=True, nullable=True, index=True)
     vedes_id = db.Column(db.String(13), unique=True, nullable=False, index=True)
     kurzbezeichnung = db.Column(db.String(40), nullable=False)
-    aktiv = db.Column(db.Boolean, default=True, nullable=False)
-    ftp_pfad_quelle = db.Column(db.String(255))
+    aktiv = db.Column(db.Boolean, default=False, nullable=False)
+    ftp_quelldatei = db.Column(db.String(255))  # Just filename, not full path
     ftp_pfad_ziel = db.Column(db.String(255))
     elena_startdir = db.Column(db.String(50))
     elena_base_url = db.Column(db.String(255))
@@ -32,7 +32,7 @@ class Lieferant(db.Model):
             'vedes_id': self.vedes_id,
             'kurzbezeichnung': self.kurzbezeichnung,
             'aktiv': self.aktiv,
-            'ftp_pfad_quelle': self.ftp_pfad_quelle,
+            'ftp_quelldatei': self.ftp_quelldatei,
             'ftp_pfad_ziel': self.ftp_pfad_ziel,
             'elena_startdir': self.elena_startdir,
             'elena_base_url': self.elena_base_url,

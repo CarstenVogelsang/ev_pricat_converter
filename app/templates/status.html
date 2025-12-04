@@ -7,36 +7,140 @@
 
 <div class="card">
     <div class="card-body">
+        {% if result %}
+        <!-- Progress Bar -->
         <div class="progress mb-4" style="height: 25px;">
-            <div class="progress-bar" role="progressbar" style="width: 0%;" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" id="progressBar">0%</div>
+            <div class="progress-bar {% if result.success %}bg-success{% elif result.errors %}bg-danger{% else %}bg-primary{% endif %}"
+                 role="progressbar"
+                 style="width: {{ result.progress_percent }}%;"
+                 aria-valuenow="{{ result.progress_percent }}"
+                 aria-valuemin="0"
+                 aria-valuemax="100">
+                {{ result.progress_percent }}%
+            </div>
         </div>
 
-        <ul class="list-group" id="statusList">
-            <li class="list-group-item" data-step="1">
-                <span class="status-icon">&#9675;</span> PRICAT herunterladen
+        <!-- Status Badge -->
+        <div class="mb-4">
+            {% if result.success %}
+            <span class="badge bg-success fs-6">Erfolgreich abgeschlossen</span>
+            {% elif result.errors %}
+            <span class="badge bg-danger fs-6">Fehlgeschlagen</span>
+            {% else %}
+            <span class="badge bg-primary fs-6">In Bearbeitung</span>
+            {% endif %}
+        </div>
+
+        <!-- Steps List -->
+        <ul class="list-group mb-4">
+            {% for step in result.steps %}
+            <li class="list-group-item d-flex justify-content-between align-items-center">
+                <span>
+                    {% if step.success %}
+                    <span class="text-success me-2">&#10004;</span>
+                    {% else %}
+                    <span class="text-danger me-2">&#10008;</span>
+                    {% endif %}
+
+                    {% if step.step.name == 'DOWNLOAD_PRICAT' %}PRICAT herunterladen
+                    {% elif step.step.name == 'PARSE_PRICAT' %}PRICAT parsen
+                    {% elif step.step.name == 'EXTRACT_ENTITIES' %}Entitäten extrahieren
+                    {% elif step.step.name == 'DOWNLOAD_IMAGES' %}Bilder herunterladen
+                    {% elif step.step.name == 'EXPORT_ELENA' %}Elena-CSV generieren
+                    {% elif step.step.name == 'EXPORT_XLSX' %}XLSX erstellen
+                    {% elif step.step.name == 'UPLOAD_FTP' %}FTP-Upload
+                    {% elif step.step.name == 'TRIGGER_IMPORT' %}Import auslösen
+                    {% else %}{{ step.step.name }}
+                    {% endif %}
+                </span>
+                <span class="badge {% if step.success %}bg-secondary{% else %}bg-danger{% endif %}">
+                    {{ step.message }}
+                </span>
             </li>
-            <li class="list-group-item" data-step="2">
-                <span class="status-icon">&#9675;</span> Lieferant/Hersteller/Marken extrahieren
-            </li>
-            <li class="list-group-item" data-step="3">
-                <span class="status-icon">&#9675;</span> Bilder herunterladen
-            </li>
-            <li class="list-group-item" data-step="4">
-                <span class="status-icon">&#9675;</span> Elena-CSV generieren
-            </li>
-            <li class="list-group-item" data-step="5">
-                <span class="status-icon">&#9675;</span> XLSX erstellen
-            </li>
-            <li class="list-group-item" data-step="6">
-                <span class="status-icon">&#9675;</span> FTP-Upload
-            </li>
-            <li class="list-group-item" data-step="7">
-                <span class="status-icon">&#9675;</span> Import starten
-            </li>
+            {% endfor %}
         </ul>
 
+        <!-- Statistics -->
+        {% if result.articles_count > 0 %}
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">{{ result.articles_count }}</h3>
+                        <small class="text-muted">Artikel</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">{{ result.hersteller_count }}</h3>
+                        <small class="text-muted">Hersteller</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">{{ result.marken_count }}</h3>
+                        <small class="text-muted">Marken</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">{{ result.images_downloaded }}</h3>
+                        <small class="text-muted">Bilder</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Output Files -->
+        {% if result.elena_csv_path or result.xlsx_path %}
+        <div class="mb-4">
+            <h5>Erzeugte Dateien:</h5>
+            <ul class="list-unstyled">
+                {% if result.elena_csv_path %}
+                <li><code>{{ result.elena_csv_path.name }}</code> (Elena CSV)</li>
+                {% endif %}
+                {% if result.xlsx_path %}
+                <li><code>{{ result.xlsx_path.name }}</code> (XLSX Report)</li>
+                {% endif %}
+            </ul>
+        </div>
+        {% endif %}
+
+        <!-- Errors -->
+        {% if result.errors %}
+        <div class="alert alert-danger">
+            <h5>Fehler:</h5>
+            <ul class="mb-0">
+                {% for error in result.errors %}
+                <li>{{ error }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <!-- No result yet -->
+        <div class="alert alert-info">
+            <p class="mb-0">Noch keine Verarbeitung durchgeführt.</p>
+        </div>
+        {% endif %}
+
+        <!-- Actions -->
         <div class="mt-4">
-            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Zurück</a>
+            <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Zurück zur Übersicht</a>
+            {% if result and result.success %}
+            <a href="{{ url_for('main.downloads') }}" class="btn btn-primary">Downloads anzeigen</a>
+            {% endif %}
+            <form action="{{ url_for('main.verarbeite_lokal', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
+                <button type="submit" class="btn btn-outline-primary">Erneut verarbeiten</button>
+            </form>
         </div>
     </div>
 </div>

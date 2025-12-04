@@ -117,16 +117,16 @@ CSV format: Semicolon delimiter, UTF-8, double-quote enclosure
 - [x] Basic routes and templates
 - [x] DB seed command
 
-### Phase 2: Core Services (TODO)
-- [ ] `pricat_parser.py` - PRICAT CSV parsing
-- [ ] `elena_exporter.py` - Elena CSV generation
-- [ ] `image_downloader.py` - Async image download
-- [ ] `xlsx_exporter.py` - Entity XLSX export
+### Phase 2: Core Services (Done)
+- [x] `pricat_parser.py` - PRICAT CSV parsing
+- [x] `elena_exporter.py` - Elena CSV generation
+- [x] `image_downloader.py` - Async image download
+- [x] `xlsx_exporter.py` - Entity XLSX export
 
-### Phase 3: FTP & Import (TODO)
-- [ ] `ftp_service.py` - VEDES download, target upload
-- [ ] `import_trigger.py` - HTTP GET to getData.php
+### Phase 3: FTP & Import (Done)
+- [x] `ftp_service.py` - VEDES download, target upload
+- [x] `import_trigger.py` - HTTP GET to getData.php
 
-### Phase 4: Integration (TODO)
-- [ ] End-to-end processing flow
-- [ ] Progress tracking in UI
+### Phase 4: Integration (Done)
+- [x] End-to-end processing flow (`processor.py`)
+- [x] Progress tracking in UI (status.html, downloads.html)

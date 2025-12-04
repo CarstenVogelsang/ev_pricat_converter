@@ -13,7 +13,7 @@
             <th>VEDES-ID</th>
             <th>GLN</th>
             <th>Letzte Konvertierung</th>
-            <th>Aktion</th>
+            <th>Aktionen</th>
         </tr>
     </thead>
     <tbody>
@@ -30,14 +30,34 @@
                 {% endif %}
             </td>
             <td>
-                <form action="{{ url_for('main.verarbeite', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
-                    <button type="submit" class="btn btn-primary btn-sm">Verarbeite</button>
-                </form>
+                <div class="btn-group" role="group">
+                    <form action="{{ url_for('main.verarbeite_lokal', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
+                        <button type="submit" class="btn btn-primary btn-sm" title="Lokale PRICAT-Datei verarbeiten">
+                            Lokal verarbeiten
+                        </button>
+                    </form>
+                    <form action="{{ url_for('main.verarbeite', lieferant_id=lieferant.id) }}" method="POST" style="display: inline;">
+                        <input type="hidden" name="use_local" value="true">
+                        <input type="hidden" name="skip_images" value="true">
+                        <button type="submit" class="btn btn-outline-primary btn-sm" title="Von FTP herunterladen und verarbeiten">
+                            FTP
+                        </button>
+                    </form>
+                    <a href="{{ url_for('main.status', lieferant_id=lieferant.id) }}" class="btn btn-outline-secondary btn-sm" title="Letzten Status anzeigen">
+                        Status
+                    </a>
+                </div>
             </td>
         </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<div class="mt-4">
+    <a href="{{ url_for('main.downloads') }}" class="btn btn-outline-secondary">
+        Downloads anzeigen
+    </a>
+</div>
 {% else %}
 <div class="alert alert-info">
     Keine aktiven Lieferanten vorhanden. Bitte führen Sie <code>flask seed</code> aus, um Testdaten anzulegen.

@@ -1,8 +1,25 @@
 """Service modules for pricat-converter."""
-# Services will be implemented in Phase 2
-# - ftp_service.py: FTP upload/download
-# - pricat_parser.py: PRICAT CSV parser
-# - elena_exporter.py: Elena CSV generator
-# - image_downloader.py: Async image download
-# - xlsx_exporter.py: XLSX export
-# - import_trigger.py: Elena import trigger
+from app.services.pricat_parser import PricatParser, PricatData, ArticleData
+from app.services.elena_exporter import ElenaExporter, ExportResult, generate_elena_filename
+from app.services.image_downloader import ImageDownloader, DownloadResult, get_image_target_dir
+from app.services.xlsx_exporter import XlsxExporter, XlsxExportResult, generate_xlsx_filename
+from app.services.ftp_service import FTPService, FTPConfig, FTPResult
+from app.services.import_trigger import ImportTrigger, ImportResult
+from app.services.processor import Processor, ProcessingResult, ProcessingStep
+
+__all__ = [
+    # Parser
+    'PricatParser', 'PricatData', 'ArticleData',
+    # Elena Exporter
+    'ElenaExporter', 'ExportResult', 'generate_elena_filename',
+    # Image Downloader
+    'ImageDownloader', 'DownloadResult', 'get_image_target_dir',
+    # XLSX Exporter
+    'XlsxExporter', 'XlsxExportResult', 'generate_xlsx_filename',
+    # FTP Service
+    'FTPService', 'FTPConfig', 'FTPResult',
+    # Import Trigger
+    'ImportTrigger', 'ImportResult',
+    # Processor
+    'Processor', 'ProcessingResult', 'ProcessingStep',
+]
