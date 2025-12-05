@@ -1,6 +1,12 @@
 # Nixpacks configuration for Coolify deployment
 # https://nixpacks.com/docs/configuration/file
-# Nixpacks auto-detects Python from pyproject.toml
+
+# Use Python provider, which auto-detects from pyproject.toml
+providers = ["python"]
+
+# Disable apt packages that cause issues
+[phases.setup]
+aptPkgs = []
 
 [start]
 cmd = "flask init-db && flask seed && gunicorn -w 4 -b 0.0.0.0:3000 'app:create_app()'"
