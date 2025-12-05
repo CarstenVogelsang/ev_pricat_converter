@@ -1,36 +1,107 @@
+# pricat-converter
 
+Web-Tool zur Konvertierung von VEDES PRICAT-Dateien (Lieferanten-Artikelstammdaten) in das Elena-Import-Format für e-vendo Systeme.
 
+```
+VEDES FTP (PRICAT CSV) → pricat-converter → Ziel-FTP (Elena CSV + Bilder) → Elena Import
+```
+
+## Tech-Stack
+
+- Python 3.11+ / Flask / SQLAlchemy / SQLite
+- uv (Dependency Management)
+- gunicorn (Production Server)
+- Bootstrap 5 (Frontend)
+
+## Lokale Entwicklung
+
+### Voraussetzungen
+
+- Python 3.11+
+- [uv](https://docs.astral.sh/uv/) (`curl -LsSf https://astral.sh/uv/install.sh | sh`)
+
+### Installation
+
+```bash
 # Repository klonen
-  
-  git clone git@github.com:CarstenVogelsang/ev_pricat_converter.git
-  
-  cd ev_pricat_converter
+git clone git@github.com:CarstenVogelsang/ev_pricat_converter.git
+cd ev_pricat_converter
 
-  # Python-Umgebung einrichten
-  
-  python -m venv venv
-  
-  source venv/bin/activate
-  
-  pip install -r requirements.txt
+# Dependencies installieren
+uv sync
 
-  # Datenbank initialisieren und Testdaten laden
-  
-  flask init-db
-  
-  flask seed
+# Datenbank initialisieren und Testdaten laden
+uv run flask init-db
+uv run flask seed
 
-  # Server starten (optional zum Testen)
-  
-  python run.py
+# Benutzer anlegen (optional)
+uv run flask seed-users
+```
 
-  Dann in Claude Code starten und z.B. sagen:
+### Server starten
 
-  "Lies CLAUDE.md und implementiere Phase 2: pricat_parser.py Service"
+```bash
+# Development Server (mit Auto-Reload)
+uv run python run.py
+# → http://localhost:5000
 
-  Die CLAUDE.md enthält alle nötigen Infos zu:
-  
-  - Projektstruktur und Tech-Stack
-  - PRICAT-Spalten-Mapping (0-basiert)
-  - Elena-Zielformat
-  - Was in Phase 2-4 noch zu tun ist
+# Production Server (lokal)
+uv run gunicorn -w 4 -b 0.0.0.0:5000 'app:create_app()'
+```
+
+### Standard-Benutzer
+
+| E-Mail | Passwort | Rolle |
+|--------|----------|-------|
+| carsten.vogelsang@e-vendo.de | admin123 | Admin |
+| rainer.raschka@e-vendo.de | user123 | Sachbearbeiter |
+
+## Deployment auf Coolify
+
+Das Projekt ist für [Coolify](https://coolify.io/) mit Nixpacks vorbereitet.
+
+### Schritte
+
+1. **Neue Anwendung** in Coolify erstellen
+2. **GitHub** als Quelle auswählen
+3. Repository verbinden: `CarstenVogelsang/ev_pricat_converter`
+4. Coolify erkennt automatisch:
+   - Nixpacks als Build-System (via `nixpacks.toml`)
+   - Port 3000 (Coolify-Standard)
+5. **Deploy** klicken
+
+### Was beim Start passiert
+
+```bash
+uv run flask init-db    # Datenbank-Tabellen erstellen
+uv run flask seed       # Testdaten einfügen
+uv run gunicorn ...     # Server auf Port 3000 starten
+```
+
+### Persistente Daten
+
+Die SQLite-Datenbank liegt im Container unter `/app/instance/pricat.db`. Für persistente Daten:
+
+1. In Coolify → Storage → Volume hinzufügen
+2. Mount Path: `/app/instance`
+3. Redeploy
+
+## Datenbank-Befehle
+
+```bash
+uv run flask init-db          # Tabellen erstellen
+uv run flask seed             # Testdaten (LEGO-Lieferant, Config)
+uv run flask seed-users       # Benutzer anlegen
+uv run flask db migrate       # Migration erstellen
+uv run flask db upgrade       # Migration anwenden
+```
+
+## Dokumentation
+
+- `CLAUDE.md` - Entwickler-Dokumentation für Claude Code
+- `docs/PRD_Software-Architektur.md` - Architektur, DB-Schema, Komponenten
+- `docs/IMPLEMENTATION_PLAN.md` - Erledigte und geplante Tasks
+
+## Lizenz
+
+Proprietär - e-vendo AG
