@@ -12,35 +12,35 @@ VEDES FTP (PRICAT CSV) → pricat-converter → Target FTP (Elena CSV + Images) 
 
 ## Commands
 
-### Development Setup
+### Development Setup (uv)
 ```bash
-python -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
+uv sync                # Install dependencies from pyproject.toml
 ```
 
 ### Run Application
 ```bash
-python run.py
-# Opens at http://localhost:5000
+uv run python run.py   # Development server at http://localhost:5000
+uv run gunicorn -w 4 -b 0.0.0.0:5000 'app:create_app()'  # Production
 ```
 
 ### Database
 ```bash
-flask db init          # Initialize migrations (first time)
-flask db migrate       # Create migration
-flask db upgrade       # Apply migrations
-flask init-db          # Create tables directly
-flask seed             # Insert test data (LEGO supplier)
+uv run flask db init          # Initialize migrations (first time)
+uv run flask db migrate       # Create migration
+uv run flask db upgrade       # Apply migrations
+uv run flask init-db          # Create tables directly
+uv run flask seed             # Insert test data (LEGO supplier)
 ```
 
 ## Architecture
 
 ### Tech Stack
 - Python 3.11+ / Flask / SQLAlchemy / SQLite
+- **uv** for dependency management (pyproject.toml + uv.lock)
 - Jinja2 + Bootstrap 5 (Frontend)
 - httpx/aiohttp (async image downloads)
 - openpyxl (Excel export)
+- gunicorn (Production Server)
 - **UI-Feedback: Bootstrap Toasts** (keine Alert-Boxen im Seiteninhalt - siehe PRD 11.1)
 
 ### Data Flow

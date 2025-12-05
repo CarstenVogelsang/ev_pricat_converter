@@ -35,14 +35,17 @@ Der **pricat-converter** ist ein Web-Tool zur Konvertierung von VEDES PRICAT-Dat
 | Komponente       | Technologie        | Begründung                              |
 |------------------|--------------------|-----------------------------------------|
 | **Sprache**      | Python 3.11+       | Vorgabe, gute CSV/Excel-Unterstützung   |
+| **Package Manager** | uv              | Schnell, modernes Dependency-Management |
 | **Web-Framework**| Flask              | Leichtgewichtig, schnell für MVP        |
+| **Prod-Server**  | gunicorn           | Produktions-WSGI-Server                 |
 | **Datenbank**    | SQLite             | Einfach, kein Server nötig, für POC ideal|
 | **ORM**          | SQLAlchemy         | Flexible DB-Abstraktion                 |
 | **FTP**          | ftplib             | Python-Standard                         |
 | **HTTP-Client**  | httpx / aiohttp    | Async Bild-Downloads                    |
 | **Excel-Export** | openpyxl           | XLSX-Erstellung                         |
 | **CSV**          | csv (stdlib)       | Standard-Parsing                        |
-| **Frontend**     | Jinja2 + Bootstrap | Minimal, schnell umsetzbar              |
+| **Frontend**     | Jinja2 + Bootstrap 5 | Minimal, schnell umsetzbar            |
+| **Deployment**   | Nixpacks / Coolify | Container-Deployment                    |
 
 ---
 
