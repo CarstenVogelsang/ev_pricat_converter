@@ -14,6 +14,8 @@ dependencies = [
     "email-validator>=2.0.0",
     # Database
     "sqlalchemy>=2.0.0",
+    "psycopg2-binary>=2.9.0",  # PostgreSQL
+    "pymysql>=1.1.0",          # MariaDB/MySQL
     # Excel Export
     "openpyxl>=3.1.0",
     # Async HTTP Client

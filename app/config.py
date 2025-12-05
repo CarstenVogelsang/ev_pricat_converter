@@ -8,8 +8,14 @@ basedir = Path(__file__).parent.parent.absolute()
 class Config:
     """Base configuration."""
     SECRET_KEY = os.environ.get('SECRET_KEY') or 'dev-secret-key-change-in-production'
-    SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or \
-        f'sqlite:///{basedir}/instance/pricat.db'
+
+    # Database URL - supports SQLite, PostgreSQL, MariaDB/MySQL
+    # Fix postgres:// → postgresql:// (some tools use deprecated format)
+    _database_url = os.environ.get('DATABASE_URL', '')
+    if _database_url.startswith('postgres://'):
+        _database_url = _database_url.replace('postgres://', 'postgresql://', 1)
+    SQLALCHEMY_DATABASE_URI = _database_url or f'sqlite:///{basedir}/instance/pricat.db'
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # Data directories
