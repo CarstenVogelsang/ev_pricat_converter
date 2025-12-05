@@ -6,7 +6,9 @@ Handles FTP connections to:
 """
 import base64
 import ftplib
+import io
 import os
+import tempfile
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -17,6 +19,7 @@ from flask import current_app
 from app import db
 from app.models import Lieferant, Config
 from app.utils import parse_pricat_filename, count_pricat_articles
+from app.services.storage_service import StorageService
 
 
 @dataclass
@@ -496,8 +499,8 @@ class FTPService:
         ftp: ftplib.FTP,
         filename: str,
         vedes_id: str,
-        target_dir: Path
-    ) -> tuple[Path, int]:
+        storage: StorageService = None
+    ) -> tuple[str, int]:
         """
         Download a file and count articles.
 
@@ -505,22 +508,37 @@ class FTPService:
             ftp: Connected FTP object
             filename: Remote filename
             vedes_id: Supplier VEDES ID
-            target_dir: Local directory to save file
+            storage: Optional StorageService instance
 
         Returns:
-            Tuple of (local_path, article_count)
+            Tuple of (storage_key, article_count)
         """
-        # Local filename: pricat_{vedes_id}.csv (replaces any existing)
-        local_path = target_dir / f"pricat_{vedes_id}.csv"
+        # Download to memory buffer
+        buffer = io.BytesIO()
+        ftp.retrbinary(f'RETR {filename}', buffer.write)
+        data = buffer.getvalue()
 
-        # Download file
-        with open(local_path, 'wb') as f:
-            ftp.retrbinary(f'RETR {filename}', f.write)
+        # Count articles from buffer
+        # Write to temp file for counting (count_pricat_articles expects Path)
+        with tempfile.NamedTemporaryFile(mode='wb', suffix='.csv', delete=False) as tmp:
+            tmp.write(data)
+            tmp_path = Path(tmp.name)
 
-        # Count articles
-        article_count = count_pricat_articles(local_path)
+        try:
+            article_count = count_pricat_articles(tmp_path)
+        finally:
+            tmp_path.unlink()  # Clean up temp file
 
-        return (local_path, article_count)
+        # Store using StorageService
+        storage_key = f"pricat_{vedes_id}.csv"
+        if storage:
+            storage.upload(storage.get_import_key(storage_key), data, 'text/csv')
+        else:
+            # Fallback: use StorageService with default config
+            svc = StorageService()
+            svc.upload(svc.get_import_key(storage_key), data, 'text/csv')
+
+        return (storage_key, article_count)
 
     def update_single_lieferant(
         self,
@@ -588,15 +606,15 @@ class FTPService:
             )
 
             if needs_download:
-                # Get imports directory from config
-                imports_dir = current_app.config.get('IMPORTS_DIR', Path('imports'))
+                # Use StorageService for file storage
+                storage = StorageService()
 
                 # Download and count
-                local_path, article_count = self._download_and_count(
+                storage_key, article_count = self._download_and_count(
                     ftp,
                     lieferant.ftp_quelldatei,
                     lieferant.vedes_id,
-                    imports_dir
+                    storage
                 )
 
                 # Update lieferant
@@ -662,9 +680,8 @@ class FTPService:
             sync_result['errors'].append(sync_result['message'])
             return sync_result
 
-        # Get imports directory
-        imports_dir = current_app.config.get('IMPORTS_DIR', Path('imports'))
-        imports_dir.mkdir(parents=True, exist_ok=True)
+        # Use StorageService for file storage
+        storage = StorageService()
 
         ftp = None
         try:
@@ -711,8 +728,8 @@ class FTPService:
 
                     if needs_download:
                         try:
-                            local_path, article_count = self._download_and_count(
-                                ftp, filename, vedes_id, imports_dir
+                            storage_key, article_count = self._download_and_count(
+                                ftp, filename, vedes_id, storage
                             )
                             existing.ftp_datei_datum = remote_date
                             existing.ftp_datei_groesse = remote_size
@@ -739,8 +756,8 @@ class FTPService:
                     # Download and count for new supplier
                     if file_info:
                         try:
-                            local_path, article_count = self._download_and_count(
-                                ftp, filename, vedes_id, imports_dir
+                            storage_key, article_count = self._download_and_count(
+                                ftp, filename, vedes_id, storage
                             )
                             new_lieferant.ftp_datei_datum = remote_date
                             new_lieferant.ftp_datei_groesse = remote_size

@@ -112,6 +112,12 @@ def register_cli_commands(app):
             ('elena_ftp_pass', '', 'Ziel-FTP Passwort'),
             ('image_download_threads', '5', 'Parallele Bild-Downloads'),
             ('image_timeout', '30', 'Timeout Bild-Download in Sekunden'),
+            # S3 Storage
+            ('s3_enabled', 'false', 'S3 Storage aktivieren (true/false)'),
+            ('s3_endpoint', '', 'S3 Endpoint URL (z.B. https://fsn1.your-objectstorage.com)'),
+            ('s3_access_key', '', 'S3 Access Key'),
+            ('s3_secret_key', '', 'S3 Secret Key (Base64-kodiert)'),
+            ('s3_bucket', 'pricat-converter', 'S3 Bucket Name'),
         ]
 
         for key, value, beschreibung in config_defaults:

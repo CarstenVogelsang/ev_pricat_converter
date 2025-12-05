@@ -6,6 +6,7 @@ from app.services.xlsx_exporter import XlsxExporter, XlsxExportResult, generate_
 from app.services.ftp_service import FTPService, FTPConfig, FTPResult
 from app.services.import_trigger import ImportTrigger, ImportResult
 from app.services.processor import Processor, ProcessingResult, ProcessingStep
+from app.services.storage_service import StorageService, S3Storage, LocalStorage, S3Config
 
 __all__ = [
     # Parser
@@ -22,4 +23,6 @@ __all__ = [
     'ImportTrigger', 'ImportResult',
     # Processor
     'Processor', 'ProcessingResult', 'ProcessingStep',
+    # Storage Service
+    'StorageService', 'S3Storage', 'LocalStorage', 'S3Config',
 ]
