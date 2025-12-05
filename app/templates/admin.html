@@ -114,6 +114,37 @@
     </div>
 </div>
 
+<div class="row">
+    <!-- Config Import/Export -->
+    <div class="col-md-6 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">Konfiguration Import/Export</h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Exportiert oder importiert alle Konfigurationseinträge als JSON-Datei.
+                </p>
+                <div class="mb-3">
+                    <a href="{{ url_for('admin.config_export') }}" class="btn btn-outline-success">
+                        <i class="bi bi-download"></i> Config exportieren
+                    </a>
+                </div>
+                <hr>
+                <form action="{{ url_for('admin.config_import') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label for="config_file" class="form-label">JSON-Datei auswählen</label>
+                        <input type="file" class="form-control" id="config_file" name="config_file" accept=".json" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-upload"></i> Config importieren
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="mt-4">
     <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Zurück zur Übersicht</a>
 </div>

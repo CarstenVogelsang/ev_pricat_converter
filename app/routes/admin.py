@@ -1,5 +1,7 @@
 """Admin routes for system management and testing."""
-from flask import Blueprint, render_template, jsonify, flash, redirect, url_for
+import json
+from datetime import datetime
+from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request, Response
 from flask_login import login_required
 
 from app import db
@@ -154,3 +156,90 @@ def api_health():
         return jsonify({'status': 'ok'}), 200
     except Exception:
         return jsonify({'status': 'error'}), 503
+
+
+@admin_bp.route('/config/export')
+@login_required
+@admin_required
+def config_export():
+    """Export all config entries as JSON file."""
+    configs = Config.query.all()
+    config_list = [
+        {
+            'key': c.key,
+            'value': c.value,
+            'beschreibung': c.beschreibung
+        }
+        for c in configs
+    ]
+
+    # Create JSON response with download headers
+    json_data = json.dumps(config_list, indent=2, ensure_ascii=False)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'pricat_config_{timestamp}.json'
+
+    return Response(
+        json_data,
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+@admin_bp.route('/config/import', methods=['POST'])
+@login_required
+@admin_required
+def config_import():
+    """Import config entries from uploaded JSON file."""
+    if 'config_file' not in request.files:
+        flash('Keine Datei ausgewählt', 'danger')
+        return redirect(url_for('admin.index'))
+
+    file = request.files['config_file']
+    if file.filename == '':
+        flash('Keine Datei ausgewählt', 'danger')
+        return redirect(url_for('admin.index'))
+
+    if not file.filename.endswith('.json'):
+        flash('Nur JSON-Dateien erlaubt', 'danger')
+        return redirect(url_for('admin.index'))
+
+    try:
+        # Read and parse JSON
+        content = file.read().decode('utf-8')
+        config_list = json.loads(content)
+
+        if not isinstance(config_list, list):
+            flash('Ungültiges JSON-Format (erwartet: Array)', 'danger')
+            return redirect(url_for('admin.index'))
+
+        created = 0
+        updated = 0
+
+        for entry in config_list:
+            if 'key' not in entry:
+                continue
+
+            existing = Config.query.filter_by(key=entry['key']).first()
+            if existing:
+                existing.value = entry.get('value', '')
+                if 'beschreibung' in entry:
+                    existing.beschreibung = entry['beschreibung']
+                updated += 1
+            else:
+                new_config = Config(
+                    key=entry['key'],
+                    value=entry.get('value', ''),
+                    beschreibung=entry.get('beschreibung', '')
+                )
+                db.session.add(new_config)
+                created += 1
+
+        db.session.commit()
+        flash(f'Config importiert: {created} neu, {updated} aktualisiert', 'success')
+
+    except json.JSONDecodeError as e:
+        flash(f'JSON-Fehler: {str(e)}', 'danger')
+    except Exception as e:
+        flash(f'Import-Fehler: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.index'))

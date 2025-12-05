@@ -151,8 +151,8 @@ def register_cli_commands(app):
                 'email': 'rainer.raschka@e-vendo.de',
                 'vorname': 'Rainer',
                 'nachname': 'Raschka',
-                'rolle': 'sachbearbeiter',
-                'password': 'user123'  # Should be changed on first login
+                'rolle': 'admin',
+                'password': 'admin123'  # Should be changed on first login
             }
         ]
 
