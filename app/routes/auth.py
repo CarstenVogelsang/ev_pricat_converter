@@ -27,7 +27,7 @@ def admin_required(f):
     def decorated_function(*args, **kwargs):
         if not current_user.is_authenticated or not current_user.is_admin:
             flash('Zugriff verweigert. Admin-Rechte erforderlich.', 'danger')
-            return redirect(url_for('main.lieferanten'))
+            return redirect(url_for('main.dashboard'))
         return f(*args, **kwargs)
     return decorated_function
 
@@ -36,7 +36,7 @@ def admin_required(f):
 def login():
     """Login page."""
     if current_user.is_authenticated:
-        return redirect(url_for('main.lieferanten'))
+        return redirect(url_for('main.dashboard'))
 
     form = LoginForm()
 
@@ -54,7 +54,7 @@ def login():
 
             flash(f'Willkommen, {user.vorname}!', 'success')
             next_page = request.args.get('next')
-            return redirect(next_page if next_page else url_for('main.lieferanten'))
+            return redirect(next_page if next_page else url_for('main.dashboard'))
 
         flash('Ungueltige E-Mail oder Passwort.', 'danger')
 

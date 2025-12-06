@@ -60,7 +60,7 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark mb-4">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('main.lieferanten') }}">
+            <a class="navbar-brand" href="{{ url_for('main.dashboard') if current_user.is_authenticated else url_for('main.landing') }}">
                 <img src="{{ branding.logo_url }}" alt="{{ branding.app_title }}">
                 {{ branding.app_title }}
             </a>
@@ -69,34 +69,46 @@
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto">
+                    {% if current_user.is_authenticated %}
                     <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.lieferanten') }}">
-                            <i class="ti ti-truck"></i> Lieferanten
+                        <a class="nav-link" href="{{ url_for('main.dashboard') }}">
+                            <i class="ti ti-home"></i> Dashboard
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.downloads') }}">
-                            <i class="ti ti-download"></i> Downloads
+                    {% if current_user.rolle in ['admin', 'sachbearbeiter'] %}
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="pricatDropdown" role="button" data-bs-toggle="dropdown">
+                            <i class="ti ti-transform"></i> PRICAT
                         </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{{ url_for('main.lieferanten') }}">
+                                <i class="ti ti-truck"></i> Lieferanten
+                            </a></li>
+                            <li><a class="dropdown-item" href="{{ url_for('main.downloads') }}">
+                                <i class="ti ti-download"></i> Downloads
+                            </a></li>
+                        </ul>
                     </li>
-                    {% if current_user.is_authenticated and current_user.is_admin %}
+                    {% endif %}
+                    {% if current_user.is_admin %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
                             <i class="ti ti-settings"></i> Admin
                         </a>
                         <ul class="dropdown-menu">
                             <li><a class="dropdown-item" href="{{ url_for('admin.index') }}">
-                                <i class="ti ti-dashboard"></i> Dashboard
+                                <i class="ti ti-dashboard"></i> System
                             </a></li>
                             <li><a class="dropdown-item" href="{{ url_for('admin.branding') }}">
                                 <i class="ti ti-palette"></i> Branding
                             </a></li>
                             <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('db_admin.index') }}">
+                            <li><a class="dropdown-item" href="{{ url_for('dbadmin.index') }}">
                                 <i class="ti ti-database"></i> DB Admin
                             </a></li>
                         </ul>
                     </li>
+                    {% endif %}
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">

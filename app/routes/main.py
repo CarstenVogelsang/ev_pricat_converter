@@ -19,11 +19,57 @@ _processing_results = {}
 def landing():
     """Public landing page or redirect to dashboard."""
     if current_user.is_authenticated:
-        return redirect(url_for('main.lieferanten'))
+        return redirect(url_for('main.dashboard'))
 
     branding_service = BrandingService()
     branding = branding_service.get_branding()
     return render_template('landing.html', branding=branding)
+
+
+@main_bp.route('/dashboard')
+@login_required
+def dashboard():
+    """Dashboard with role-based app access."""
+    # Define available apps with role access
+    apps = [
+        {
+            'id': 'pricat',
+            'name': 'PRICAT Converter',
+            'description': 'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
+            'icon': 'ti-transform',
+            'url': url_for('main.lieferanten'),
+            'roles': ['admin', 'sachbearbeiter'],
+            'color': 'primary'
+        },
+        {
+            'id': 'lieferanten-auswahl',
+            'name': 'Meine Lieferanten',
+            'description': 'Relevante Lieferanten auswaehlen',
+            'icon': 'ti-truck',
+            'url': '#',  # Not implemented yet
+            'roles': ['admin', 'sachbearbeiter', 'kunde'],
+            'color': 'success',
+            'disabled': True
+        },
+        {
+            'id': 'content-generator',
+            'name': 'Content Generator',
+            'description': 'KI-generierte Texte fuer Online-Shops',
+            'icon': 'ti-writing',
+            'url': '#',  # Not implemented yet
+            'roles': ['admin', 'sachbearbeiter', 'kunde'],
+            'color': 'info',
+            'disabled': True
+        },
+    ]
+
+    # Filter apps by user role
+    user_apps = [
+        app for app in apps
+        if current_user.rolle in app['roles']
+    ]
+
+    return render_template('dashboard.html', apps=user_apps)
 
 
 @main_bp.route('/lieferanten')

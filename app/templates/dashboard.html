@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <h2>Willkommen, {{ current_user.vorname }}!</h2>
+    <p class="text-muted">Waehlen Sie eine Anwendung aus:</p>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for app in apps %}
+    <div class="col">
+        <div class="card h-100 {{ 'opacity-50' if app.disabled else '' }}">
+            <div class="card-body">
+                <div class="d-flex align-items-center mb-3">
+                    <div class="rounded-circle bg-{{ app.color }} bg-opacity-10 p-3 me-3">
+                        <i class="ti {{ app.icon }} fs-2 text-{{ app.color }}"></i>
+                    </div>
+                    <h5 class="card-title mb-0">{{ app.name }}</h5>
+                </div>
+                <p class="card-text text-muted">{{ app.description }}</p>
+            </div>
+            <div class="card-footer bg-transparent border-0">
+                {% if app.disabled %}
+                <span class="badge bg-secondary">Demnächst verfügbar</span>
+                {% else %}
+                <a href="{{ app.url }}" class="btn btn-{{ app.color }}">
+                    <i class="ti ti-arrow-right"></i> Öffnen
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if current_user.is_admin %}
+<hr class="my-5">
+
+<div class="mb-4">
+    <h4><i class="ti ti-settings"></i> Administration</h4>
+</div>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3">
+    <div class="col">
+        <a href="{{ url_for('admin.index') }}" class="card text-decoration-none h-100">
+            <div class="card-body text-center">
+                <i class="ti ti-dashboard fs-1 text-secondary mb-2"></i>
+                <h6 class="card-title mb-0">Admin Dashboard</h6>
+            </div>
+        </a>
+    </div>
+    <div class="col">
+        <a href="{{ url_for('admin.branding') }}" class="card text-decoration-none h-100">
+            <div class="card-body text-center">
+                <i class="ti ti-palette fs-1 text-secondary mb-2"></i>
+                <h6 class="card-title mb-0">Branding</h6>
+            </div>
+        </a>
+    </div>
+    <div class="col">
+        <a href="{{ url_for('dbadmin.index') }}" class="card text-decoration-none h-100">
+            <div class="card-body text-center">
+                <i class="ti ti-database fs-1 text-secondary mb-2"></i>
+                <h6 class="card-title mb-0">DB Admin</h6>
+            </div>
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
