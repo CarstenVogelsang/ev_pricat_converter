@@ -1,0 +1,154 @@
+{% extends "base.html" %}
+
+{% block title %}Branding-Einstellungen - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="ti ti-palette"></i> Branding-Einstellungen</h2>
+    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
+        <i class="ti ti-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post" enctype="multipart/form-data">
+            <!-- Logo Section -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-photo"></i> Logo
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="text-center mb-3">
+                                <img src="{{ branding.logo_url }}" alt="Logo" class="img-fluid" style="max-height: 80px;">
+                            </div>
+                            {% if current_logo %}
+                            <form method="post" action="{{ url_for('admin.delete_logo') }}" class="text-center">
+                                <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Logo wirklich löschen?')">
+                                    <i class="ti ti-trash"></i> Logo löschen
+                                </button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        <div class="col-md-8">
+                            <label for="logo" class="form-label">Neues Logo hochladen</label>
+                            <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                            <div class="form-text">Erlaubte Formate: PNG, JPG, GIF, SVG</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- App Title -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-heading"></i> App-Titel
+                </div>
+                <div class="card-body">
+                    <label for="app_title" class="form-label">Titel</label>
+                    <input type="text" class="form-control" id="app_title" name="app_title"
+                           value="{{ branding.app_title }}" placeholder="ev247">
+                    <div class="form-text">Wird im Header und Browser-Tab angezeigt</div>
+                </div>
+            </div>
+
+            <!-- Colors -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-color-swatch"></i> Farben
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label for="primary_color" class="form-label">Primärfarbe</label>
+                            <div class="input-group">
+                                <input type="color" class="form-control form-control-color" id="primary_color_picker"
+                                       value="{{ branding.primary_color }}" title="Primärfarbe wählen"
+                                       onchange="document.getElementById('primary_color').value = this.value">
+                                <input type="text" class="form-control" id="primary_color" name="primary_color"
+                                       value="{{ branding.primary_color }}" pattern="^#[0-9A-Fa-f]{6}$"
+                                       onchange="document.getElementById('primary_color_picker').value = this.value">
+                            </div>
+                            <div class="form-text">Hauptfarbe für Header, Buttons, Links</div>
+                        </div>
+                        <div class="col-md-6">
+                            <label for="secondary_color" class="form-label">Sekundärfarbe</label>
+                            <div class="input-group">
+                                <input type="color" class="form-control form-control-color" id="secondary_color_picker"
+                                       value="{{ branding.secondary_color }}" title="Sekundärfarbe wählen"
+                                       onchange="document.getElementById('secondary_color').value = this.value">
+                                <input type="text" class="form-control" id="secondary_color" name="secondary_color"
+                                       value="{{ branding.secondary_color }}" pattern="^#[0-9A-Fa-f]{6}$"
+                                       onchange="document.getElementById('secondary_color_picker').value = this.value">
+                            </div>
+                            <div class="form-text">Für sekundäre Elemente</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Copyright -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-copyright"></i> Copyright
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="copyright_text" class="form-label">Copyright-Text</label>
+                        <input type="text" class="form-control" id="copyright_text" name="copyright_text"
+                               value="{{ branding.copyright_text }}" placeholder="© 2025 e-vendo AG">
+                    </div>
+                    <div class="mb-3">
+                        <label for="copyright_url" class="form-label">Link zur Website</label>
+                        <input type="url" class="form-control" id="copyright_url" name="copyright_url"
+                               value="{{ branding.copyright_url }}" placeholder="https://www.e-vendo.de">
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="ti ti-device-floppy"></i> Speichern
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Preview -->
+    <div class="col-lg-4">
+        <div class="card sticky-top" style="top: 1rem;">
+            <div class="card-header">
+                <i class="ti ti-eye"></i> Vorschau
+            </div>
+            <div class="card-body">
+                <div class="border rounded mb-3" style="background-color: var(--preview-primary, {{ branding.primary_color }});">
+                    <div class="d-flex align-items-center p-2">
+                        <img src="{{ branding.logo_url }}" alt="Logo" style="height: 30px;" class="me-2">
+                        <span class="text-white fw-bold">{{ branding.app_title }}</span>
+                    </div>
+                </div>
+                <div class="border rounded p-3 mb-3 text-center bg-light">
+                    <small class="text-muted">Seiteninhalt</small>
+                </div>
+                <div class="border rounded p-2 text-center bg-light">
+                    <small class="text-muted">{{ branding.copyright_text }}</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Live preview update
+document.getElementById('primary_color').addEventListener('change', function() {
+    document.documentElement.style.setProperty('--preview-primary', this.value);
+});
+document.getElementById('primary_color_picker').addEventListener('input', function() {
+    document.documentElement.style.setProperty('--preview-primary', this.value);
+});
+</script>
+{% endblock %}

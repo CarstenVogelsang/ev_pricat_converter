@@ -3,11 +3,11 @@ import json
 from pathlib import Path
 
 from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request, current_app, session
-from flask_login import login_required
+from flask_login import login_required, current_user
 
 from app import db
 from app.models import Lieferant
-from app.services import Processor, ProcessingStep, FTPService
+from app.services import Processor, ProcessingStep, FTPService, BrandingService
 
 main_bp = Blueprint('main', __name__)
 
@@ -16,8 +16,19 @@ _processing_results = {}
 
 
 @main_bp.route('/')
+def landing():
+    """Public landing page or redirect to dashboard."""
+    if current_user.is_authenticated:
+        return redirect(url_for('main.lieferanten'))
+
+    branding_service = BrandingService()
+    branding = branding_service.get_branding()
+    return render_template('landing.html', branding=branding)
+
+
+@main_bp.route('/lieferanten')
 @login_required
-def index():
+def lieferanten():
     """Display list of suppliers with filter."""
     filter_param = request.args.get('filter', 'aktiv')
 
@@ -48,7 +59,7 @@ def toggle_aktiv(lieferant_id):
 
     # Redirect back with current filter
     current_filter = request.form.get('current_filter', 'aktiv')
-    return redirect(url_for('main.index', filter=current_filter))
+    return redirect(url_for('main.lieferanten', filter=current_filter))
 
 
 @main_bp.route('/ftp-check/<int:lieferant_id>', methods=['POST'])
@@ -70,7 +81,7 @@ def ftp_check(lieferant_id):
 
     # Redirect back with current filter
     current_filter = request.form.get('current_filter', 'aktiv')
-    return redirect(url_for('main.index', filter=current_filter))
+    return redirect(url_for('main.lieferanten', filter=current_filter))
 
 
 @main_bp.route('/verarbeite-lokal/<int:lieferant_id>', methods=['POST'])
@@ -90,7 +101,7 @@ def verarbeite_lokal(lieferant_id):
 
     if not existing:
         flash(f'Keine lokale PRICAT-Datei für {lieferant.kurzbezeichnung} gefunden', 'warning')
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.lieferanten'))
 
     local_pricat = sorted(existing, key=lambda p: p.stat().st_mtime)[-1]
 

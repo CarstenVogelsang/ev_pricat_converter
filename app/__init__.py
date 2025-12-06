@@ -74,6 +74,14 @@ def create_app(config_name=None):
             return datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y %H:%M')
         return ''
 
+    # Context processor for branding
+    @app.context_processor
+    def inject_branding():
+        """Inject branding into all templates."""
+        from app.services import BrandingService
+        branding_service = BrandingService()
+        return {'branding': branding_service.get_branding()}
+
     return app
 
 
@@ -122,6 +130,13 @@ def register_cli_commands(app):
             ('s3_access_key', '', 'S3 Access Key'),
             ('s3_secret_key', '', 'S3 Secret Key (Base64-kodiert)'),
             ('s3_bucket', 'pricat-converter', 'S3 Bucket Name'),
+            # Branding
+            ('brand_logo', '', 'Pfad zum Logo (leer = Platzhalter)'),
+            ('brand_primary_color', '#0d6efd', 'Primärfarbe (Hex)'),
+            ('brand_secondary_color', '#6c757d', 'Sekundärfarbe (Hex)'),
+            ('brand_app_title', 'ev247', 'App-Titel im Header'),
+            ('copyright_text', '© 2025 e-vendo AG', 'Copyright-Text im Footer'),
+            ('copyright_url', 'https://www.e-vendo.de', 'Link zur Hauptwebsite'),
         ]
 
         for key, value, beschreibung in config_defaults:

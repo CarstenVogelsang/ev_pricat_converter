@@ -1,13 +1,22 @@
 """Admin routes for system management and testing."""
 import json
+import os
 from datetime import datetime
-from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request, Response
+from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request, Response, current_app
 from flask_login import login_required
+from werkzeug.utils import secure_filename
 
 from app import db
 from app.models import Config, Lieferant
-from app.services import FTPService
+from app.services import FTPService, BrandingService
 from app.routes.auth import admin_required
+
+ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+
+
+def allowed_file(filename):
+    """Check if file extension is allowed."""
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -243,3 +252,77 @@ def config_import():
         flash(f'Import-Fehler: {str(e)}', 'danger')
 
     return redirect(url_for('admin.index'))
+
+
+@admin_bp.route('/branding', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def branding():
+    """Branding settings page."""
+    branding_service = BrandingService()
+
+    if request.method == 'POST':
+        # Handle logo upload
+        if 'logo' in request.files:
+            file = request.files['logo']
+            if file and file.filename and allowed_file(file.filename):
+                filename = secure_filename(file.filename)
+                # Add timestamp to prevent caching issues
+                name, ext = os.path.splitext(filename)
+                filename = f"logo_{int(datetime.now().timestamp())}{ext}"
+
+                upload_path = os.path.join(
+                    current_app.static_folder, 'uploads', filename
+                )
+                file.save(upload_path)
+
+                # Save to config
+                _update_config('brand_logo', filename)
+                flash('Logo erfolgreich hochgeladen', 'success')
+
+        # Handle text fields
+        _update_config('brand_app_title', request.form.get('app_title', ''))
+        _update_config('brand_primary_color', request.form.get('primary_color', '#0d6efd'))
+        _update_config('brand_secondary_color', request.form.get('secondary_color', '#6c757d'))
+        _update_config('copyright_text', request.form.get('copyright_text', ''))
+        _update_config('copyright_url', request.form.get('copyright_url', ''))
+
+        db.session.commit()
+        flash('Branding-Einstellungen gespeichert', 'success')
+        return redirect(url_for('admin.branding'))
+
+    # GET request
+    branding_config = branding_service.get_branding()
+    return render_template(
+        'admin_branding.html',
+        branding=branding_config,
+        current_logo=Config.get_value('brand_logo', '')
+    )
+
+
+@admin_bp.route('/branding/delete-logo', methods=['POST'])
+@login_required
+@admin_required
+def delete_logo():
+    """Delete the current logo."""
+    logo_path = Config.get_value('brand_logo', '')
+    if logo_path:
+        full_path = os.path.join(current_app.static_folder, 'uploads', logo_path)
+        if os.path.exists(full_path):
+            os.remove(full_path)
+
+        _update_config('brand_logo', '')
+        db.session.commit()
+        flash('Logo gelöscht', 'success')
+
+    return redirect(url_for('admin.branding'))
+
+
+def _update_config(key: str, value: str):
+    """Update or create a config entry."""
+    config = Config.query.filter_by(key=key).first()
+    if config:
+        config.value = value
+    else:
+        config = Config(key=key, value=value)
+        db.session.add(config)

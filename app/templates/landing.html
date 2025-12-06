@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ branding.app_title }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='tabler-icons/tabler-icons.min.css') }}">
+    <style>
+        :root {
+            --primary-color: {{ branding.primary_color }};
+            --secondary-color: {{ branding.secondary_color }};
+        }
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        .hero {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, var(--primary-color) 0%, {{ branding.secondary_color }} 100%);
+        }
+        .hero-content {
+            text-align: center;
+            color: white;
+            padding: 2rem;
+        }
+        .hero-logo {
+            max-height: 80px;
+            margin-bottom: 2rem;
+        }
+        .hero h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        .hero p {
+            font-size: 1.25rem;
+            opacity: 0.9;
+            margin-bottom: 2rem;
+        }
+        .btn-login {
+            background-color: white;
+            color: var(--primary-color);
+            padding: 0.75rem 2rem;
+            font-size: 1.1rem;
+            border-radius: 50px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn-login:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            color: var(--primary-color);
+        }
+        .landing-header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .landing-header img {
+            height: 40px;
+        }
+        .landing-footer {
+            background-color: #f8f9fa;
+            padding: 1rem;
+            text-align: center;
+        }
+        .landing-footer a {
+            color: var(--primary-color);
+            text-decoration: none;
+        }
+        .landing-footer a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <header class="landing-header">
+        <img src="{{ branding.logo_url }}" alt="{{ branding.app_title }}">
+        <a href="{{ url_for('auth.login') }}" class="btn btn-outline-light">
+            <i class="ti ti-login"></i> Login
+        </a>
+    </header>
+
+    <main class="hero">
+        <div class="hero-content">
+            <h1>Willkommen bei {{ branding.app_title }}</h1>
+            <p>Multi-Tool-Plattform fuer e-vendo Mitarbeiter und Kunden</p>
+            <a href="{{ url_for('auth.login') }}" class="btn btn-login">
+                <i class="ti ti-arrow-right"></i> Zum Login
+            </a>
+        </div>
+    </main>
+
+    <footer class="landing-footer">
+        <span class="text-muted">
+            {{ branding.copyright_text }}
+            {% if branding.copyright_url %}
+            | <a href="{{ branding.copyright_url }}" target="_blank">e-vendo.de</a>
+            {% endif %}
+        </span>
+    </footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

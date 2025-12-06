@@ -6,12 +6,12 @@ Multi-Tool-Plattform für e-vendo Mitarbeiter und Kunden.
 
 | # | Task | Status | Beschreibung |
 |---|------|--------|--------------|
-| G1 | Repo umbenennen | ⏳ Offen | ev_pricat_converter → ev247 |
+| G1 | Branding & Landing Page | ✅ Fertig | Logo, Farben, Copyright, öffentliche Startseite |
 | G2 | Hauptmenü mit Rollen | ⏳ Offen | Menü-Sichtbarkeit nach Rolle |
 | G3 | Rolle umbenennen | ⏳ Offen | sachbearbeiter → mitarbeiter |
 | G4 | Rolle hinzufügen | ⏳ Offen | Neue Rolle: kunde |
 | G5 | Kunde-Model | ⏳ Offen | Kunde-Entity mit User-Zuordnung |
-| G6 | Branding | ⏳ Offen | Logo, Titel "ev247" |
+| G6 | Repo umbenennen | ⏳ Offen | ev_pricat_converter → ev247 |
 
 **Letztes Update:** 2025-12-06
 

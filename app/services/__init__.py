@@ -7,6 +7,7 @@ from app.services.ftp_service import FTPService, FTPConfig, FTPResult
 from app.services.import_trigger import ImportTrigger, ImportResult
 from app.services.processor import Processor, ProcessingResult, ProcessingStep
 from app.services.storage_service import StorageService, S3Storage, LocalStorage, S3Config
+from app.services.branding_service import BrandingService, BrandingConfig
 
 __all__ = [
     # Parser
@@ -25,4 +26,6 @@ __all__ = [
     'Processor', 'ProcessingResult', 'ProcessingStep',
     # Storage Service
     'StorageService', 'S3Storage', 'LocalStorage', 'S3Config',
+    # Branding Service
+    'BrandingService', 'BrandingConfig',
 ]

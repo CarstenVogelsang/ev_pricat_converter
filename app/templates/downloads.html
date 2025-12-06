@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}Downloads - pricat-converter{% endblock %}
+{% block title %}Downloads - {{ branding.app_title }}{% endblock %}
 
 {% block content %}
 <h2 class="mb-4">Exportierte Dateien</h2>
@@ -51,6 +51,6 @@
 {% endif %}
 
 <div class="mt-4">
-    <a href="{{ url_for('main.index') }}" class="btn btn-secondary">Zurück zur Übersicht</a>
+    <a href="{{ url_for('main.lieferanten') }}" class="btn btn-secondary">Zurück zur Übersicht</a>
 </div>
 {% endblock %}
