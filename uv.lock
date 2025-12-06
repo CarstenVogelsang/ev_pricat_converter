@@ -410,6 +410,22 @@ wheels = [
 ]
 
 [[package]]
+name = "flask-admin"
+version = "2.0.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "flask" },
+    { name = "jinja2" },
+    { name = "markupsafe" },
+    { name = "werkzeug" },
+    { name = "wtforms" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/cc/b7/78a1534b4fe1a40bccf79e8e274e1ace6ee1678c804e4c178b1c96e6c8d6/flask_admin-2.0.2.tar.gz", hash = "sha256:1d06aec7efee957972b43f6b08a0bd08d5f4cf9a337d4ece2f17c98abc2a214e", size = 5528977, upload-time = "2025-11-11T21:59:14.782Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/2b/25/a379b8dc388630f1d173544c8b3ebbdb2ad5b60992e531b724d7f8a7ea03/flask_admin-2.0.2-py3-none-any.whl", hash = "sha256:4b3c44068de0fe4630dfcd190cc11231cbbdd7bac315c74c55d1764087b8b273", size = 6459099, upload-time = "2025-11-11T21:59:12.82Z" },
+]
+
+[[package]]
 name = "flask-login"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -937,6 +953,7 @@ dependencies = [
     { name = "cryptography" },
     { name = "email-validator" },
     { name = "flask" },
+    { name = "flask-admin" },
     { name = "flask-login" },
     { name = "flask-migrate" },
     { name = "flask-sqlalchemy" },
@@ -957,6 +974,7 @@ requires-dist = [
     { name = "cryptography", specifier = ">=41.0.0" },
     { name = "email-validator", specifier = ">=2.0.0" },
     { name = "flask", specifier = ">=3.0.0" },
+    { name = "flask-admin", specifier = ">=1.6.0" },
     { name = "flask-login", specifier = ">=0.6.2" },
     { name = "flask-migrate", specifier = ">=4.0.0" },
     { name = "flask-sqlalchemy", specifier = ">=3.1.0" },

@@ -59,6 +59,10 @@ def create_app(config_name=None):
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(auth_bp)
 
+    # Initialize Flask-Admin (under /db-admin, requires admin role)
+    from app.admin import init_admin
+    init_admin(app, db)
+
     # Register CLI commands
     register_cli_commands(app)
 
