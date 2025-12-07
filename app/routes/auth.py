@@ -32,6 +32,19 @@ def admin_required(f):
     return decorated_function
 
 
+def mitarbeiter_required(f):
+    """Decorator to require mitarbeiter or admin role."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not current_user.is_authenticated:
+            return redirect(url_for('auth.login'))
+        if current_user.rolle not in ['admin', 'mitarbeiter']:
+            flash('Zugriff verweigert. Mitarbeiter-Rechte erforderlich.', 'danger')
+            return redirect(url_for('main.dashboard'))
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 @auth_bp.route('/login', methods=['GET', 'POST'])
 def login():
     """Login page."""

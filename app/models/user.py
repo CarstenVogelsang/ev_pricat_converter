@@ -16,7 +16,7 @@ class User(UserMixin, db.Model):
     password_hash = db.Column(db.String(256), nullable=False)
     vorname = db.Column(db.String(50), nullable=False)
     nachname = db.Column(db.String(50), nullable=False)
-    rolle = db.Column(db.String(20), nullable=False, default='sachbearbeiter')
+    rolle_id = db.Column(db.Integer, db.ForeignKey('rolle.id'), nullable=False)
     aktiv = db.Column(db.Boolean, default=True, nullable=False)
     last_login = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -33,9 +33,14 @@ class User(UserMixin, db.Model):
         return check_password_hash(self.password_hash, password)
 
     @property
+    def rolle(self):
+        """Backward-compatible property returning role name."""
+        return self.rolle_obj.name if self.rolle_obj else None
+
+    @property
     def is_admin(self):
         """Check if user has admin role."""
-        return self.rolle == 'admin'
+        return self.rolle_obj and self.rolle_obj.name == 'admin'
 
     @property
     def full_name(self):
@@ -50,6 +55,7 @@ class User(UserMixin, db.Model):
             'vorname': self.vorname,
             'nachname': self.nachname,
             'rolle': self.rolle,
+            'rolle_id': self.rolle_id,
             'aktiv': self.aktiv,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }

@@ -53,11 +53,12 @@ def create_app(config_name=None):
         return User.query.get(int(user_id))
 
     # Register blueprints
-    from app.routes import main_bp, admin_bp
+    from app.routes import main_bp, admin_bp, kunden_bp
     from app.routes.auth import auth_bp
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(auth_bp)
+    app.register_blueprint(kunden_bp)
 
     # Initialize Flask-Admin (under /db-admin, requires admin role)
     from app.admin import init_admin
@@ -73,6 +74,14 @@ def create_app(config_name=None):
         if timestamp:
             return datetime.fromtimestamp(timestamp).strftime('%d.%m.%Y %H:%M')
         return ''
+
+    @app.template_filter('nl2br')
+    def nl2br_filter(text):
+        """Convert newlines to <br> tags."""
+        from markupsafe import Markup, escape
+        if not text:
+            return ''
+        return Markup(escape(text).replace('\n', Markup('<br>')))
 
     # Context processor for branding
     @app.context_processor
@@ -91,7 +100,68 @@ def register_cli_commands(app):
     @app.cli.command('seed')
     def seed_command():
         """Seed the database with initial data."""
-        from app.models import Lieferant, Config as ConfigModel
+        from app.models import Lieferant, Config as ConfigModel, Rolle, SubApp, SubAppAccess
+
+        # Create roles
+        roles_data = [
+            ('admin', 'Vollzugriff auf alle Funktionen'),
+            ('mitarbeiter', 'e-vendo Mitarbeiter'),
+            ('kunde', 'Externer Kunde'),
+        ]
+        roles = {}
+        for name, beschreibung in roles_data:
+            rolle = Rolle.query.filter_by(name=name).first()
+            if not rolle:
+                rolle = Rolle(name=name, beschreibung=beschreibung)
+                db.session.add(rolle)
+                click.echo(f'Created role: {name}')
+            roles[name] = rolle
+        db.session.flush()  # Get IDs
+
+        # Create SubApps
+        subapps_data = [
+            ('pricat', 'PRICAT Converter', 'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
+             'ti-transform', 'primary', 'main.lieferanten', True, 10),
+            ('kunden-report', 'Lead & Kundenreport', 'Kunden verwalten und Website-Analyse',
+             'ti-users', 'success', 'kunden.liste', True, 20),
+            ('lieferanten-auswahl', 'Meine Lieferanten', 'Relevante Lieferanten auswaehlen',
+             'ti-truck', 'info', None, False, 30),
+            ('content-generator', 'Content Generator', 'KI-generierte Texte fuer Online-Shops',
+             'ti-writing', 'warning', None, False, 40),
+        ]
+        subapps = {}
+        for slug, name, beschreibung, icon, color, endpoint, aktiv, sort in subapps_data:
+            subapp = SubApp.query.filter_by(slug=slug).first()
+            if not subapp:
+                subapp = SubApp(
+                    slug=slug, name=name, beschreibung=beschreibung,
+                    icon=icon, color=color, route_endpoint=endpoint,
+                    aktiv=aktiv, sort_order=sort
+                )
+                db.session.add(subapp)
+                click.echo(f'Created SubApp: {name}')
+            subapps[slug] = subapp
+        db.session.flush()
+
+        # Create SubAppAccess mappings
+        access_mappings = [
+            ('pricat', ['admin', 'mitarbeiter']),
+            ('kunden-report', ['admin', 'mitarbeiter']),
+            ('lieferanten-auswahl', ['admin', 'mitarbeiter', 'kunde']),
+            ('content-generator', ['admin', 'mitarbeiter', 'kunde']),
+        ]
+        for slug, role_names in access_mappings:
+            subapp = subapps.get(slug)
+            if subapp:
+                for role_name in role_names:
+                    rolle = roles.get(role_name)
+                    if rolle:
+                        existing = SubAppAccess.query.filter_by(
+                            sub_app_id=subapp.id, rolle_id=rolle.id
+                        ).first()
+                        if not existing:
+                            access = SubAppAccess(sub_app_id=subapp.id, rolle_id=rolle.id)
+                            db.session.add(access)
 
         # Create test supplier (LEGO)
         # Note: vedes_id is stored without leading zeros
@@ -137,6 +207,8 @@ def register_cli_commands(app):
             ('brand_app_title', 'ev247', 'App-Titel im Header'),
             ('copyright_text', '© 2025 e-vendo AG', 'Copyright-Text im Footer'),
             ('copyright_url', 'https://www.e-vendo.de', 'Link zur Hauptwebsite'),
+            # Firecrawl
+            ('firecrawl_api_key', '', 'Firecrawl API Key fuer Website-Analyse'),
         ]
 
         for key, value, beschreibung in config_defaults:
@@ -162,21 +234,27 @@ def register_cli_commands(app):
     @app.cli.command('seed-users')
     def seed_users_command():
         """Create initial users."""
-        from app.models import User
+        from app.models import User, Rolle
+
+        # Ensure roles exist first
+        admin_rolle = Rolle.query.filter_by(name='admin').first()
+        if not admin_rolle:
+            click.echo('ERROR: Roles not found. Run "flask seed" first.')
+            return
 
         users = [
             {
                 'email': 'carsten.vogelsang@e-vendo.de',
                 'vorname': 'Carsten',
                 'nachname': 'Vogelsang',
-                'rolle': 'admin',
+                'rolle_name': 'admin',
                 'password': 'admin123'  # Should be changed on first login
             },
             {
                 'email': 'rainer.raschka@e-vendo.de',
                 'vorname': 'Rainer',
                 'nachname': 'Raschka',
-                'rolle': 'admin',
+                'rolle_name': 'admin',
                 'password': 'admin123'  # Should be changed on first login
             }
         ]
@@ -184,16 +262,20 @@ def register_cli_commands(app):
         for user_data in users:
             existing = User.query.filter_by(email=user_data['email']).first()
             if not existing:
+                rolle = Rolle.query.filter_by(name=user_data['rolle_name']).first()
+                if not rolle:
+                    click.echo(f"Role not found: {user_data['rolle_name']}")
+                    continue
                 user = User(
                     email=user_data['email'],
                     vorname=user_data['vorname'],
                     nachname=user_data['nachname'],
-                    rolle=user_data['rolle'],
+                    rolle_id=rolle.id,
                     aktiv=True
                 )
                 user.set_password(user_data['password'])
                 db.session.add(user)
-                click.echo(f"Created user: {user_data['email']} ({user_data['rolle']})")
+                click.echo(f"Created user: {user_data['email']} ({user_data['rolle_name']})")
             else:
                 click.echo(f"User already exists: {user_data['email']}")
 

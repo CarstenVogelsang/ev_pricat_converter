@@ -8,6 +8,7 @@ from app.services.import_trigger import ImportTrigger, ImportResult
 from app.services.processor import Processor, ProcessingResult, ProcessingStep
 from app.services.storage_service import StorageService, S3Storage, LocalStorage, S3Config
 from app.services.branding_service import BrandingService, BrandingConfig
+from app.services.firecrawl_service import FirecrawlService, FirecrawlResult
 
 __all__ = [
     # Parser
@@ -28,4 +29,6 @@ __all__ = [
     'StorageService', 'S3Storage', 'LocalStorage', 'S3Config',
     # Branding Service
     'BrandingService', 'BrandingConfig',
+    # Firecrawl Service
+    'FirecrawlService', 'FirecrawlResult',
 ]

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block title %}{{ titel }} - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="mb-4">
+    <a href="{{ url_for('kunden.liste') }}" class="text-muted text-decoration-none">
+        <i class="ti ti-arrow-left"></i> Zurueck zur Liste
+    </a>
+    <h2 class="mt-2">{{ titel }}</h2>
+</div>
+
+<div class="row">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-body">
+                <form method="POST">
+                    {{ form.hidden_tag() }}
+
+                    <div class="mb-3">
+                        <label for="firmierung" class="form-label">Firmierung *</label>
+                        {{ form.firmierung(class="form-control" + (" is-invalid" if form.firmierung.errors else ""), placeholder="z.B. Mustermann GmbH") }}
+                        {% for error in form.firmierung.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="adresse" class="form-label">Adresse</label>
+                        {{ form.adresse(class="form-control" + (" is-invalid" if form.adresse.errors else ""), rows="3", placeholder="Strasse, PLZ, Ort") }}
+                        {% for error in form.adresse.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="website_url" class="form-label">Website URL</label>
+                        {{ form.website_url(class="form-control" + (" is-invalid" if form.website_url.errors else ""), placeholder="https://www.beispiel.de") }}
+                        {% for error in form.website_url.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Fuer die CI-Analyse wird diese URL verwendet.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="shop_url" class="form-label">Online-Shop URL</label>
+                        {{ form.shop_url(class="form-control" + (" is-invalid" if form.shop_url.errors else ""), placeholder="https://shop.beispiel.de") }}
+                        {% for error in form.shop_url.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="notizen" class="form-label">Notizen</label>
+                        {{ form.notizen(class="form-control", rows="4", placeholder="Interne Notizen...") }}
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            {{ form.aktiv(class="form-check-input") }}
+                            <label class="form-check-label" for="aktiv">Aktiv</label>
+                        </div>
+                    </div>
+
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-check"></i> Speichern
+                        </button>
+                        <a href="{{ url_for('kunden.liste') }}" class="btn btn-outline-secondary">
+                            Abbrechen
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

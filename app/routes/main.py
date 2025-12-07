@@ -30,46 +30,33 @@ def landing():
 @login_required
 def dashboard():
     """Dashboard with role-based app access."""
-    # Define available apps with role access
-    apps = [
-        {
-            'id': 'pricat',
-            'name': 'PRICAT Converter',
-            'description': 'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
-            'icon': 'ti-transform',
-            'url': url_for('main.lieferanten'),
-            'roles': ['admin', 'sachbearbeiter'],
-            'color': 'primary'
-        },
-        {
-            'id': 'lieferanten-auswahl',
-            'name': 'Meine Lieferanten',
-            'description': 'Relevante Lieferanten auswaehlen',
-            'icon': 'ti-truck',
-            'url': '#',  # Not implemented yet
-            'roles': ['admin', 'sachbearbeiter', 'kunde'],
-            'color': 'success',
-            'disabled': True
-        },
-        {
-            'id': 'content-generator',
-            'name': 'Content Generator',
-            'description': 'KI-generierte Texte fuer Online-Shops',
-            'icon': 'ti-writing',
-            'url': '#',  # Not implemented yet
-            'roles': ['admin', 'sachbearbeiter', 'kunde'],
-            'color': 'info',
-            'disabled': True
-        },
-    ]
+    from app.models import SubApp, SubAppAccess
 
-    # Filter apps by user role
-    user_apps = [
-        app for app in apps
-        if current_user.rolle in app['roles']
-    ]
+    # Admin sees all active apps
+    if current_user.is_admin:
+        subapps = SubApp.query.filter_by(aktiv=True).order_by(SubApp.sort_order).all()
+    else:
+        # Non-admin: query apps accessible to their role
+        subapps = SubApp.query.join(SubAppAccess).filter(
+            SubApp.aktiv == True,
+            SubAppAccess.rolle_id == current_user.rolle_id
+        ).order_by(SubApp.sort_order).all()
 
-    return render_template('dashboard.html', apps=user_apps)
+    # Convert to template-friendly format
+    apps = []
+    for subapp in subapps:
+        app_data = {
+            'id': subapp.slug,
+            'name': subapp.name,
+            'description': subapp.beschreibung,
+            'icon': subapp.icon,
+            'color': subapp.color,
+            'disabled': not subapp.route_endpoint,
+            'url': url_for(subapp.route_endpoint) if subapp.route_endpoint else '#'
+        }
+        apps.append(app_data)
+
+    return render_template('dashboard.html', apps=apps)
 
 
 @main_bp.route('/lieferanten')

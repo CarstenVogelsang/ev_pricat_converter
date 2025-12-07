@@ -1,0 +1,222 @@
+{% extends "base.html" %}
+
+{% block title %}{{ kunde.firmierung }} - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('kunden.liste') }}" class="text-muted text-decoration-none">
+            <i class="ti ti-arrow-left"></i> Zurueck zur Liste
+        </a>
+        <h2 class="mt-2 mb-0">{{ kunde.firmierung }}</h2>
+    </div>
+    <div>
+        {% if kunde.website_url %}
+        <form action="{{ url_for('kunden.analyse', id=kunde.id) }}" method="POST" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button type="submit" class="btn btn-info">
+                <i class="ti ti-analyze"></i> Website-Analyse
+            </button>
+        </form>
+        {% endif %}
+        <a href="{{ url_for('kunden.bearbeiten', id=kunde.id) }}" class="btn btn-secondary">
+            <i class="ti ti-edit"></i> Bearbeiten
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="ti ti-building"></i> Stammdaten
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Firmierung</dt>
+                    <dd class="col-sm-8">{{ kunde.firmierung }}</dd>
+
+                    <dt class="col-sm-4">Adresse</dt>
+                    <dd class="col-sm-8">{{ kunde.adresse|default('-', true)|nl2br }}</dd>
+
+                    <dt class="col-sm-4">Website</dt>
+                    <dd class="col-sm-8">
+                        {% if kunde.website_url %}
+                        <a href="{{ kunde.website_url }}" target="_blank">
+                            {{ kunde.website_url }} <i class="ti ti-external-link"></i>
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Online-Shop</dt>
+                    <dd class="col-sm-8">
+                        {% if kunde.shop_url %}
+                        <a href="{{ kunde.shop_url }}" target="_blank">
+                            {{ kunde.shop_url }} <i class="ti ti-external-link"></i>
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        {% if kunde.aktiv %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+
+        {% if kunde.notizen %}
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="ti ti-notes"></i> Notizen
+            </div>
+            <div class="card-body">
+                {{ kunde.notizen|nl2br }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="col-md-6">
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="ti ti-palette"></i> Corporate Identity</span>
+                {% if kunde.ci and kunde.ci.analysiert_am %}
+                <small class="text-muted">
+                    Analysiert: {{ kunde.ci.analysiert_am.strftime('%d.%m.%Y %H:%M') }}
+                </small>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if kunde.ci %}
+                <div class="row mb-3">
+                    <div class="col-12">
+                        <strong>Logo</strong><br>
+                        {% if kunde.ci.logo_url %}
+                        <img src="{{ kunde.ci.logo_url }}" alt="Logo" class="img-fluid mt-2" style="max-height: 80px;">
+                        {% else %}
+                        <span class="text-muted">Nicht gefunden</span>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <strong>Farben</strong>
+                <div class="row mt-2">
+                    {% if kunde.ci.primary_color %}
+                    <div class="col-4 mb-2">
+                        <div class="d-flex align-items-center">
+                            <div style="width: 24px; height: 24px; background-color: {{ kunde.ci.primary_color }}; border: 1px solid #ccc; border-radius: 4px;" class="me-2"></div>
+                            <small>
+                                Primary<br>
+                                <code>{{ kunde.ci.primary_color }}</code>
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if kunde.ci.secondary_color %}
+                    <div class="col-4 mb-2">
+                        <div class="d-flex align-items-center">
+                            <div style="width: 24px; height: 24px; background-color: {{ kunde.ci.secondary_color }}; border: 1px solid #ccc; border-radius: 4px;" class="me-2"></div>
+                            <small>
+                                Secondary<br>
+                                <code>{{ kunde.ci.secondary_color }}</code>
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if kunde.ci.accent_color %}
+                    <div class="col-4 mb-2">
+                        <div class="d-flex align-items-center">
+                            <div style="width: 24px; height: 24px; background-color: {{ kunde.ci.accent_color }}; border: 1px solid #ccc; border-radius: 4px;" class="me-2"></div>
+                            <small>
+                                Accent<br>
+                                <code>{{ kunde.ci.accent_color }}</code>
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if kunde.ci.background_color %}
+                    <div class="col-4 mb-2">
+                        <div class="d-flex align-items-center">
+                            <div style="width: 24px; height: 24px; background-color: {{ kunde.ci.background_color }}; border: 1px solid #ccc; border-radius: 4px;" class="me-2"></div>
+                            <small>
+                                Background<br>
+                                <code>{{ kunde.ci.background_color }}</code>
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if kunde.ci.text_primary_color %}
+                    <div class="col-4 mb-2">
+                        <div class="d-flex align-items-center">
+                            <div style="width: 24px; height: 24px; background-color: {{ kunde.ci.text_primary_color }}; border: 1px solid #ccc; border-radius: 4px;" class="me-2"></div>
+                            <small>
+                                Text Primary<br>
+                                <code>{{ kunde.ci.text_primary_color }}</code>
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if kunde.ci.text_secondary_color %}
+                    <div class="col-4 mb-2">
+                        <div class="d-flex align-items-center">
+                            <div style="width: 24px; height: 24px; background-color: {{ kunde.ci.text_secondary_color }}; border: 1px solid #ccc; border-radius: 4px;" class="me-2"></div>
+                            <small>
+                                Text Secondary<br>
+                                <code>{{ kunde.ci.text_secondary_color }}</code>
+                            </small>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+
+                {% if kunde.ci.analyse_url %}
+                <div class="mt-3">
+                    <small class="text-muted">
+                        Analysierte URL: <a href="{{ kunde.ci.analyse_url }}" target="_blank">{{ kunde.ci.analyse_url }}</a>
+                    </small>
+                </div>
+                {% endif %}
+                {% else %}
+                <p class="text-muted mb-0">
+                    <i class="ti ti-info-circle"></i> Noch keine CI-Analyse durchgefuehrt.
+                    {% if kunde.website_url %}
+                    <form action="{{ url_for('kunden.analyse', id=kunde.id) }}" method="POST" class="mt-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-info">
+                            <i class="ti ti-analyze"></i> Jetzt analysieren
+                        </button>
+                    </form>
+                    {% else %}
+                    <br><small>Website-URL muss zuerst hinterlegt werden.</small>
+                    {% endif %}
+                </p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="mt-4">
+    <form action="{{ url_for('kunden.loeschen', id=kunde.id) }}" method="POST"
+          onsubmit="return confirm('Kunde wirklich loeschen?');">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-outline-danger btn-sm">
+            <i class="ti ti-trash"></i> Kunde loeschen
+        </button>
+    </form>
+</div>
+{% endblock %}

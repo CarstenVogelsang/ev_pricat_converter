@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+
+{% block title %}Kunden - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="ti ti-users"></i> Kunden</h2>
+    <a href="{{ url_for('kunden.neu') }}" class="btn btn-primary">
+        <i class="ti ti-plus"></i> Neuer Kunde
+    </a>
+</div>
+
+{% if kunden %}
+<div class="table-responsive">
+    <table class="table table-hover">
+        <thead>
+            <tr>
+                <th>Firmierung</th>
+                <th>Website</th>
+                <th>Shop</th>
+                <th>CI</th>
+                <th>Status</th>
+                <th class="text-end">Aktionen</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for kunde in kunden %}
+            <tr>
+                <td>
+                    <a href="{{ url_for('kunden.detail', id=kunde.id) }}" class="text-decoration-none fw-bold">
+                        {{ kunde.firmierung }}
+                    </a>
+                </td>
+                <td>
+                    {% if kunde.website_url %}
+                    <a href="{{ kunde.website_url }}" target="_blank" class="text-muted">
+                        <i class="ti ti-external-link"></i>
+                    </a>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if kunde.shop_url %}
+                    <a href="{{ kunde.shop_url }}" target="_blank" class="text-muted">
+                        <i class="ti ti-shopping-cart"></i>
+                    </a>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if kunde.ci and kunde.ci.analysiert_am %}
+                    <span class="badge bg-success" title="Analysiert am {{ kunde.ci.analysiert_am.strftime('%d.%m.%Y %H:%M') }}">
+                        <i class="ti ti-check"></i>
+                    </span>
+                    {% else %}
+                    <span class="badge bg-secondary">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if kunde.aktiv %}
+                    <span class="badge bg-success">Aktiv</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Inaktiv</span>
+                    {% endif %}
+                </td>
+                <td class="text-end">
+                    {% if kunde.website_url %}
+                    <form action="{{ url_for('kunden.analyse', id=kunde.id) }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-info" title="Website-Analyse">
+                            <i class="ti ti-analyze"></i>
+                        </button>
+                    </form>
+                    {% endif %}
+                    <a href="{{ url_for('kunden.bearbeiten', id=kunde.id) }}" class="btn btn-sm btn-outline-secondary" title="Bearbeiten">
+                        <i class="ti ti-edit"></i>
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% else %}
+<div class="alert alert-info">
+    <i class="ti ti-info-circle"></i> Noch keine Kunden vorhanden.
+    <a href="{{ url_for('kunden.neu') }}">Ersten Kunden anlegen</a>
+</div>
+{% endif %}
+{% endblock %}
