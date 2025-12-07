@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+
+{% block title %}Projekt: {{ kunde.firmierung }} - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('kunden.detail', id=kunde.id) }}" class="text-muted text-decoration-none">
+            <i class="ti ti-arrow-left"></i> Zurueck zum Kunden
+        </a>
+        <h2 class="mt-2 mb-0">
+            <i class="ti ti-folder"></i> Projekt: {{ kunde.firmierung }}
+        </h2>
+    </div>
+</div>
+
+<!-- Taetigkeiten (Platzhalter) -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="ti ti-list-check"></i> Taetigkeiten
+    </div>
+    <div class="card-body">
+        <div class="text-center text-muted py-5">
+            <i class="ti ti-tools" style="font-size: 3rem;"></i>
+            <p class="mt-3 mb-0">
+                <strong>Taetigkeiten-Tracking</strong><br>
+                <small>Hier werden zukuenftig Taetigkeiten der Mitarbeiter fuer diesen Kunden erfasst.</small>
+            </p>
+            <button class="btn btn-outline-secondary btn-sm mt-3" disabled>
+                <i class="ti ti-plus"></i> Taetigkeit erfassen (coming soon)
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- API-Kosten -->
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="ti ti-receipt"></i> API-Kosten</span>
+        <span class="badge bg-primary">
+            {{ totals.anzahl_calls or 0 }} Calls
+        </span>
+    </div>
+    <div class="card-body">
+        <!-- Summary Cards -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">{{ totals.total_credits or 0 }}</h3>
+                        <small class="text-muted">Credits verbraucht</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">{{ "%.2f"|format(totals.total_kosten or 0) }} &euro;</h3>
+                        <small class="text-muted">Kosten gesamt</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card bg-light">
+                    <div class="card-body text-center">
+                        <h3 class="mb-0">{{ per_user|length }}</h3>
+                        <small class="text-muted">Mitarbeiter beteiligt</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {% if per_user %}
+        <!-- Nutzung pro Mitarbeiter -->
+        <h6 class="mb-3"><i class="ti ti-users"></i> Nutzung pro Mitarbeiter</h6>
+        <div class="table-responsive mb-4">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Mitarbeiter</th>
+                        <th class="text-end">Calls</th>
+                        <th class="text-end">Credits</th>
+                        <th class="text-end">Kosten</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for user in per_user %}
+                    <tr>
+                        <td>{{ user.vorname }} {{ user.nachname }}</td>
+                        <td class="text-end">{{ user.calls }}</td>
+                        <td class="text-end">{{ user.credits }}</td>
+                        <td class="text-end">{{ "%.4f"|format(user.kosten) }} &euro;</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+
+        {% if api_nutzungen %}
+        <!-- Alle API-Calls -->
+        <h6 class="mb-3"><i class="ti ti-list"></i> Alle API-Calls</h6>
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>Zeitpunkt</th>
+                        <th>Mitarbeiter</th>
+                        <th>Service</th>
+                        <th>Beschreibung</th>
+                        <th class="text-end">Credits</th>
+                        <th class="text-end">Kosten</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for nutzung in api_nutzungen %}
+                    <tr>
+                        <td>{{ nutzung.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>{{ nutzung.user.vorname }} {{ nutzung.user.nachname }}</td>
+                        <td><span class="badge bg-secondary">{{ nutzung.api_service }}</span></td>
+                        <td><small>{{ nutzung.beschreibung or nutzung.api_endpoint }}</small></td>
+                        <td class="text-end">{{ nutzung.credits_used }}</td>
+                        <td class="text-end">{{ "%.4f"|format(nutzung.kosten_euro) }} &euro;</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">
+            <i class="ti ti-database-off" style="font-size: 2rem;"></i>
+            <p class="mt-2 mb-0">Noch keine API-Calls fuer diesen Kunden erfasst.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

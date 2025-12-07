@@ -11,6 +11,11 @@
         <h2 class="mt-2 mb-0">{{ kunde.firmierung }}</h2>
     </div>
     <div>
+        {% if current_user.is_internal %}
+        <a href="{{ url_for('kunden.projekt', id=kunde.id) }}" class="btn btn-primary">
+            <i class="ti ti-folder"></i> Projekt
+        </a>
+        {% endif %}
         {% if kunde.website_url %}
         <form action="{{ url_for('kunden.analyse', id=kunde.id) }}" method="POST" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

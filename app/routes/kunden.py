@@ -5,8 +5,10 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, TextAreaField, BooleanField
 from wtforms.validators import DataRequired, URL, Optional
 
+from sqlalchemy import func
+
 from app import db
-from app.models import Kunde, KundeCI
+from app.models import Kunde, KundeCI, KundeApiNutzung, User
 from app.services import FirecrawlService
 from app.routes.auth import mitarbeiter_required
 
@@ -120,3 +122,42 @@ def analyse(id):
         flash(f'Analyse fehlgeschlagen: {result.error}', 'danger')
 
     return redirect(url_for('kunden.detail', id=id))
+
+
+@kunden_bp.route('/<int:id>/projekt')
+@login_required
+@mitarbeiter_required
+def projekt(id):
+    """View Kunde project page with activities and API costs."""
+    kunde = Kunde.query.get_or_404(id)
+
+    # Get API usage for this Kunde (all users)
+    api_nutzungen = KundeApiNutzung.query.filter_by(kunde_id=id)\
+        .order_by(KundeApiNutzung.created_at.desc()).all()
+
+    # Calculate totals
+    totals = db.session.query(
+        func.sum(KundeApiNutzung.credits_used).label('total_credits'),
+        func.sum(KundeApiNutzung.kosten_euro).label('total_kosten'),
+        func.count(KundeApiNutzung.id).label('anzahl_calls')
+    ).filter(KundeApiNutzung.kunde_id == id).first()
+
+    # Usage per user
+    per_user = db.session.query(
+        User.id,
+        User.vorname,
+        User.nachname,
+        func.sum(KundeApiNutzung.credits_used).label('credits'),
+        func.sum(KundeApiNutzung.kosten_euro).label('kosten'),
+        func.count(KundeApiNutzung.id).label('calls')
+    ).join(User, KundeApiNutzung.user_id == User.id)\
+        .filter(KundeApiNutzung.kunde_id == id)\
+        .group_by(User.id, User.vorname, User.nachname).all()
+
+    return render_template(
+        'kunden/projekt.html',
+        kunde=kunde,
+        api_nutzungen=api_nutzungen,
+        totals=totals,
+        per_user=per_user
+    )

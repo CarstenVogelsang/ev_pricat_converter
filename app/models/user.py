@@ -43,6 +43,21 @@ class User(UserMixin, db.Model):
         return self.rolle_obj and self.rolle_obj.name == 'admin'
 
     @property
+    def is_mitarbeiter(self):
+        """Check if user has mitarbeiter role."""
+        return self.rolle_obj and self.rolle_obj.name == 'mitarbeiter'
+
+    @property
+    def is_kunde(self):
+        """Check if user has kunde role."""
+        return self.rolle_obj and self.rolle_obj.name == 'kunde'
+
+    @property
+    def is_internal(self):
+        """Check if user is internal (admin or mitarbeiter)."""
+        return self.is_admin or self.is_mitarbeiter
+
+    @property
     def full_name(self):
         """Return full name."""
         return f'{self.vorname} {self.nachname}'

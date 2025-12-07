@@ -59,6 +59,7 @@ Verwaltung von Kunden/Leads mit automatischer Website-Analyse zur Extraktion von
 | `/kunden/<id>/bearbeiten` | GET/POST | Kunden bearbeiten |
 | `/kunden/<id>/loeschen` | POST | Kunden loeschen |
 | `/kunden/<id>/analyse` | POST | Website-Analyse starten |
+| `/kunden/<id>/projekt` | GET | Projektverwaltung (nur intern) |
 
 ## Firecrawl-Integration
 
@@ -129,7 +130,17 @@ Body: {
 - CI-Karte mit Logo und Farbpalette
 - **Raw JSON Button:** Code-Icon im CI-Header öffnet Modal mit formatiertem Firecrawl-Response
 - Notizen-Bereich
-- Buttons: Website-Analyse, Bearbeiten, Loeschen
+- Buttons: Projekt (nur intern), Website-Analyse, Bearbeiten, Loeschen
+
+### Projektverwaltung (`/kunden/<id>/projekt`)
+
+Nur fuer Admin und Mitarbeiter sichtbar.
+
+- **Taetigkeiten-Bereich:** Platzhalter fuer zukuenftige Erfassung von Mitarbeiter-Taetigkeiten
+- **API-Kosten-Bereich:**
+  - Summary-Cards: Credits, Kosten, beteiligte Mitarbeiter
+  - Tabelle: Nutzung pro Mitarbeiter
+  - Tabelle: Alle API-Calls chronologisch
 
 ### Kundenformular (`/kunden/neu`, `/kunden/<id>/bearbeiten`)
 
