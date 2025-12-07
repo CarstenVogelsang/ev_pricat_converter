@@ -29,6 +29,363 @@ VEDES FTP (PRICAT CSV) → pricat-converter → Ziel-FTP (Elena CSV + Bilder) �
 
 ---
 
+## Tech-Stack
+
+| Komponente       | Technologie        | Begründung                              |
+|------------------|--------------------|-----------------------------------------|
+| **Sprache**      | Python 3.11+       | Vorgabe, gute CSV/Excel-Unterstützung   |
+| **Package Manager** | uv              | Schnell, modernes Dependency-Management |
+| **Web-Framework**| Flask              | Leichtgewichtig, schnell für MVP        |
+| **Prod-Server**  | gunicorn           | Produktions-WSGI-Server                 |
+| **Datenbank**    | SQLite/PostgreSQL  | SQLite für POC, PostgreSQL für Prod     |
+| **ORM**          | SQLAlchemy         | Flexible DB-Abstraktion                 |
+| **FTP**          | ftplib             | Python-Standard                         |
+| **HTTP-Client**  | httpx / aiohttp    | Async Bild-Downloads                    |
+| **Excel-Export** | openpyxl           | XLSX-Erstellung                         |
+| **CSV**          | csv (stdlib)       | Standard-Parsing                        |
+| **Frontend**     | Jinja2 + Bootstrap 5 | Minimal, schnell umsetzbar            |
+| **Deployment**   | Nixpacks / Coolify | Container-Deployment                    |
+
+---
+
+## Projektstruktur
+
+```
+pricat-converter/
+├── app/
+│   ├── __init__.py           # Flask App Factory
+│   ├── config.py             # Konfiguration
+│   ├── models/
+│   │   ├── __init__.py
+│   │   ├── base.py           # SQLAlchemy Base
+│   │   ├── lieferant.py      # Lieferant Model
+│   │   ├── hersteller.py     # Hersteller Model
+│   │   ├── marke.py          # Marke Model
+│   │   └── config.py         # Config Key-Value Model
+│   ├── services/
+│   │   ├── __init__.py
+│   │   ├── ftp_service.py    # FTP Upload/Download
+│   │   ├── pricat_parser.py  # PRICAT CSV Parser
+│   │   ├── elena_exporter.py # Elena CSV Generator
+│   │   ├── image_downloader.py # Async Bild-Download
+│   │   ├── xlsx_exporter.py  # XLSX Export
+│   │   └── import_trigger.py # Elena Import auslösen
+│   ├── routes/
+│   │   └── main.py           # Web-Routen
+│   └── templates/
+│       ├── base.html
+│       ├── index.html        # Lieferanten-Liste
+│       └── status.html       # Verarbeitungs-Status
+├── data/
+│   ├── imports/              # Heruntergeladene PRICAT-Dateien
+│   ├── exports/              # Generierte Elena-Dateien
+│   └── images/               # Heruntergeladene Bilder
+├── instance/
+│   └── pricat.db             # SQLite Datenbank
+├── pyproject.toml            # Dependencies (uv)
+├── uv.lock
+└── run.py                    # Entry Point
+```
+
+---
+
+## Datenbank-Schema
+
+### ER-Diagramm
+
+```
+┌─────────────────┐       ┌─────────────────┐       ┌──────────────────┐
+│    Lieferant    │       │   Hersteller    │       │     Marke        │
+├─────────────────┤       ├─────────────────┤       ├──────────────────┤
+│ id (PK)         │       │ id (PK)         │       │ id (PK)          │
+│ gln             │       │ gln             │◀──┐   │ kurzbezeichnung  │
+│ vedes_id        │       │ vedes_id        │   │   │ gln_evendo       │
+│ kurzbezeichnung │       │ kurzbezeichnung │   │   │ hersteller_id(FK)│──┐
+│ aktiv           │       │ created_at      │   │   │ created_at       │  │
+│ ftp_quelldatei  │       │ updated_at      │   │   │ updated_at       │  │
+│ elena_startdir  │       └─────────────────┘   │   └──────────────────┘  │
+│ letzte_konvert. │                             │                         │
+│ created_at      │                             └─────────────────────────┘
+│ updated_at      │                                   n:1 Beziehung
+└─────────────────┘
+
+┌─────────────────┐
+│     Config      │
+├─────────────────┤
+│ id (PK)         │
+│ key (unique)    │
+│ value           │
+│ beschreibung    │
+│ created_at      │
+│ updated_at      │
+└─────────────────┘
+```
+
+### Tabellen-Definitionen
+
+#### Tabelle: `lieferant`
+
+| Spalte              | Typ          | Constraint    | Beschreibung                        |
+|---------------------|--------------|---------------|-------------------------------------|
+| id                  | INTEGER      | PK, AUTO      | Primärschlüssel                     |
+| gln                 | VARCHAR(13)  | UNIQUE        | GLN des Lieferanten                 |
+| vedes_id            | VARCHAR(13)  | UNIQUE        | VEDES-interne Lieferanten-ID        |
+| kurzbezeichnung     | VARCHAR(40)  | NOT NULL      | Lieferantenname                     |
+| aktiv               | BOOLEAN      | DEFAULT true  | Lieferant aktiv für Verarbeitung    |
+| ftp_quelldatei      | VARCHAR(255) |               | Pfad/Datei auf VEDES-FTP            |
+| ftp_pfad_ziel       | VARCHAR(255) |               | Ziel-Pfad auf Elena-FTP             |
+| elena_startdir      | VARCHAR(50)  |               | startdir-Parameter für getData.php  |
+| elena_base_url      | VARCHAR(255) |               | z.B. https://direct.e-vendo.de      |
+| artikel_anzahl      | INTEGER      |               | Anzahl Artikel in PRICAT            |
+| ftp_datei_datum     | DATETIME     |               | Änderungsdatum der FTP-Datei        |
+| ftp_datei_groesse   | INTEGER      |               | Dateigröße in Bytes                 |
+| letzte_konvertierung| DATETIME     |               | Zeitstempel letzte Verarbeitung     |
+| created_at          | DATETIME     | DEFAULT NOW   | Erstellungszeitpunkt                |
+| updated_at          | DATETIME     |               | Letztes Update                      |
+
+#### Tabelle: `hersteller`
+
+| Spalte          | Typ          | Constraint    | Beschreibung                        |
+|-----------------|--------------|---------------|-------------------------------------|
+| id              | INTEGER      | PK, AUTO      | Primärschlüssel                     |
+| gln             | VARCHAR(13)  | UNIQUE        | GLN des Herstellers                 |
+| vedes_id        | VARCHAR(13)  | UNIQUE        | VEDES-interne Hersteller-ID         |
+| kurzbezeichnung | VARCHAR(40)  | NOT NULL      | Herstellername                      |
+| created_at      | DATETIME     | DEFAULT NOW   | Erstellungszeitpunkt                |
+| updated_at      | DATETIME     |               | Letztes Update                      |
+
+#### Tabelle: `marke`
+
+| Spalte          | Typ          | Constraint    | Beschreibung                        |
+|-----------------|--------------|---------------|-------------------------------------|
+| id              | INTEGER      | PK, AUTO      | Primärschlüssel                     |
+| kurzbezeichnung | VARCHAR(40)  | NOT NULL      | Markenbezeichnung                   |
+| gln_evendo      | VARCHAR(20)  | UNIQUE        | Format: {Hersteller.GLN}_{Nr}       |
+| hersteller_id   | INTEGER      | FK            | Referenz auf Hersteller             |
+| created_at      | DATETIME     | DEFAULT NOW   | Erstellungszeitpunkt                |
+| updated_at      | DATETIME     |               | Letztes Update                      |
+
+#### Tabelle: `config`
+
+| Spalte       | Typ          | Constraint    | Beschreibung                        |
+|--------------|--------------|---------------|-------------------------------------|
+| id           | INTEGER      | PK, AUTO      | Primärschlüssel                     |
+| key          | VARCHAR(50)  | UNIQUE        | Konfigurations-Schlüssel            |
+| value        | TEXT         |               | Konfigurations-Wert                 |
+| beschreibung | VARCHAR(255) |               | Beschreibung der Einstellung        |
+| created_at   | DATETIME     | DEFAULT NOW   | Erstellungszeitpunkt                |
+| updated_at   | DATETIME     |               | Letztes Update                      |
+
+**Vordefinierte Config-Einträge:**
+
+| Key                  | Beispiel-Value               | Beschreibung                    |
+|----------------------|------------------------------|---------------------------------|
+| vedes_ftp_host       | ftp.vedes.de                 | VEDES FTP Server                |
+| vedes_ftp_port       | 21                           | VEDES FTP Port                  |
+| vedes_ftp_user       | username                     | VEDES FTP Benutzer              |
+| vedes_ftp_pass       | (base64)                     | VEDES FTP Passwort (Base64)     |
+| vedes_ftp_basepath   | /pricat/                     | Basispfad auf VEDES FTP         |
+| elena_ftp_host       | ftp.e-vendo.de               | Ziel-FTP Server                 |
+| elena_ftp_port       | 21                           | Ziel-FTP Port                   |
+| elena_ftp_user       | username                     | Ziel-FTP Benutzer               |
+| elena_ftp_pass       | (base64)                     | Ziel-FTP Passwort (Base64)      |
+| image_download_threads| 5                           | Parallele Bild-Downloads        |
+| image_timeout        | 30                           | Timeout für Bild-Downloads (s)  |
+| s3_enabled           | false                        | S3 Storage aktivieren           |
+| s3_endpoint          | s3.eu-central-1.amazonaws.com| S3 Endpoint URL                 |
+| s3_bucket            | pricat-data                  | S3 Bucket Name                  |
+
+---
+
+## PRICAT → Elena Mapping
+
+### PRICAT Quellformat (VEDES StyleGuide V2.0)
+
+- **Delimiter:** Semikolon (`;`)
+- **Encoding:** UTF-8 (ggf. Latin-1 Fallback)
+- **Header-Zeile:** Beginnt mit `H;PRICAT;...`
+- **Daten-Zeilen:** Beginnen mit `P;PRICAT;...`
+- **Spaltenanzahl:** 143
+
+### Relevante PRICAT-Spalten (0-basiert)
+
+| Nr  | PRICAT-Spalte              | Elena-Ziel                  |
+|-----|----------------------------|-----------------------------|
+| 5   | VedesArtikelnummer         | articleNumber               |
+| 9   | EANUPC                     | articleNumberEAN            |
+| 12  | Artikelbezeichnung         | articleName                 |
+| 25  | LieferantGLN               | regularSupplierGLN          |
+| 26  | LieferantID                | (DB: Lieferant)             |
+| 27  | Lieferantname              | regularSupplierName         |
+| 29  | HerstellerGLN              | manufacturerGLN             |
+| 30  | HerstellerID               | (DB: Hersteller)            |
+| 31  | Herstellername             | manufacturerName            |
+| 32  | ArtikelnummerDesHerstellers| articleNumberMPN            |
+| 33  | UVPE                       | recommendedRetailPrice      |
+| 34  | GNP_Lieferant              | priceEK                     |
+| 38  | MWST                       | taxRate                     |
+| 51  | MarkeText                  | (DB: Marke.kurzbezeichnung) |
+| 63  | Gewicht                    | weight                      |
+| 94  | Bilderlink                 | pictures                    |
+| 96  | Grunddatentext             | longDescription             |
+| 99  | Warnhinweise               | (in longDescription)        |
+
+### Elena Zielformat
+
+CSV mit Semikolon-Delimiter, UTF-8, Double-Quote Enclosure.
+
+Wichtige Felder:
+- `articleNumber` - Artikelnummer
+- `articleNumberMPN` - Hersteller-Artikelnummer
+- `articleNumberEAN` - GTIN/EAN
+- `articleName` - Kurzbezeichnung
+- `priceEK` - Grundnettopreis
+- `recommendedRetailPrice` - UVP
+- `regularSupplierName` / `regularSupplierGLN` - Lieferant
+- `manufacturerName` / `manufacturerGLN` - Hersteller
+- `brandName` / `brandId` - Marke (brandId = gln_evendo)
+- `longDescription` - Langtext
+- `pictures` - Name Bild 1-15
+
+---
+
+## Komponenten
+
+### FTP Service (`ftp_service.py`)
+
+```python
+class FTPService:
+    def download_pricat(lieferant: Lieferant) -> Path
+    def upload_elena_package(lieferant: Lieferant, csv_path: Path, images_dir: Path) -> bool
+    def check_file_info(lieferant: Lieferant) -> FileInfo  # Datum, Größe
+```
+
+### PRICAT Parser (`pricat_parser.py`)
+
+```python
+class PricatParser:
+    def parse(file_path: Path) -> PricatData
+    def extract_entities(data: PricatData) -> tuple[Lieferant, list[Hersteller], list[Marke]]
+    def get_image_urls(data: PricatData) -> list[str]
+```
+
+### Elena Exporter (`elena_exporter.py`)
+
+```python
+class ElenaExporter:
+    def export(articles: list[Article], output_path: Path) -> Path
+```
+
+### Image Downloader (`image_downloader.py`)
+
+```python
+class ImageDownloader:
+    async def download_all(urls: list[str], target_dir: Path, max_concurrent: int = 5) -> DownloadResult
+```
+
+### XLSX Exporter (`xlsx_exporter.py`)
+
+```python
+class XlsxExporter:
+    def export_entities(lieferant: Lieferant, hersteller: list[Hersteller], marken: list[Marke], output_path: Path) -> Path
+```
+
+### Import Trigger (`import_trigger.py`)
+
+```python
+class ImportTrigger:
+    def trigger(base_url: str, startdir: str, importfile: str, debuglevel: int = 1) -> ImportResult
+```
+
+---
+
+## Datenfluss (Detail)
+
+```
+1. User klickt "Verarbeite" für Lieferant X
+                    │
+                    ▼
+2. FTPService.download_pricat(X)
+   └── Speichert: data/imports/pricat_{vedes_id}_{timestamp}.csv
+                    │
+                    ▼
+3. PricatParser.parse(csv_path)
+   ├── Extrahiert Lieferant → DB upsert
+   ├── Extrahiert Hersteller → DB upsert
+   ├── Extrahiert Marken → DB upsert (mit GLN_evendo Generierung)
+   └── Gibt strukturierte Artikeldaten zurück
+                    │
+                    ▼
+4. ImageDownloader.download_all(image_urls)
+   └── Speichert: data/images/{vedes_id}_{kurzname}/*.jpg
+       (parallel, async)
+                    │
+                    ▼
+5. ElenaExporter.export(articles)
+   └── Speichert: data/exports/elena_{vedes_id}_{timestamp}.csv
+                    │
+                    ▼
+6. XlsxExporter.export_entities(...)
+   └── Speichert: data/exports/entities_{vedes_id}_{timestamp}.xlsx
+                    │
+                    ▼
+7. FTPService.upload_elena_package(...)
+   └── Upload nach Ziel-FTP: /{startdir}/
+                    │
+                    ▼
+8. ImportTrigger.trigger(...)
+   └── GET https://{base_url}/importer/getData.php?startdir={startdir}&importfile={filename}
+                    │
+                    ▼
+9. Update: Lieferant.letzte_konvertierung = NOW()
+```
+
+---
+
+## Fehlerbehandlung
+
+| Fehlerfall                    | Behandlung                                      |
+|-------------------------------|-------------------------------------------------|
+| VEDES-FTP nicht erreichbar    | Retry 3x, dann Fehlermeldung im UI              |
+| PRICAT-Datei nicht gefunden   | Fehlermeldung, Lieferant als "keine Daten" markieren |
+| CSV-Parsing-Fehler            | Log mit Zeilennummer, Abbruch mit Hinweis       |
+| Bild-Download fehlgeschlagen  | Einzelbild überspringen, in Report vermerken    |
+| Ziel-FTP Upload fehlgeschlagen| Retry 3x, dann Rollback/Fehlermeldung           |
+| Elena-Import fehlgeschlagen   | HTTP-Response loggen, Fehlermeldung im UI       |
+
+---
+
+## UI/UX Richtlinien
+
+### Toast-Meldungen
+
+Alle Benutzer-Feedback-Meldungen werden als **Bootstrap Toast-Meldungen** angezeigt.
+
+**Keine Alert-Boxen** im Seiteninhalt - diese führen zu schlechter UX.
+
+**Toast-Eigenschaften:**
+- Position: Oben rechts (fixed)
+- Auto-Hide: Nach 5 Sekunden
+- Schließbar: Manuell via X-Button
+- Stapelbar: Mehrere Meldungen übereinander
+
+**Farbkodierung:**
+
+| Kategorie | CSS-Klasse | Verwendung |
+|-----------|------------|------------|
+| success | `text-bg-success` | Aktion erfolgreich |
+| danger | `text-bg-danger` | Fehler aufgetreten |
+| warning | `text-bg-warning` | Warnung/Hinweis |
+| info | `text-bg-info` | Information |
+
+### Weitere UI-Konventionen
+
+- **Tabellen:** Bootstrap `table-hover` für interaktive Listen
+- **Buttons:** Primäre Aktionen `btn-primary`, sekundäre `btn-outline-*`
+- **Status-Badges:** `badge bg-success/secondary` für Aktiv/Inaktiv
+
+---
+
 ## Erledigte Tasks
 
 ### Task 1: FTP Port-Konfiguration
@@ -41,8 +398,8 @@ VEDES FTP (PRICAT CSV) → pricat-converter → Ziel-FTP (Elena CSV + Bilder) �
 - Health-Check Endpoint `/api/health`
 
 ### Task 3: Benutzer-Authentifizierung
-- Flask-Login mit Rollen: `admin`, `sachbearbeiter`
-- Login-Schutz für alle Routes
+- Flask-Login mit DB-basierten Rollen: `admin`, `mitarbeiter`, `kunde`
+- Login-Schutz fuer alle Routes
 - Initiale Benutzer via `flask seed-users`
 
 ### Task 4: VEDES_ID ohne führende Nullen
@@ -101,26 +458,3 @@ VEDES FTP (PRICAT CSV) → pricat-converter → Ziel-FTP (Elena CSV + Bilder) �
 ## Offene Tasks
 
 *Aktuell keine offenen pricat-spezifischen Tasks.*
-
----
-
-## Technische Details
-
-### PRICAT Format
-- **Delimiter:** Semikolon (`;`)
-- **Encoding:** Latin-1 oder UTF-8
-- **Header:** Zeile beginnt mit `H;PRICAT;...`
-- **Daten:** Zeilen beginnen mit `P;PRICAT;...`
-- **143 Spalten**
-
-### Elena Zielformat
-- CSV mit Semikolon-Delimiter, UTF-8
-- Felder: articleNumber, articleName, priceEK, etc.
-- Bilder: Name Bild 1-15
-
-### Datenbank-Models
-- **Lieferant:** gln, vedes_id, kurzbezeichnung, aktiv, ftp_quelldatei, elena_startdir
-- **Hersteller:** gln, vedes_id, kurzbezeichnung
-- **Marke:** kurzbezeichnung, gln_evendo, hersteller_id (FK)
-- **Config:** key-value Store
-- **User:** email, password_hash, vorname, nachname, rolle, aktiv
