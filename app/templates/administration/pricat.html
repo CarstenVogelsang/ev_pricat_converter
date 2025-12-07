@@ -1,16 +1,16 @@
-{% extends "base.html" %}
+{% extends "administration/base.html" %}
 
-{% block title %}Admin - pricat-converter{% endblock %}
+{% block title %}PRICAT Converter - Administration - {{ branding.app_title }}{% endblock %}
 
-{% block content %}
-<h2 class="mb-4">Administration</h2>
+{% block admin_content %}
+<h2 class="mb-4"><i class="ti ti-route-square text-primary"></i> PRICAT Converter</h2>
 
 <div class="row">
     <!-- System Status -->
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Systemstatus</h5>
+                <h5 class="mb-0"><i class="ti ti-chart-bar"></i> Systemstatus</h5>
             </div>
             <div class="card-body">
                 <table class="table table-sm mb-0">
@@ -53,18 +53,20 @@
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">FTP Verbindungstests</h5>
+                <h5 class="mb-0"><i class="ti ti-plug-connected"></i> FTP Verbindungstests</h5>
             </div>
             <div class="card-body">
                 <div class="d-grid gap-2">
                     <form action="{{ url_for('admin.test_ftp_vedes') }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-outline-primary w-100">
-                            VEDES FTP testen
+                            <i class="ti ti-server"></i> VEDES FTP testen
                         </button>
                     </form>
                     <form action="{{ url_for('admin.test_ftp_elena') }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-outline-primary w-100">
-                            Elena FTP testen
+                            <i class="ti ti-server"></i> Elena FTP testen
                         </button>
                     </form>
                 </div>
@@ -78,48 +80,27 @@
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Lieferanten-Synchronisation</h5>
+                <h5 class="mb-0"><i class="ti ti-refresh"></i> Lieferanten-Synchronisation</h5>
             </div>
             <div class="card-body">
                 <p class="text-muted">
                     Scannt das VEDES FTP-Verzeichnis und legt neue Lieferanten (inaktiv) an.
                 </p>
                 <form action="{{ url_for('admin.sync_lieferanten') }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <button type="submit" class="btn btn-primary">
-                        Lieferanten synchronisieren
+                        <i class="ti ti-refresh"></i> Lieferanten synchronisieren
                     </button>
                 </form>
             </div>
         </div>
     </div>
 
-    <!-- Health Check -->
-    <div class="col-md-6 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0">Health Check</h5>
-            </div>
-            <div class="card-body">
-                <p class="text-muted">
-                    API-Endpoint fuer Monitoring und automatische Checks.
-                </p>
-                <a href="{{ url_for('admin.health') }}" class="btn btn-outline-secondary" target="_blank">
-                    Health Check (JSON)
-                </a>
-                <a href="{{ url_for('admin.api_health') }}" class="btn btn-outline-secondary" target="_blank">
-                    Simple Health (API)
-                </a>
-            </div>
-        </div>
-    </div>
-</div>
-
-<div class="row">
     <!-- Config Import/Export -->
     <div class="col-md-6 mb-4">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">Konfiguration Import/Export</h5>
+                <h5 class="mb-0"><i class="ti ti-file-settings"></i> Konfiguration Import/Export</h5>
             </div>
             <div class="card-body">
                 <p class="text-muted">
@@ -127,17 +108,18 @@
                 </p>
                 <div class="mb-3">
                     <a href="{{ url_for('admin.config_export') }}" class="btn btn-outline-success">
-                        <i class="bi bi-download"></i> Config exportieren
+                        <i class="ti ti-download"></i> Config exportieren
                     </a>
                 </div>
                 <hr>
                 <form action="{{ url_for('admin.config_import') }}" method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <div class="mb-3">
                         <label for="config_file" class="form-label">JSON-Datei auswählen</label>
                         <input type="file" class="form-control" id="config_file" name="config_file" accept=".json" required>
                     </div>
                     <button type="submit" class="btn btn-primary">
-                        <i class="bi bi-upload"></i> Config importieren
+                        <i class="ti ti-upload"></i> Config importieren
                     </button>
                 </form>
             </div>
@@ -146,6 +128,8 @@
 </div>
 
 <div class="mt-4">
-    <a href="{{ url_for('main.lieferanten') }}" class="btn btn-secondary">Zurück zur Übersicht</a>
+    <a href="{{ url_for('main.lieferanten') }}" class="btn btn-outline-secondary">
+        <i class="ti ti-arrow-left"></i> Zur Lieferanten-Übersicht
+    </a>
 </div>
 {% endblock %}

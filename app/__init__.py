@@ -7,12 +7,14 @@ from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_login import LoginManager
+from flask_wtf.csrf import CSRFProtect
 
 from app.config import config
 
 db = SQLAlchemy()
 migrate = Migrate()
 login_manager = LoginManager()
+csrf = CSRFProtect()
 login_manager.login_view = 'auth.login'
 login_manager.login_message = 'Bitte melden Sie sich an.'
 login_manager.login_message_category = 'info'
@@ -44,6 +46,7 @@ def create_app(config_name=None):
     db.init_app(app)
     migrate.init_app(app, db)
     login_manager.init_app(app)
+    csrf.init_app(app)
 
     # User loader for Flask-Login
     from app.models import User
@@ -53,12 +56,18 @@ def create_app(config_name=None):
         return User.query.get(int(user_id))
 
     # Register blueprints
-    from app.routes import main_bp, admin_bp, kunden_bp
+    from app.routes import (
+        main_bp, admin_bp, kunden_bp, lieferanten_auswahl_bp,
+        content_generator_bp, abrechnung_bp
+    )
     from app.routes.auth import auth_bp
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(auth_bp)
     app.register_blueprint(kunden_bp)
+    app.register_blueprint(lieferanten_auswahl_bp)
+    app.register_blueprint(content_generator_bp)
+    app.register_blueprint(abrechnung_bp)
 
     # Initialize Flask-Admin (under /db-admin, requires admin role)
     from app.admin import init_admin
@@ -121,13 +130,13 @@ def register_cli_commands(app):
         # Create SubApps
         subapps_data = [
             ('pricat', 'PRICAT Converter', 'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
-             'ti-transform', 'primary', 'main.lieferanten', True, 10),
+             'ti-route-square', 'primary', 'main.lieferanten', True, 10),
             ('kunden-report', 'Lead & Kundenreport', 'Kunden verwalten und Website-Analyse',
              'ti-users', 'success', 'kunden.liste', True, 20),
             ('lieferanten-auswahl', 'Meine Lieferanten', 'Relevante Lieferanten auswaehlen',
-             'ti-truck', 'info', None, False, 30),
+             'ti-truck', 'info', 'lieferanten_auswahl.index', True, 30),
             ('content-generator', 'Content Generator', 'KI-generierte Texte fuer Online-Shops',
-             'ti-writing', 'warning', None, False, 40),
+             'ti-writing', 'warning', 'content_generator.index', True, 40),
         ]
         subapps = {}
         for slug, name, beschreibung, icon, color, endpoint, aktiv, sort in subapps_data:
@@ -140,6 +149,16 @@ def register_cli_commands(app):
                 )
                 db.session.add(subapp)
                 click.echo(f'Created SubApp: {name}')
+            else:
+                # Update existing SubApp
+                subapp.name = name
+                subapp.beschreibung = beschreibung
+                subapp.icon = icon
+                subapp.color = color
+                subapp.route_endpoint = endpoint
+                subapp.aktiv = aktiv
+                subapp.sort_order = sort
+                click.echo(f'Updated SubApp: {name}')
             subapps[slug] = subapp
         db.session.flush()
 
@@ -209,6 +228,7 @@ def register_cli_commands(app):
             ('copyright_url', 'https://www.e-vendo.de', 'Link zur Hauptwebsite'),
             # Firecrawl
             ('firecrawl_api_key', '', 'Firecrawl API Key fuer Website-Analyse'),
+            ('firecrawl_credit_kosten', '0.005', 'Kosten pro Firecrawl Credit in Euro'),
         ]
 
         for key, value, beschreibung in config_defaults:

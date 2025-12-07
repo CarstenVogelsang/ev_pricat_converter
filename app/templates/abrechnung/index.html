@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+
+{% block title %}API-Abrechnung - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="ti ti-receipt"></i> API-Abrechnung</h2>
+</div>
+
+<!-- Summary Cards -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card text-white bg-primary">
+            <div class="card-body">
+                <h5 class="card-title"><i class="ti ti-coin"></i> Gesamt-Credits</h5>
+                <p class="card-text display-6">{{ total_credits }}</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-success">
+            <div class="card-body">
+                <h5 class="card-title"><i class="ti ti-currency-euro"></i> Gesamtkosten</h5>
+                <p class="card-text display-6">{{ "%.2f"|format(total_kosten) }} &euro;</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card text-white bg-info">
+            <div class="card-body">
+                <h5 class="card-title"><i class="ti ti-users"></i> Kunden</h5>
+                <p class="card-text display-6">{{ summary|length }}</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Usage by Customer -->
+<div class="card mb-4">
+    <div class="card-header">
+        <i class="ti ti-users"></i> Nutzung nach Kunde
+    </div>
+    <div class="card-body">
+        {% if summary %}
+        <table class="table table-hover">
+            <thead>
+                <tr>
+                    <th>Kunde</th>
+                    <th class="text-end">API-Calls</th>
+                    <th class="text-end">Credits</th>
+                    <th class="text-end">Kosten</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in summary %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('kunden.detail', id=row.id) }}">
+                            {{ row.firmierung }}
+                        </a>
+                    </td>
+                    <td class="text-end">{{ row.anzahl_calls }}</td>
+                    <td class="text-end">{{ row.total_credits }}</td>
+                    <td class="text-end">{{ "%.4f"|format(row.total_kosten) }} &euro;</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+                <tr>
+                    <th>Gesamt</th>
+                    <th class="text-end">{{ nutzungen|length }}</th>
+                    <th class="text-end">{{ total_credits }}</th>
+                    <th class="text-end">{{ "%.4f"|format(total_kosten) }} &euro;</th>
+                </tr>
+            </tfoot>
+        </table>
+        {% else %}
+        <p class="text-muted mb-0">
+            <i class="ti ti-info-circle"></i> Noch keine API-Nutzung vorhanden.
+        </p>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Detail List -->
+<div class="card">
+    <div class="card-header">
+        <i class="ti ti-list"></i> Alle API-Calls (letzte zuerst)
+    </div>
+    <div class="card-body">
+        {% if nutzungen %}
+        <div class="table-responsive">
+            <table class="table table-sm table-hover">
+                <thead>
+                    <tr>
+                        <th>Datum</th>
+                        <th>Kunde</th>
+                        <th>Service</th>
+                        <th>Endpoint</th>
+                        <th class="text-end">Credits</th>
+                        <th class="text-end">Kosten</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for n in nutzungen %}
+                    <tr>
+                        <td>{{ n.created_at.strftime('%d.%m.%Y %H:%M') }}</td>
+                        <td>
+                            <a href="{{ url_for('kunden.detail', id=n.kunde_id) }}">
+                                {{ n.kunde.firmierung }}
+                            </a>
+                        </td>
+                        <td><code>{{ n.api_service }}</code></td>
+                        <td><code>{{ n.api_endpoint }}</code></td>
+                        <td class="text-end">{{ n.credits_used }}</td>
+                        <td class="text-end">{{ "%.4f"|format(n.kosten_euro) }} &euro;</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <p class="text-muted mb-0">Keine Eintraege vorhanden.</p>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

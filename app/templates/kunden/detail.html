@@ -89,11 +89,20 @@
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
                 <span><i class="ti ti-palette"></i> Corporate Identity</span>
-                {% if kunde.ci and kunde.ci.analysiert_am %}
-                <small class="text-muted">
-                    Analysiert: {{ kunde.ci.analysiert_am.strftime('%d.%m.%Y %H:%M') }}
-                </small>
-                {% endif %}
+                <div>
+                    {% if kunde.ci and kunde.ci.raw_response %}
+                    <button type="button" class="btn btn-sm btn-outline-secondary me-2"
+                            data-bs-toggle="modal" data-bs-target="#rawJsonModal"
+                            title="Raw JSON anzeigen">
+                        <i class="ti ti-code"></i>
+                    </button>
+                    {% endif %}
+                    {% if kunde.ci and kunde.ci.analysiert_am %}
+                    <small class="text-muted">
+                        Analysiert: {{ kunde.ci.analysiert_am.strftime('%d.%m.%Y %H:%M') }}
+                    </small>
+                    {% endif %}
+                </div>
             </div>
             <div class="card-body">
                 {% if kunde.ci %}
@@ -212,11 +221,75 @@
 
 <div class="mt-4">
     <form action="{{ url_for('kunden.loeschen', id=kunde.id) }}" method="POST"
-          onsubmit="return confirm('Kunde wirklich loeschen?');">
+          onsubmit="return confirm('Kunde wirklich löschen?');">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <button type="submit" class="btn btn-outline-danger btn-sm">
-            <i class="ti ti-trash"></i> Kunde loeschen
+            <i class="ti ti-trash"></i> Kunde löschen
         </button>
     </form>
 </div>
+
+{% if kunde.ci and kunde.ci.raw_response %}
+<!-- Raw JSON Modal -->
+<div class="modal fade" id="rawJsonModal" tabindex="-1" aria-labelledby="rawJsonModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rawJsonModalLabel">
+                    <i class="ti ti-code"></i> Firecrawl Raw Response
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+            </div>
+            <div class="modal-body">
+                <pre class="bg-light p-3 rounded" style="max-height: 60vh; overflow: auto;"><code id="rawJsonCode">{{ kunde.ci.raw_response }}</code></pre>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schliessen</button>
+                <button type="button" class="btn btn-primary" onclick="copyRawJson()">
+                    <i class="ti ti-copy"></i> Kopieren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+{% if kunde.ci and kunde.ci.raw_response %}
+<script>
+// Format JSON when modal opens
+document.getElementById('rawJsonModal').addEventListener('show.bs.modal', function () {
+    try {
+        const codeEl = document.getElementById('rawJsonCode');
+        const json = JSON.parse(codeEl.textContent);
+        codeEl.textContent = JSON.stringify(json, null, 2);
+    } catch (e) {
+        console.error('JSON Parse Error:', e);
+    }
+});
+
+function copyRawJson() {
+    const text = document.getElementById('rawJsonCode').textContent;
+    navigator.clipboard.writeText(text).then(() => {
+        // Show toast feedback
+        const toastHtml = `
+            <div class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
+                <div class="d-flex">
+                    <div class="toast-body">JSON in Zwischenablage kopiert!</div>
+                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+                </div>
+            </div>
+        `;
+        const container = document.querySelector('.toast-container');
+        if (container) {
+            container.insertAdjacentHTML('beforeend', toastHtml);
+            const newToast = container.lastElementChild;
+            new bootstrap.Toast(newToast).show();
+        }
+    });
+}
+</script>
+{% endif %}
 {% endblock %}

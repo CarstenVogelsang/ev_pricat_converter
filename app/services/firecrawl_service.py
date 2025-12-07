@@ -2,6 +2,7 @@
 import json
 from dataclasses import dataclass
 from datetime import datetime
+from decimal import Decimal
 from typing import Optional
 
 import httpx
@@ -30,6 +31,7 @@ class FirecrawlService:
 
     API_BASE_URL = 'https://api.firecrawl.dev/v1'
     TIMEOUT = 60  # seconds
+    DEFAULT_CREDIT_COST = Decimal('0.005')  # Euro per credit
 
     def __init__(self):
         self.api_key = Config.get_value('firecrawl_api_key', '')
@@ -41,12 +43,41 @@ class FirecrawlService:
             'Content-Type': 'application/json'
         }
 
-    def analyze_branding(self, kunde) -> FirecrawlResult:
+    def _get_credit_cost(self) -> Decimal:
+        """Get cost per credit from config."""
+        cost_str = Config.get_value('firecrawl_credit_kosten', '0.005')
+        try:
+            return Decimal(cost_str)
+        except (ValueError, TypeError):
+            return self.DEFAULT_CREDIT_COST
+
+    def _track_usage(
+        self, kunde, user_id: int, credits: int = 1, endpoint: str = 'scrape/branding'
+    ) -> None:
+        """Track API usage for billing."""
+        from app.models import KundeApiNutzung
+
+        kosten = self._get_credit_cost() * credits
+
+        nutzung = KundeApiNutzung(
+            kunde_id=kunde.id,
+            user_id=user_id,
+            api_service='firecrawl',
+            api_endpoint=endpoint,
+            credits_used=credits,
+            kosten_euro=kosten,
+            beschreibung=f'Website-Analyse: {kunde.website_url}'
+        )
+        db.session.add(nutzung)
+        # Commit happens in _save_to_kunde_ci
+
+    def analyze_branding(self, kunde, user_id: int = None) -> FirecrawlResult:
         """
         Analyze a Kunde's website for branding information.
 
         Args:
             kunde: Kunde entity with website_url set
+            user_id: ID of user triggering the call (for billing)
 
         Returns:
             FirecrawlResult with extracted branding data
@@ -91,6 +122,10 @@ class FirecrawlService:
             result.text_primary_color = colors.get('textPrimary')
             result.text_secondary_color = colors.get('textSecondary')
             result.raw_response = data
+
+            # Track API usage (only on success and if user_id provided)
+            if user_id:
+                self._track_usage(kunde, user_id, credits=1, endpoint='scrape/branding')
 
             # Save to KundeCI
             self._save_to_kunde_ci(kunde, result, KundeCI)

@@ -13,6 +13,10 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 ### Added
 
 - Dokumentationsstruktur reorganisiert: `docs/prd/` mit modularen PRDs
+- **API-Kostenabrechnung (G7):** Neues Model `KundeApiNutzung` für Tracking von API-Calls
+- Abrechnungsseite unter `/abrechnung/` für User-spezifische API-Nutzung
+- Navigation: "API-Abrechnung" im User-Dropdown-Menü
+- Config: `firecrawl_credit_kosten` für konfigurierbaren Euro-Preis pro Credit
 
 ### Changed
 

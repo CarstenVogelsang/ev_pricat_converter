@@ -112,7 +112,7 @@ def analyse(id):
         return redirect(url_for('kunden.detail', id=id))
 
     firecrawl_service = FirecrawlService()
-    result = firecrawl_service.analyze_branding(kunde)
+    result = firecrawl_service.analyze_branding(kunde, user_id=current_user.id)
 
     if result.success:
         flash('Website-Analyse erfolgreich abgeschlossen.', 'success')

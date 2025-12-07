@@ -75,21 +75,6 @@
                             <i class="ti ti-home"></i> Dashboard
                         </a>
                     </li>
-                    {% if current_user.rolle in ['admin', 'sachbearbeiter'] %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="pricatDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="ti ti-transform"></i> PRICAT
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('main.lieferanten') }}">
-                                <i class="ti ti-truck"></i> Lieferanten
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('main.downloads') }}">
-                                <i class="ti ti-download"></i> Downloads
-                            </a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
                     {% if current_user.is_admin %}
                     <li class="nav-item dropdown">
                         <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
@@ -119,6 +104,10 @@
                         </a>
                         <ul class="dropdown-menu dropdown-menu-end">
                             <li><span class="dropdown-item-text text-muted">{{ current_user.email }}</span></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{{ url_for('abrechnung.index') }}">
+                                <i class="ti ti-receipt"></i> API-Abrechnung
+                            </a></li>
                             <li><hr class="dropdown-divider"></li>
                             <li><a class="dropdown-item" href="{{ url_for('auth.logout') }}">
                                 <i class="ti ti-logout"></i> Abmelden

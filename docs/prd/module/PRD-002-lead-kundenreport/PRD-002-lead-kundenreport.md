@@ -67,6 +67,15 @@ Verwaltung von Kunden/Leads mit automatischer Website-Analyse zur Extraktion von
 | Config-Key | Beschreibung |
 |------------|--------------|
 | `firecrawl_api_key` | API-Key fuer Firecrawl |
+| `firecrawl_credit_kosten` | Kosten pro Credit in Euro (Default: 0.005) |
+
+### API-Kostentracking
+
+Bei jedem erfolgreichen Firecrawl-Call wird ein `KundeApiNutzung`-Eintrag erstellt:
+- **user_id:** User der den Call ausgelöst hat
+- **kunde_id:** Kunde für den die Analyse durchgeführt wurde
+- **credits_used:** 1 Credit pro Scrape
+- **kosten_euro:** Berechnet aus `firecrawl_credit_kosten` × Credits
 
 ### API-Aufruf
 
@@ -118,6 +127,7 @@ Body: {
 
 - Stammdaten-Karte (Firmierung, Adresse, URLs)
 - CI-Karte mit Logo und Farbpalette
+- **Raw JSON Button:** Code-Icon im CI-Header öffnet Modal mit formatiertem Firecrawl-Response
 - Notizen-Bereich
 - Buttons: Website-Analyse, Bearbeiten, Loeschen
 

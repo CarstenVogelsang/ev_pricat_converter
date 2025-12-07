@@ -7,10 +7,12 @@ from app.models.rolle import Rolle
 from app.models.user import User
 from app.models.sub_app import SubApp, SubAppAccess
 from app.models.kunde import Kunde, KundeCI
+from app.models.api_nutzung import KundeApiNutzung
 
 __all__ = [
     'Lieferant', 'Hersteller', 'Marke', 'Config',
     'Rolle', 'User',
     'SubApp', 'SubAppAccess',
     'Kunde', 'KundeCI',
+    'KundeApiNutzung',
 ]

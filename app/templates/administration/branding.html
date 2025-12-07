@@ -1,18 +1,17 @@
-{% extends "base.html" %}
+{% extends "administration/base.html" %}
 
 {% block title %}Branding-Einstellungen - {{ branding.app_title }}{% endblock %}
 
-{% block content %}
+{% block admin_content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="ti ti-palette"></i> Branding-Einstellungen</h2>
-    <a href="{{ url_for('admin.index') }}" class="btn btn-outline-secondary">
-        <i class="ti ti-arrow-left"></i> Zurück
-    </a>
 </div>
 
 <div class="row">
     <div class="col-lg-8">
         <form method="post" enctype="multipart/form-data">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
             <!-- Logo Section -->
             <div class="card mb-4">
                 <div class="card-header">
@@ -26,6 +25,7 @@
                             </div>
                             {% if current_logo %}
                             <form method="post" action="{{ url_for('admin.delete_logo') }}" class="text-center">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                 <button type="submit" class="btn btn-outline-danger btn-sm" onclick="return confirm('Logo wirklich löschen?')">
                                     <i class="ti ti-trash"></i> Logo löschen
                                 </button>

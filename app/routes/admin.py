@@ -1,13 +1,15 @@
 """Admin routes for system management and testing."""
 import json
 import os
+import sys
 from datetime import datetime
 from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request, Response, current_app
 from flask_login import login_required
 from werkzeug.utils import secure_filename
+import flask
 
 from app import db
-from app.models import Config, Lieferant
+from app.models import Config, Lieferant, User, Kunde, SubApp
 from app.services import FTPService, BrandingService
 from app.routes.auth import admin_required
 
@@ -21,11 +23,55 @@ def allowed_file(filename):
 admin_bp = Blueprint('admin', __name__)
 
 
+# ============================================================================
+# System Overview (NEW)
+# ============================================================================
+
 @admin_bp.route('/')
 @login_required
 @admin_required
 def index():
-    """Admin overview page with test buttons."""
+    """Admin system overview page."""
+    # Database status
+    db_status = True
+    try:
+        db.session.execute(db.text('SELECT 1'))
+    except Exception:
+        db_status = False
+
+    # Counts
+    user_count = User.query.count()
+    kunde_count = Kunde.query.count()
+    lieferant_count = Lieferant.query.count()
+
+    # SubApps
+    subapps = SubApp.query.order_by(SubApp.sort_order).all()
+
+    # Environment info
+    environment = os.environ.get('FLASK_CONFIG', 'development')
+
+    return render_template(
+        'administration/index.html',
+        db_status=db_status,
+        user_count=user_count,
+        kunde_count=kunde_count,
+        lieferant_count=lieferant_count,
+        subapps=subapps,
+        python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
+        flask_version=flask.__version__,
+        environment=environment
+    )
+
+
+# ============================================================================
+# PRICAT Converter Admin
+# ============================================================================
+
+@admin_bp.route('/pricat/')
+@login_required
+@admin_required
+def pricat():
+    """PRICAT Converter admin page."""
     # Get config status
     configs = Config.query.all()
     config_dict = {c.key: c.value for c in configs}
@@ -41,7 +87,7 @@ def index():
     active_lieferant_count = Lieferant.query.filter_by(aktiv=True).count()
 
     return render_template(
-        'admin.html',
+        'administration/pricat.html',
         config_status=config_status,
         lieferant_count=lieferant_count,
         active_lieferant_count=active_lieferant_count
@@ -61,7 +107,7 @@ def test_ftp_vedes():
     else:
         flash(f'VEDES FTP Verbindung fehlgeschlagen: {result.message}', 'danger')
 
-    return redirect(url_for('admin.index'))
+    return redirect(url_for('admin.pricat'))
 
 
 @admin_bp.route('/test-ftp/elena', methods=['POST'])
@@ -77,7 +123,7 @@ def test_ftp_elena():
     else:
         flash(f'Elena FTP Verbindung fehlgeschlagen: {result.message}', 'danger')
 
-    return redirect(url_for('admin.index'))
+    return redirect(url_for('admin.pricat'))
 
 
 @admin_bp.route('/sync-lieferanten', methods=['POST'])
@@ -97,8 +143,127 @@ def sync_lieferanten():
     else:
         flash(f"Sync fehlgeschlagen: {result['message']}", 'danger')
 
-    return redirect(url_for('admin.index'))
+    return redirect(url_for('admin.pricat'))
 
+
+@admin_bp.route('/config/export')
+@login_required
+@admin_required
+def config_export():
+    """Export all config entries as JSON file."""
+    configs = Config.query.all()
+    config_list = [
+        {
+            'key': c.key,
+            'value': c.value,
+            'beschreibung': c.beschreibung
+        }
+        for c in configs
+    ]
+
+    # Create JSON response with download headers
+    json_data = json.dumps(config_list, indent=2, ensure_ascii=False)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    filename = f'pricat_config_{timestamp}.json'
+
+    return Response(
+        json_data,
+        mimetype='application/json',
+        headers={'Content-Disposition': f'attachment; filename={filename}'}
+    )
+
+
+@admin_bp.route('/config/import', methods=['POST'])
+@login_required
+@admin_required
+def config_import():
+    """Import config entries from uploaded JSON file."""
+    if 'config_file' not in request.files:
+        flash('Keine Datei ausgewählt', 'danger')
+        return redirect(url_for('admin.pricat'))
+
+    file = request.files['config_file']
+    if file.filename == '':
+        flash('Keine Datei ausgewählt', 'danger')
+        return redirect(url_for('admin.pricat'))
+
+    if not file.filename.endswith('.json'):
+        flash('Nur JSON-Dateien erlaubt', 'danger')
+        return redirect(url_for('admin.pricat'))
+
+    try:
+        # Read and parse JSON
+        content = file.read().decode('utf-8')
+        config_list = json.loads(content)
+
+        if not isinstance(config_list, list):
+            flash('Ungültiges JSON-Format (erwartet: Array)', 'danger')
+            return redirect(url_for('admin.pricat'))
+
+        created = 0
+        updated = 0
+
+        for entry in config_list:
+            if 'key' not in entry:
+                continue
+
+            existing = Config.query.filter_by(key=entry['key']).first()
+            if existing:
+                existing.value = entry.get('value', '')
+                if 'beschreibung' in entry:
+                    existing.beschreibung = entry['beschreibung']
+                updated += 1
+            else:
+                new_config = Config(
+                    key=entry['key'],
+                    value=entry.get('value', ''),
+                    beschreibung=entry.get('beschreibung', '')
+                )
+                db.session.add(new_config)
+                created += 1
+
+        db.session.commit()
+        flash(f'Config importiert: {created} neu, {updated} aktualisiert', 'success')
+
+    except json.JSONDecodeError as e:
+        flash(f'JSON-Fehler: {str(e)}', 'danger')
+    except Exception as e:
+        flash(f'Import-Fehler: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.pricat'))
+
+
+# ============================================================================
+# Other Module Admin Pages (Placeholders)
+# ============================================================================
+
+@admin_bp.route('/kunden-report/')
+@login_required
+@admin_required
+def kunden_report():
+    """Lead & Kundenreport admin page."""
+    return render_template('administration/kunden_report.html')
+
+
+@admin_bp.route('/lieferanten-auswahl/')
+@login_required
+@admin_required
+def lieferanten_auswahl():
+    """Meine Lieferanten admin page."""
+    return render_template('administration/lieferanten_auswahl.html')
+
+
+@admin_bp.route('/content-generator/')
+@login_required
+@admin_required
+def content_generator():
+    """Content Generator admin page."""
+    return render_template('administration/content_generator.html')
+
+
+# ============================================================================
+# Health Checks
+# ============================================================================
 
 @admin_bp.route('/health')
 def health():
@@ -156,7 +321,6 @@ def health():
     return jsonify(health_status)
 
 
-# Public API health endpoint
 @admin_bp.route('/api/health')
 def api_health():
     """Simple health check for load balancers/monitoring."""
@@ -167,92 +331,9 @@ def api_health():
         return jsonify({'status': 'error'}), 503
 
 
-@admin_bp.route('/config/export')
-@login_required
-@admin_required
-def config_export():
-    """Export all config entries as JSON file."""
-    configs = Config.query.all()
-    config_list = [
-        {
-            'key': c.key,
-            'value': c.value,
-            'beschreibung': c.beschreibung
-        }
-        for c in configs
-    ]
-
-    # Create JSON response with download headers
-    json_data = json.dumps(config_list, indent=2, ensure_ascii=False)
-    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f'pricat_config_{timestamp}.json'
-
-    return Response(
-        json_data,
-        mimetype='application/json',
-        headers={'Content-Disposition': f'attachment; filename={filename}'}
-    )
-
-
-@admin_bp.route('/config/import', methods=['POST'])
-@login_required
-@admin_required
-def config_import():
-    """Import config entries from uploaded JSON file."""
-    if 'config_file' not in request.files:
-        flash('Keine Datei ausgewählt', 'danger')
-        return redirect(url_for('admin.index'))
-
-    file = request.files['config_file']
-    if file.filename == '':
-        flash('Keine Datei ausgewählt', 'danger')
-        return redirect(url_for('admin.index'))
-
-    if not file.filename.endswith('.json'):
-        flash('Nur JSON-Dateien erlaubt', 'danger')
-        return redirect(url_for('admin.index'))
-
-    try:
-        # Read and parse JSON
-        content = file.read().decode('utf-8')
-        config_list = json.loads(content)
-
-        if not isinstance(config_list, list):
-            flash('Ungültiges JSON-Format (erwartet: Array)', 'danger')
-            return redirect(url_for('admin.index'))
-
-        created = 0
-        updated = 0
-
-        for entry in config_list:
-            if 'key' not in entry:
-                continue
-
-            existing = Config.query.filter_by(key=entry['key']).first()
-            if existing:
-                existing.value = entry.get('value', '')
-                if 'beschreibung' in entry:
-                    existing.beschreibung = entry['beschreibung']
-                updated += 1
-            else:
-                new_config = Config(
-                    key=entry['key'],
-                    value=entry.get('value', ''),
-                    beschreibung=entry.get('beschreibung', '')
-                )
-                db.session.add(new_config)
-                created += 1
-
-        db.session.commit()
-        flash(f'Config importiert: {created} neu, {updated} aktualisiert', 'success')
-
-    except json.JSONDecodeError as e:
-        flash(f'JSON-Fehler: {str(e)}', 'danger')
-    except Exception as e:
-        flash(f'Import-Fehler: {str(e)}', 'danger')
-
-    return redirect(url_for('admin.index'))
-
+# ============================================================================
+# Branding Settings
+# ============================================================================
 
 @admin_bp.route('/branding', methods=['GET', 'POST'])
 @login_required
@@ -294,7 +375,7 @@ def branding():
     # GET request
     branding_config = branding_service.get_branding()
     return render_template(
-        'admin_branding.html',
+        'administration/branding.html',
         branding=branding_config,
         current_logo=Config.get_value('brand_logo', '')
     )

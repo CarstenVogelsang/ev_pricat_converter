@@ -56,3 +56,4 @@ Jedes Modul hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 1. **Vor Änderungen:** Relevantes PRD-Dokument lesen
 2. **Bei neuen Features:** PRD-Dokument aktualisieren
 3. **Nach Änderungen:** CHANGELOG.md im Modul-Ordner aktualisieren
+4. **Nach Plan-Modus:** Zugehörige PRD- und CHANGELOG-Dokumente pflegen

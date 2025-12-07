@@ -24,6 +24,7 @@ Multi-Tool-Plattform für e-vendo Mitarbeiter und Kunden.
 | G4 | Rolle hinzufügen | ⏳ Offen | Neue Rolle: kunde |
 | G5 | Kunde-Model | ⏳ Offen | Kunde-Entity mit User-Zuordnung |
 | G6 | Repo umbenennen | ⏳ Offen | ev_pricat_converter → ev247 |
+| G7 | API-Kostenabrechnung | ✅ Fertig | Tracking von API-Calls (Credits, Kosten in Euro) pro User/Kunde |
 
 **Letztes Update:** 2025-12-07
 
@@ -138,6 +139,20 @@ ev247/
 | beschreibung | VARCHAR(255) | Beschreibung |
 | created_at | DATETIME | Erstellungszeitpunkt |
 | updated_at | DATETIME | Letztes Update |
+
+### KundeApiNutzung Model (API-Kostentracking)
+
+| Spalte | Typ | Beschreibung |
+|--------|-----|--------------|
+| id | INTEGER PK | Primärschlüssel |
+| kunde_id | INTEGER FK | Fremdschlüssel zu Kunde |
+| user_id | INTEGER FK | Fremdschlüssel zu User (wer hat den Call ausgelöst) |
+| api_service | VARCHAR(50) | Name des API-Services (z.B. "firecrawl") |
+| api_endpoint | VARCHAR(100) | Endpoint (z.B. "scrape/branding") |
+| credits_used | INTEGER | Verbrauchte Credits |
+| kosten_euro | DECIMAL(10,4) | Kosten in Euro |
+| beschreibung | VARCHAR(255) | Beschreibung des Calls |
+| created_at | DATETIME | Zeitpunkt des Calls |
 
 ---
 

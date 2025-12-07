@@ -1,0 +1,50 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Content Generator - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<h2 class="mb-4"><i class="ti ti-writing text-warning"></i> Content Generator</h2>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-settings"></i> Modul-Einstellungen</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center text-muted py-5">
+                    <i class="ti ti-tools fs-1 mb-3 d-block"></i>
+                    <p>Administrationsfunktionen für dieses Modul</p>
+                    <small>Funktion in Entwicklung</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-info-circle"></i> Info</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">
+                    <strong>Modul:</strong> Content Generator
+                </p>
+                <p class="small text-muted mb-2">
+                    <strong>Beschreibung:</strong> KI-generierte Texte für Online-Shops
+                </p>
+                <hr>
+                <p class="small text-muted mb-0">
+                    <strong>Geplante Admin-Funktionen:</strong>
+                </p>
+                <ul class="small text-muted mb-0">
+                    <li>OpenRouter API-Key konfigurieren</li>
+                    <li>KI-Modell auswählen</li>
+                    <li>Vorlagen verwalten</li>
+                    <li>Nutzungslimits festlegen</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

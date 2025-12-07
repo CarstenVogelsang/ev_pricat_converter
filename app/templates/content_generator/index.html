@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+
+{% block title %}Content Generator - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h2><i class="ti ti-writing text-warning"></i> Content Generator</h2>
+        <p class="text-muted mb-0">KI-generierte Texte für Online-Shops</p>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-wand"></i> Text Generator</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center text-muted py-5">
+                    <i class="ti ti-sparkles fs-1 mb-3 d-block"></i>
+                    <p>Text-Generator wird hier angezeigt</p>
+                    <small>Funktion in Entwicklung</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-template"></i> Vorlagen</h5>
+            </div>
+            <div class="card-body">
+                <div class="text-center text-muted py-4">
+                    <i class="ti ti-files fs-1 mb-3 d-block"></i>
+                    <p>Vorlagen-Auswahl</p>
+                    <small>Funktion in Entwicklung</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-info-circle"></i> Info</h5>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-2">
+                    <strong>Geplante Funktionen:</strong>
+                </p>
+                <ul class="small text-muted mb-0">
+                    <li>Kategorie-Texte (Intro/Teaser)</li>
+                    <li>SEO-Texte (Meta-Descriptions, Title-Tags)</li>
+                    <li>Produkttexte aus Basisdaten generieren</li>
+                    <li>OpenRouter API Integration</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
