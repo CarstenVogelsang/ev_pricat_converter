@@ -1,4 +1,4 @@
-# PRICAT Converter
+# Modul PRICAT Converter
 
 Konvertiert VEDES PRICAT-Dateien (Lieferanten-Produktdaten) in das Elena-Importformat für e-vendo Systeme.
 
@@ -249,6 +249,110 @@ Wichtige Felder:
 
 ---
 
+## 3. User Stories
+
+### US-01: Lieferanten anzeigen
+**Als** Anwender  
+**möchte ich** alle aktiven Lieferanten sehen  
+**damit** ich einen zur Verarbeitung auswählen kann.
+
+**Akzeptanzkriterien:**
+- Liste zeigt: Kurzbezeichnung, VEDES-ID, GLN, letzte Konvertierung
+- Nur aktive Lieferanten werden angezeigt
+- "Verarbeite"-Button pro Lieferant
+
+---
+
+### US-02: Verarbeitung starten
+**Als** Anwender  
+**möchte ich** die Verarbeitung für einen Lieferanten starten  
+**damit** dessen PRICAT-Daten konvertiert werden.
+
+**Akzeptanzkriterien:**
+- Klick auf "Verarbeite" startet den Prozess
+- UI zeigt Fortschritt/Status
+- Bei Erfolg: Erfolgsmeldung mit Details
+- Bei Fehler: Fehlermeldung mit Ursache
+
+---
+
+### US-03: Entitäten in DB speichern
+**Als** System  
+**möchte ich** Lieferant, Hersteller und Marken aus der PRICAT extrahieren  
+**damit** diese Stammdaten verfügbar sind.
+
+**Akzeptanzkriterien:**
+- Lieferant wird aus Spalten 26-28 extrahiert (GLN, ID, Name)
+- Hersteller werden aus Spalten 30-32 extrahiert
+- Marken werden aus Spalte 52 extrahiert
+- GLN_evendo für Marken: `{Hersteller.GLN}_{laufende_nummer}`
+- Duplikate werden per UPSERT behandelt
+
+---
+
+### US-04: Elena-CSV generieren
+**Als** System  
+**möchte ich** die PRICAT-Daten in eine Elena-CSV transformieren  
+**damit** der Elena-Import diese verarbeiten kann.
+
+**Akzeptanzkriterien:**
+- CSV-Format gemäß mapping.php
+- Delimiter: Semikolon
+- Encoding: UTF-8
+- Alle gemappten Felder korrekt befüllt
+
+---
+
+### US-05: Bilder herunterladen
+**Als** System  
+**möchte ich** alle Artikelbilder herunterladen  
+**damit** diese mit der Elena-CSV hochgeladen werden.
+
+**Akzeptanzkriterien:**
+- Bilder aus Spalte 95 (Bilderlink) extrahieren
+- Paralleler Download (max. 5 gleichzeitig)
+- Speicherung in `data/images/{vedes_id}_{kurzname}/`
+- Fehlgeschlagene Downloads werden geloggt aber übersprungen
+
+---
+
+### US-06: XLSX-Export
+**Als** Anwender  
+**möchte ich** eine XLSX-Datei mit Lieferant/Hersteller/Marken erhalten  
+**damit** ich die Stammdaten prüfen kann.
+
+**Akzeptanzkriterien:**
+- XLSX mit Spalten: Typ, Kurzbezeichnung, GLN
+- Enthält: 1 Lieferant, n Hersteller, n Marken
+- Dateiname: `entities_{vedes_id}_{timestamp}.xlsx`
+
+---
+
+### US-07: FTP-Upload
+**Als** System  
+**möchte ich** die generierten Dateien auf den Ziel-FTP hochladen  
+**damit** der Elena-Import sie verarbeiten kann.
+
+**Akzeptanzkriterien:**
+- Elena-CSV wird hochgeladen
+- Bilder werden in images/-Unterordner hochgeladen
+- Zielverzeichnis: `/{startdir}/`
+
+---
+
+### US-08: Import auslösen
+**Als** System  
+**möchte ich** den Elena-Import per HTTP-Request starten  
+**damit** die Daten automatisch importiert werden.
+
+**Akzeptanzkriterien:**
+- HTTP-GET auf: `{base_url}/importer/getData.php?startdir={startdir}&importfile={filename}&debuglevel=1`
+- Response wird geloggt
+- Status wird im UI angezeigt
+
+
+---
+
 ## Komponenten
 
 ### FTP Service (`ftp_service.py`)
@@ -452,6 +556,33 @@ Alle Benutzer-Feedback-Meldungen werden als **Bootstrap Toast-Meldungen** angeze
 - Unter `/db-admin` (nicht `/admin`)
 - Nur für Rolle `admin` zugänglich
 - Views: Lieferanten, Hersteller, Marken, Config, Users
+
+---
+
+## Elena Target Format
+
+See `docs/beispiel_mapping.php` for full mapping. Key fields:
+- articleNumber, articleNumberMPN, articleNumberEAN
+- articleName, longDescription
+- priceEK (Grundnettopreis), recommendedRetailPrice
+- regularSupplierName/GLN, manufacturerName/GLN
+- brandName, brandId (gln_evendo)
+- pictures (Name Bild 1-15)
+
+CSV format: Semicolon delimiter, UTF-8, double-quote enclosure
+
+---
+## Elena Target Format
+
+See `docs/beispiel_mapping.php` for full mapping. Key fields:
+- articleNumber, articleNumberMPN, articleNumberEAN
+- articleName, longDescription
+- priceEK (Grundnettopreis), recommendedRetailPrice
+- regularSupplierName/GLN, manufacturerName/GLN
+- brandName, brandId (gln_evendo)
+- pictures (Name Bild 1-15)
+
+CSV format: Semicolon delimiter, UTF-8, double-quote enclosure
 
 ---
 

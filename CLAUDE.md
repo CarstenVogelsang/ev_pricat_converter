@@ -90,17 +90,7 @@ PRICAT_COLUMNS = {
 }
 ```
 
-## Elena Target Format
 
-See `docs/beispiel_mapping.php` for full mapping. Key fields:
-- articleNumber, articleNumberMPN, articleNumberEAN
-- articleName, longDescription
-- priceEK (Grundnettopreis), recommendedRetailPrice
-- regularSupplierName/GLN, manufacturerName/GLN
-- brandName, brandId (gln_evendo)
-- pictures (Name Bild 1-15)
-
-CSV format: Semicolon delimiter, UTF-8, double-quote enclosure
 
 ## Documentation
 
