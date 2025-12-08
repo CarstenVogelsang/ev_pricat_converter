@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 import flask
 
 from app import db
-from app.models import Config, Lieferant, User, Kunde, SubApp
+from app.models import Config, Lieferant, User, Kunde, SubApp, KundeCI
 from app.services import FTPService, BrandingService
 from app.routes.auth import admin_required
 
@@ -372,12 +372,15 @@ def branding():
         flash('Branding-Einstellungen gespeichert', 'success')
         return redirect(url_for('admin.branding'))
 
-    # GET request
+    # GET request - load Kunden with CI data for import feature
+    kunden_mit_ci = Kunde.query.filter(Kunde.ci != None).order_by(Kunde.firmierung).all()
+
     branding_config = branding_service.get_branding()
     return render_template(
         'administration/branding.html',
         branding=branding_config,
-        current_logo=Config.get_value('brand_logo', '')
+        current_logo=Config.get_value('brand_logo', ''),
+        kunden_mit_ci=kunden_mit_ci
     )
 
 
@@ -393,9 +396,48 @@ def delete_logo():
             os.remove(full_path)
 
         _update_config('brand_logo', '')
+        # Also clear external logo URL
+        _update_config('brand_logo_url', '')
         db.session.commit()
         flash('Logo gelöscht', 'success')
 
+    return redirect(url_for('admin.branding'))
+
+
+@admin_bp.route('/branding/apply-kunde/<int:kunde_id>', methods=['POST'])
+@login_required
+@admin_required
+def apply_kunde_branding(kunde_id):
+    """Apply branding from Kunde CI data."""
+    kunde = Kunde.query.get_or_404(kunde_id)
+
+    if not kunde.ci:
+        flash('Kunde hat keine CI-Daten', 'warning')
+        return redirect(url_for('admin.branding'))
+
+    ci = kunde.ci
+
+    # Logo übernehmen (externe URL)
+    if ci.logo_url:
+        _update_config('brand_logo_url', ci.logo_url)
+        # Clear local logo so external URL is used
+        _update_config('brand_logo', '')
+
+    # Farben übernehmen
+    if ci.primary_color:
+        _update_config('brand_primary_color', ci.primary_color)
+    if ci.secondary_color:
+        _update_config('brand_secondary_color', ci.secondary_color)
+
+    # Copyright aus Firmierung
+    _update_config('copyright_text', f'© {datetime.now().year} {kunde.firmierung}')
+
+    # Website-Link
+    if kunde.website_url:
+        _update_config('copyright_url', kunde.website_url)
+
+    db.session.commit()
+    flash(f'Branding von "{kunde.firmierung}" übernommen', 'success')
     return redirect(url_for('admin.branding'))
 
 

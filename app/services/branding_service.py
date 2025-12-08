@@ -29,9 +29,12 @@ class BrandingService:
     def get_branding(self) -> BrandingConfig:
         """Load branding configuration from database."""
         logo_path = Config.get_value('brand_logo', '')
+        logo_url_external = Config.get_value('brand_logo_url', '')
 
-        # Determine logo URL (use direct path, not url_for)
-        if logo_path:
+        # Determine logo URL: external URL takes precedence, then local file
+        if logo_url_external:
+            logo_url = logo_url_external
+        elif logo_path:
             logo_url = f'/static/uploads/{logo_path}'
         else:
             logo_url = '/static/placeholder-logo.svg'

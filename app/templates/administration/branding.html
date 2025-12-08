@@ -7,6 +7,51 @@
     <h2><i class="ti ti-palette"></i> Branding-Einstellungen</h2>
 </div>
 
+<!-- CI-Übernahme von Kunde -->
+{% if kunden_mit_ci %}
+<div class="card mb-4 border-info">
+    <div class="card-header bg-info text-white">
+        <i class="ti ti-palette"></i> CI von Kunde übernehmen
+    </div>
+    <div class="card-body">
+        <p class="text-muted mb-3">Übernimmt Logo, Farben und Copyright von einem Kunden mit analysierter CI.</p>
+        <div class="row">
+            {% for kunde in kunden_mit_ci %}
+            <div class="col-md-4 col-lg-3 mb-3">
+                <div class="card h-100">
+                    <div class="card-body p-3">
+                        <h6 class="card-title mb-2">{{ kunde.firmierung }}</h6>
+                        <div class="d-flex gap-1 mb-2">
+                            {% if kunde.ci.primary_color %}
+                            <div style="width: 20px; height: 20px; background: {{ kunde.ci.primary_color }}; border: 1px solid #ccc; border-radius: 3px;" title="Primärfarbe: {{ kunde.ci.primary_color }}"></div>
+                            {% endif %}
+                            {% if kunde.ci.secondary_color %}
+                            <div style="width: 20px; height: 20px; background: {{ kunde.ci.secondary_color }}; border: 1px solid #ccc; border-radius: 3px;" title="Sekundärfarbe: {{ kunde.ci.secondary_color }}"></div>
+                            {% endif %}
+                            {% if kunde.ci.accent_color %}
+                            <div style="width: 20px; height: 20px; background: {{ kunde.ci.accent_color }}; border: 1px solid #ccc; border-radius: 3px;" title="Akzentfarbe: {{ kunde.ci.accent_color }}"></div>
+                            {% endif %}
+                        </div>
+                        {% if kunde.ci.logo_url %}
+                        <div class="mb-2">
+                            <img src="{{ kunde.ci.logo_url }}" alt="Logo" style="max-height: 30px; max-width: 100%;">
+                        </div>
+                        {% endif %}
+                        <form method="post" action="{{ url_for('admin.apply_kunde_branding', kunde_id=kunde.id) }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-info w-100">
+                                <i class="ti ti-download"></i> Übernehmen
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <div class="row">
     <div class="col-lg-8">
         <form method="post" enctype="multipart/form-data">
