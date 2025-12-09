@@ -44,3 +44,6 @@ VEDES/
 .pytest_cache/
 .coverage
 htmlcov/
+
+# Playwright MCP (test artifacts, may contain sensitive data)
+.playwright-mcp/
