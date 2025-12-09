@@ -19,9 +19,14 @@ uv run python run.py
 uv run gunicorn -w 4 -b 0.0.0.0:5000 'app:create_app()'
 
 # Datenbank
-uv run flask db upgrade    # Migrationen anwenden
-uv run flask init-db       # Tabellen erstellen
+uv run flask init-db       # Tabellen erstellen (nur bei neuer DB)
 uv run flask seed          # Testdaten einfügen
+
+# Datenbank-Migrationen (bei Schema-Änderungen)
+uv run flask db migrate -m "Beschreibung"  # Migration generieren
+uv run flask db upgrade                     # Migration anwenden
+uv run flask db downgrade                   # Letzte Migration rückgängig
+uv run flask db current                     # Aktuelle DB-Version
 ```
 
 ## Dokumentation
@@ -48,6 +53,7 @@ Jedes Modul hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 
 - **UI-Feedback:** Bootstrap Toasts (keine Alert-Boxen)
 - **Package Manager:** uv (nicht pip)
+- **DB-Schema:** Bei Änderungen `flask db migrate` + `flask db upgrade`, NICHT DB löschen!
 - **Sprache Docs:** Deutsch
 - **Sprache Code:** Englisch
 

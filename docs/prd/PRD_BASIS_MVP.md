@@ -195,3 +195,53 @@ Alle Benutzer-Feedback-Meldungen werden als **Bootstrap Toast-Meldungen** angeze
 - **Buttons:** Primäre Aktionen `btn-primary`, sekundäre `btn-outline-*`
 - **Status-Badges:** `badge bg-success/secondary` für Aktiv/Inaktiv
 - **Filter:** Dropdown oder Button-Group für Aktiv/Inaktiv/Alle
+
+---
+
+## 10. Datenbank-Migrationen
+
+### Wichtig: Niemals DB löschen!
+
+Bei Schema-Änderungen **NICHT** die Datenbank löschen und neu erstellen, sondern mit **Flask-Migrate** migrieren.
+
+### Befehle
+
+| Befehl | Beschreibung |
+|--------|--------------|
+| `uv run flask db migrate -m "Beschreibung"` | Migration aus Model-Änderungen generieren |
+| `uv run flask db upgrade` | Migration anwenden |
+| `uv run flask db downgrade` | Letzte Migration rückgängig machen |
+| `uv run flask db current` | Aktuelle DB-Version anzeigen |
+| `uv run flask db history` | Migrations-Historie anzeigen |
+
+### Workflow bei Model-Änderungen
+
+1. Model in `app/models/` ändern
+2. `uv run flask db migrate -m "Add xyz to Model"`
+3. Migrations-Skript in `migrations/versions/` prüfen
+4. `uv run flask db upgrade`
+5. Änderungen committen (inkl. `migrations/`)
+
+### Synchronisation Test-DB ↔ Live-DB
+
+Da Migrations-Skripte im Git-Repository liegen, sind beide DBs automatisch synchron:
+
+- **Lokal:** Nach `git pull` → `uv run flask db upgrade`
+- **Live (Coolify):** `flask db upgrade` wird automatisch beim Deploy ausgeführt (siehe nixpacks.toml)
+
+### Notfall: Datenbank komplett neu aufbauen
+
+Falls Migrationen auf dem Live-System nicht funktionieren (z.B. bei unbekanntem Migrations-Stand), kann die DB komplett neu aufgebaut werden:
+
+1. In Coolify: Environment-Variable `DB_RESET=true` setzen
+2. Deploy auslösen
+3. **WICHTIG:** Nach erfolgreichem Deploy `DB_RESET` wieder entfernen!
+4. Erneut deployen (damit der normale Migrations-Ablauf wiederhergestellt ist)
+
+⚠️ **WARNUNG:** Alle bestehenden Daten gehen verloren!
+
+**Technische Details:**
+
+- `flask reset-db` führt `db.drop_all()` + `db.create_all()` aus
+- Anschließend werden `flask seed` und `flask seed-users` automatisch aufgerufen
+- Der Befehl funktioniert nur wenn `DB_RESET=true` gesetzt ist (Sicherheitsmaßnahme)

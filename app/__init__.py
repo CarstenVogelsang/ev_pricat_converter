@@ -253,6 +253,34 @@ def register_cli_commands(app):
         db.create_all()
         click.echo('Database initialized!')
 
+    @app.cli.command('reset-db')
+    def reset_db_command():
+        """Drop all tables and recreate them. USE WITH CAUTION!
+
+        Requires DB_RESET=true environment variable as safety measure.
+        """
+        import os
+        if os.environ.get('DB_RESET', '').lower() != 'true':
+            click.echo('ERROR: DB_RESET environment variable must be set to "true"')
+            click.echo('This is a safety measure to prevent accidental data loss.')
+            click.echo('')
+            click.echo('Usage: DB_RESET=true flask reset-db')
+            return
+
+        click.echo('=' * 50)
+        click.echo('WARNING: Dropping ALL tables...')
+        click.echo('=' * 50)
+        db.drop_all()
+        click.echo('All tables dropped.')
+
+        click.echo('Creating all tables...')
+        db.create_all()
+        click.echo('All tables created.')
+
+        click.echo('')
+        click.echo('Database reset complete!')
+        click.echo('Run "flask seed" and "flask seed-users" to populate data.')
+
     @app.cli.command('seed-users')
     def seed_users_command():
         """Create initial users."""
