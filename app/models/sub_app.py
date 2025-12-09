@@ -13,7 +13,8 @@ class SubApp(db.Model):
     name = db.Column(db.String(100), nullable=False)
     beschreibung = db.Column(db.String(255))
     icon = db.Column(db.String(50), default='ti-app')
-    color = db.Column(db.String(20), default='primary')
+    color = db.Column(db.String(20), default='primary')  # Bootstrap class (fallback)
+    color_hex = db.Column(db.String(7), default='#0d6efd')  # Hex color for icon/button
     route_endpoint = db.Column(db.String(100))
     aktiv = db.Column(db.Boolean, default=True)
     sort_order = db.Column(db.Integer, default=0)
@@ -35,6 +36,7 @@ class SubApp(db.Model):
             'beschreibung': self.beschreibung,
             'icon': self.icon,
             'color': self.color,
+            'color_hex': self.color_hex,
             'route_endpoint': self.route_endpoint,
             'aktiv': self.aktiv,
             'sort_order': self.sort_order,

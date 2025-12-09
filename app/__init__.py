@@ -128,24 +128,25 @@ def register_cli_commands(app):
         db.session.flush()  # Get IDs
 
         # Create SubApps
+        # Format: (slug, name, beschreibung, icon, color, color_hex, endpoint, aktiv, sort)
         subapps_data = [
             ('pricat', 'PRICAT Converter', 'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
-             'ti-route-square', 'primary', 'main.lieferanten', True, 10),
+             'ti-route-square', 'primary', '#0d6efd', 'main.lieferanten', True, 10),
             ('kunden-report', 'Lead & Kundenreport', 'Kunden verwalten und Website-Analyse',
-             'ti-users', 'success', 'kunden.liste', True, 20),
+             'ti-users', 'success', '#198754', 'kunden.liste', True, 20),
             ('lieferanten-auswahl', 'Meine Lieferanten', 'Relevante Lieferanten auswaehlen',
-             'ti-truck', 'info', 'lieferanten_auswahl.index', True, 30),
+             'ti-truck', 'info', '#0dcaf0', 'lieferanten_auswahl.index', True, 30),
             ('content-generator', 'Content Generator', 'KI-generierte Texte fuer Online-Shops',
-             'ti-writing', 'warning', 'content_generator.index', True, 40),
+             'ti-writing', 'warning', '#ffc107', 'content_generator.index', True, 40),
         ]
         subapps = {}
-        for slug, name, beschreibung, icon, color, endpoint, aktiv, sort in subapps_data:
+        for slug, name, beschreibung, icon, color, color_hex, endpoint, aktiv, sort in subapps_data:
             subapp = SubApp.query.filter_by(slug=slug).first()
             if not subapp:
                 subapp = SubApp(
                     slug=slug, name=name, beschreibung=beschreibung,
-                    icon=icon, color=color, route_endpoint=endpoint,
-                    aktiv=aktiv, sort_order=sort
+                    icon=icon, color=color, color_hex=color_hex,
+                    route_endpoint=endpoint, aktiv=aktiv, sort_order=sort
                 )
                 db.session.add(subapp)
                 click.echo(f'Created SubApp: {name}')
@@ -155,6 +156,7 @@ def register_cli_commands(app):
                 subapp.beschreibung = beschreibung
                 subapp.icon = icon
                 subapp.color = color
+                subapp.color_hex = color_hex
                 subapp.route_endpoint = endpoint
                 subapp.aktiv = aktiv
                 subapp.sort_order = sort

@@ -51,6 +51,7 @@ def dashboard():
             'description': subapp.beschreibung,
             'icon': subapp.icon,
             'color': subapp.color,
+            'color_hex': subapp.color_hex or '#0d6efd',  # Fallback to Bootstrap primary
             'disabled': not subapp.route_endpoint,
             'url': url_for(subapp.route_endpoint) if subapp.route_endpoint else '#'
         }

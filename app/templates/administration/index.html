@@ -82,6 +82,7 @@
                         <thead>
                             <tr>
                                 <th>Modul</th>
+                                <th>Farbe</th>
                                 <th>Status</th>
                                 <th>Beschreibung</th>
                                 <th class="text-end">Admin</th>
@@ -91,8 +92,14 @@
                             {% for subapp in subapps %}
                             <tr>
                                 <td>
-                                    <i class="ti {{ subapp.icon }} text-{{ subapp.color }}"></i>
+                                    <i class="ti {{ subapp.icon }}" style="color: {{ subapp.color_hex or '#0d6efd' }};"></i>
                                     {{ subapp.name }}
+                                </td>
+                                <td>
+                                    <div class="d-flex align-items-center gap-2">
+                                        <div style="width: 20px; height: 20px; background-color: {{ subapp.color_hex or '#0d6efd' }}; border: 1px solid #ccc; border-radius: 3px;" title="{{ subapp.color_hex }}"></div>
+                                        <code class="small">{{ subapp.color_hex or '#0d6efd' }}</code>
+                                    </div>
                                 </td>
                                 <td>
                                     {% if subapp.aktiv %}
