@@ -31,10 +31,10 @@
     </li>
 </ul>
 
-<form method="POST">
-    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+<div class="tab-content" id="settingsTabContent">
+    <form method="POST" id="settingsForm">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
-    <div class="tab-content" id="settingsTabContent">
         <!-- API & Services Tab -->
         <div class="tab-pane fade show active" id="api" role="tabpanel">
             <div class="card mb-4">
@@ -259,20 +259,17 @@
                     </div>
                 </div>
             </div>
+            <!-- Save Button -->
+            <div class="d-grid gap-2 mt-4">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="ti ti-device-floppy"></i> Einstellungen speichern
+                </button>
+            </div>
         </div>
-    </div>
+    </form>
 
-    <!-- Save Button -->
-    <div class="d-grid gap-2 mt-4">
-        <button type="submit" class="btn btn-primary btn-lg">
-            <i class="ti ti-device-floppy"></i> Einstellungen speichern
-        </button>
-    </div>
-</form>
-
-<div class="tab-content mt-4">
-        <!-- Import/Export Tab (outside main form to avoid nesting) -->
-        <div class="tab-pane fade" id="import-export" role="tabpanel">
+    <!-- Import/Export Tab (outside form to avoid nested forms) -->
+    <div class="tab-pane fade" id="import-export" role="tabpanel">
             <div class="row">
                 <!-- Export -->
                 <div class="col-md-6">
@@ -352,7 +349,6 @@
             </div>
         </div>
     </div>
-</div>
 {% endblock %}
 
 {% block scripts %}
