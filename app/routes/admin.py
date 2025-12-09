@@ -3,7 +3,7 @@ import json
 import os
 import sys
 from datetime import datetime
-from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request, Response, current_app
+from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request, Response, current_app, make_response
 from flask_login import login_required
 from werkzeug.utils import secure_filename
 import flask
@@ -166,11 +166,11 @@ def config_export():
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
     filename = f'pricat_config_{timestamp}.json'
 
-    return Response(
-        json_data,
-        mimetype='application/json',
-        headers={'Content-Disposition': f'attachment; filename={filename}'}
-    )
+    response = make_response(json_data)
+    response.headers['Content-Type'] = 'application/json; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response.headers['Cache-Control'] = 'no-cache'
+    return response
 
 
 @admin_bp.route('/config/import', methods=['POST'])

@@ -124,6 +124,27 @@ def analyse(id):
     return redirect(url_for('kunden.detail', id=id))
 
 
+@kunden_bp.route('/<int:id>/reparse-logo', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def reparse_logo(id):
+    """Re-extract logo from stored raw_response without new API call."""
+    kunde = Kunde.query.get_or_404(id)
+
+    if not kunde.ci or not kunde.ci.raw_response:
+        flash('Kein Raw Response vorhanden. Bitte erst Website-Analyse durchfuehren.', 'warning')
+        return redirect(url_for('kunden.detail', id=id))
+
+    logo_url = FirecrawlService.reparse_logo_from_raw(kunde.ci)
+
+    if logo_url:
+        flash(f'Logo erfolgreich extrahiert.', 'success')
+    else:
+        flash('Kein Logo im Raw Response gefunden.', 'warning')
+
+    return redirect(url_for('kunden.detail', id=id))
+
+
 @kunden_bp.route('/<int:id>/projekt')
 @login_required
 @mitarbeiter_required

@@ -118,6 +118,14 @@
                         <img src="{{ kunde.ci.logo_url }}" alt="Logo" class="img-fluid mt-2" style="max-height: 80px;">
                         {% else %}
                         <span class="text-muted">Nicht gefunden</span>
+                        {% if kunde.ci.raw_response %}
+                        <form action="{{ url_for('kunden.reparse_logo', id=kunde.id) }}" method="POST" class="d-inline ms-2">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-sm btn-outline-info" title="Logo aus Raw Response extrahieren">
+                                <i class="ti ti-refresh"></i> Erneut extrahieren
+                            </button>
+                        </form>
+                        {% endif %}
                         {% endif %}
                     </div>
                 </div>

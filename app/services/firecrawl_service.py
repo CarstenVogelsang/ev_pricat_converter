@@ -110,11 +110,20 @@ class FirecrawlService:
             data = response.json()
 
             # Extract branding data
-            branding = data.get('data', {}).get('branding', {})
+            response_data = data.get('data', {})
+            branding = response_data.get('branding', {})
             colors = branding.get('colors', {})
+            # images can be at branding.images or data.images
+            branding_images = branding.get('images', {})
+            root_images = response_data.get('images', {})
 
             result.success = True
-            result.logo_url = branding.get('logo')
+            # Try branding.logo first, then branding.images.logo, then data.images.logo
+            result.logo_url = (
+                branding.get('logo') or
+                branding_images.get('logo') or
+                root_images.get('logo')
+            )
             result.primary_color = colors.get('primary')
             result.secondary_color = colors.get('secondary')
             result.accent_color = colors.get('accent')
@@ -158,3 +167,43 @@ class FirecrawlService:
             db.session.add(kunde_ci)
 
         db.session.commit()
+
+    @staticmethod
+    def reparse_logo_from_raw(kunde_ci) -> Optional[str]:
+        """
+        Re-extract logo URL from stored raw_response.
+
+        This is useful when the extraction logic is updated and we want
+        to apply it to existing data without making a new API call.
+
+        Args:
+            kunde_ci: KundeCI entity with raw_response
+
+        Returns:
+            Logo URL if found, None otherwise
+        """
+        if not kunde_ci or not kunde_ci.raw_response:
+            return None
+
+        try:
+            data = json.loads(kunde_ci.raw_response)
+            response_data = data.get('data', {})
+            branding = response_data.get('branding', {})
+            # images can be at branding.images or data.images
+            branding_images = branding.get('images', {})
+            root_images = response_data.get('images', {})
+
+            # Try branding.logo first, then branding.images.logo, then data.images.logo
+            logo_url = (
+                branding.get('logo') or
+                branding_images.get('logo') or
+                root_images.get('logo')
+            )
+
+            if logo_url and logo_url != kunde_ci.logo_url:
+                kunde_ci.logo_url = logo_url
+                db.session.commit()
+
+            return logo_url
+        except (json.JSONDecodeError, TypeError):
+            return None

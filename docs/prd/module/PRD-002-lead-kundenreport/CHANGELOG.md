@@ -8,6 +8,9 @@ Alle Änderungen am Lead & Kundenreport Modul.
 
 ### Added
 
+- **Logo Re-Extraktion:** Button "Erneut extrahieren" in CI-Karte wenn Logo nicht gefunden
+  - Extrahiert Logo aus gespeichertem Raw Response ohne neuen API-Call
+  - Route `/kunden/<id>/reparse-logo`
 - **Raw JSON Modal:** Button in CI-Karte öffnet Modal mit formatiertem Firecrawl-Response
 - **API-Kostentracking:** Jeder Firecrawl-Call wird mit Credits und Euro-Kosten protokolliert
 - Config `firecrawl_credit_kosten` für konfigurierbaren Euro-Preis pro Credit
@@ -18,6 +21,10 @@ Alle Änderungen am Lead & Kundenreport Modul.
 
 ### Changed
 
+- **Logo-Extraktion verbessert:** Fallback-Kette prüft jetzt drei mögliche Pfade im Firecrawl-Response:
+  1. `data.branding.logo` (direkt)
+  2. `data.branding.images.logo` (verschachtelt)
+  3. `data.images.logo` (Root-Ebene)
 - FirecrawlService akzeptiert jetzt `user_id` Parameter für Kostentracking
 - **API-Abrechnung im User-Dropdown:** Nur sichtbar für Rolle `kunde`
 - **Projekt-Button auf Kunden-Detail:** Nur sichtbar für `admin` und `mitarbeiter`
