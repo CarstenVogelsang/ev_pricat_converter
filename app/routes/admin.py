@@ -449,3 +449,68 @@ def _update_config(key: str, value: str):
     else:
         config = Config(key=key, value=value)
         db.session.add(config)
+
+
+# ============================================================================
+# System Settings
+# ============================================================================
+
+@admin_bp.route('/settings', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def settings():
+    """System settings page for API keys and configuration."""
+    if request.method == 'POST':
+        # API & Services
+        _update_config('firecrawl_api_key', request.form.get('firecrawl_api_key', ''))
+        _update_config('firecrawl_credit_kosten', request.form.get('firecrawl_credit_kosten', '0.005'))
+
+        # FTP VEDES
+        _update_config('vedes_ftp_host', request.form.get('vedes_ftp_host', ''))
+        _update_config('vedes_ftp_port', request.form.get('vedes_ftp_port', '21'))
+        _update_config('vedes_ftp_user', request.form.get('vedes_ftp_user', ''))
+        _update_config('vedes_ftp_pass', request.form.get('vedes_ftp_pass', ''))
+        _update_config('vedes_ftp_basepath', request.form.get('vedes_ftp_basepath', '/pricat/'))
+
+        # FTP Elena
+        _update_config('elena_ftp_host', request.form.get('elena_ftp_host', ''))
+        _update_config('elena_ftp_port', request.form.get('elena_ftp_port', '21'))
+        _update_config('elena_ftp_user', request.form.get('elena_ftp_user', ''))
+        _update_config('elena_ftp_pass', request.form.get('elena_ftp_pass', ''))
+
+        # S3 Storage
+        _update_config('s3_enabled', 'true' if request.form.get('s3_enabled') else 'false')
+        _update_config('s3_endpoint', request.form.get('s3_endpoint', ''))
+        _update_config('s3_access_key', request.form.get('s3_access_key', ''))
+        _update_config('s3_secret_key', request.form.get('s3_secret_key', ''))
+        _update_config('s3_bucket', request.form.get('s3_bucket', ''))
+
+        # Image Download
+        _update_config('image_download_threads', request.form.get('image_download_threads', '5'))
+        _update_config('image_timeout', request.form.get('image_timeout', '30'))
+
+        db.session.commit()
+        flash('Einstellungen gespeichert', 'success')
+        return redirect(url_for('admin.settings'))
+
+    # Load all configs for display
+    config_keys = [
+        'firecrawl_api_key', 'firecrawl_credit_kosten',
+        'vedes_ftp_host', 'vedes_ftp_port', 'vedes_ftp_user', 'vedes_ftp_pass', 'vedes_ftp_basepath',
+        'elena_ftp_host', 'elena_ftp_port', 'elena_ftp_user', 'elena_ftp_pass',
+        's3_enabled', 's3_endpoint', 's3_access_key', 's3_secret_key', 's3_bucket',
+        'image_download_threads', 'image_timeout'
+    ]
+    configs = {key: Config.get_value(key, '') for key in config_keys}
+
+    # Load all configs for overview table
+    all_configs_list = Config.query.order_by(Config.key).all()
+    all_configs = {c.key: c.value for c in all_configs_list}
+    config_count = len(all_configs_list)
+
+    return render_template(
+        'administration/settings.html',
+        configs=configs,
+        all_configs=all_configs,
+        config_count=config_count
+    )

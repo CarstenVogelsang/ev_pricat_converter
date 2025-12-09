@@ -46,6 +46,10 @@
                     <i class="ti ti-writing"></i><span>Content Generator</span>
                 </a>
                 <div class="list-group-item text-muted small py-2">Einstellungen</div>
+                <a href="{{ url_for('admin.settings') }}"
+                   class="list-group-item list-group-item-action{% if 'settings' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-adjustments"></i><span>Systemeinstellungen</span>
+                </a>
                 <a href="{{ url_for('admin.branding') }}"
                    class="list-group-item list-group-item-action{% if 'branding' in request.endpoint %} active{% endif %}">
                     <i class="ti ti-palette"></i><span>Branding</span>

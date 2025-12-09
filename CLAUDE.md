@@ -61,5 +61,22 @@ Jedes Modul hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 
 1. **Vor Änderungen:** Relevantes PRD-Dokument lesen
 2. **Bei neuen Features:** PRD-Dokument aktualisieren
-3. **Nach Änderungen:** CHANGELOG.md im Modul-Ordner aktualisieren
+3. **Nach Implementierungen:** Changelogs aktualisieren (siehe unten)
 4. **Nach Plan-Modus:** Zugehörige PRD- und CHANGELOG-Dokumente pflegen
+
+### Changelog-Pflege (wichtig!)
+
+Nach jeder Implementierung müssen die relevanten Changelogs aktualisiert werden:
+
+- **Basis-Plattform-Änderungen** (Auth, Admin-UI, Core-Features):
+  → [docs/prd/PRD_BASIS_CHANGELOG.md](docs/prd/PRD_BASIS_CHANGELOG.md)
+
+- **Modul-spezifische Änderungen**:
+  → `docs/prd/module/PRD-XXX-.../CHANGELOG.md` im jeweiligen Modul-Ordner
+
+Format: [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) mit Kategorien:
+
+- `Added` - Neue Features
+- `Changed` - Änderungen an bestehenden Features
+- `Fixed` - Bugfixes
+- `Removed` - Entfernte Features

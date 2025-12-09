@@ -100,6 +100,30 @@ def create_app(config_name=None):
         branding_service = BrandingService()
         return {'branding': branding_service.get_branding()}
 
+    # Context processor for module colors
+    @app.context_processor
+    def inject_module_colors():
+        """Make module colors available in all templates."""
+        from app.models import SubApp
+
+        module_colors = {}
+        try:
+            subapps = SubApp.query.all()
+            for subapp in subapps:
+                if subapp.route_endpoint:
+                    # Extract blueprint name from endpoint (e.g., "kunden.liste" -> "kunden")
+                    blueprint = subapp.route_endpoint.split('.')[0]
+                    module_colors[blueprint] = {
+                        'color_hex': subapp.color_hex or '#0d6efd',
+                        'icon': subapp.icon,
+                        'name': subapp.name,
+                        'description': subapp.beschreibung
+                    }
+        except Exception:
+            # DB not initialized yet
+            pass
+        return {'module_colors': module_colors}
+
     return app
 
 

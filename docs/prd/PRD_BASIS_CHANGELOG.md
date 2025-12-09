@@ -12,6 +12,13 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Added
 
+- **Systemeinstellungen-Seite** `/admin/settings` mit 4 Tabs:
+  - API & Services (Firecrawl API-Key, Credit-Kosten)
+  - FTP-Konfiguration (VEDES + Elena mit Test-Buttons)
+  - Storage (S3-Konfiguration, Bild-Download-Einstellungen)
+  - Import/Export (JSON Export/Import, Config-Übersicht mit 24 Einträgen)
+- Password-Toggle für sensible Felder (API-Keys, Passwörter)
+- URL-Hash-Navigation für direkten Tab-Zugriff (`/admin/settings#storage`)
 - Dokumentationsstruktur reorganisiert: `docs/prd/` mit modularen PRDs
 - **API-Kostenabrechnung (G7):** Neues Model `KundeApiNutzung` für Tracking von API-Calls
 - Abrechnungsseite unter `/abrechnung/` für User-spezifische API-Nutzung
@@ -21,6 +28,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 ### Changed
 
 - PRD_BASIS_MVP.md enthält jetzt Tech-Stack, Projektstruktur, Basis-DB-Schema
+- Admin-Sidebar: Neuer Link "Systemeinstellungen" unter "Einstellungen"
 
 ---
 

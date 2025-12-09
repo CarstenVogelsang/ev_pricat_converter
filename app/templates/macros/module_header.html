@@ -1,0 +1,41 @@
+{#
+  Module Header Macro with color scheme
+
+  Usage:
+  {% from "macros/module_header.html" import module_header %}
+
+  {% call module_header(
+      title="Kunden",
+      icon="ti-users",
+      color_hex="#198754",
+      description="Optional description"
+  ) %}
+      <a href="..." class="btn btn-primary">Action Button</a>
+  {% endcall %}
+#}
+
+{%- macro module_header(title, icon, color_hex, description=None, breadcrumb=None) -%}
+<div class="module-header mb-4 p-3 rounded" style="background: linear-gradient(135deg, {{ color_hex }}20 0%, transparent 70%);">
+    <div class="d-flex justify-content-between align-items-center">
+        <div class="d-flex align-items-center">
+            {% if breadcrumb %}
+            <a href="{{ breadcrumb.url }}" class="text-muted text-decoration-none me-3">
+                <i class="ti ti-arrow-left"></i> {{ breadcrumb.label }}
+            </a>
+            {% endif %}
+            <div class="rounded-circle p-3 me-3" style="background-color: {{ color_hex }}30;">
+                <i class="ti {{ icon }} fs-2" style="color: {{ color_hex }};"></i>
+            </div>
+            <div>
+                <h2 class="mb-0">{{ title }}</h2>
+                {% if description %}
+                <p class="text-muted mb-0 small">{{ description }}</p>
+                {% endif %}
+            </div>
+        </div>
+        <div>
+            {{ caller() if caller else '' }}
+        </div>
+    </div>
+</div>
+{%- endmacro -%}

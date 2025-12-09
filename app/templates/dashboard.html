@@ -11,10 +11,10 @@
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
     {% for app in apps %}
     <div class="col">
-        <div class="card h-100 {{ 'opacity-50' if app.disabled else '' }}" style="background: linear-gradient(135deg, {{ app.color_hex }}0D 0%, transparent 50%);">
+        <div class="card h-100 {{ 'opacity-50' if app.disabled else '' }}" style="background: linear-gradient(135deg, {{ app.color_hex }}20 0%, transparent 70%);">
             <div class="card-body">
                 <div class="d-flex align-items-center mb-3">
-                    <div class="rounded-circle p-3 me-3" style="background-color: {{ app.color_hex }}1A;">
+                    <div class="rounded-circle p-3 me-3" style="background-color: {{ app.color_hex }}30;">
                         <i class="ti {{ app.icon }} fs-2" style="color: {{ app.color_hex }};"></i>
                     </div>
                     <h5 class="card-title mb-0">{{ app.name }}</h5>

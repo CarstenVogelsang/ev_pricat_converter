@@ -1,11 +1,19 @@
 {% extends "base.html" %}
+{% from "macros/module_header.html" import module_header %}
 
 {% block title %}API-Abrechnung - {{ branding.app_title }}{% endblock %}
 
+{# API-Abrechnung uses kunden module color since it's part of that module #}
+{% set module = module_colors.get('kunden', {'color_hex': '#198754', 'icon': 'ti-receipt'}) %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <h2><i class="ti ti-receipt"></i> API-Abrechnung</h2>
-</div>
+{% call module_header(
+    title="API-Abrechnung",
+    icon="ti-receipt",
+    color_hex=module.color_hex,
+    description="Übersicht der API-Nutzung und Kosten"
+) %}
+{% endcall %}
 
 <!-- Summary Cards -->
 <div class="row mb-4">

@@ -1,0 +1,405 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Systemeinstellungen - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="ti ti-adjustments"></i> Systemeinstellungen</h2>
+</div>
+
+<!-- Nav Tabs -->
+<ul class="nav nav-tabs mb-4" id="settingsTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="api-tab" data-bs-toggle="tab" data-bs-target="#api" type="button" role="tab">
+            <i class="ti ti-cloud"></i> API & Services
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="ftp-tab" data-bs-toggle="tab" data-bs-target="#ftp" type="button" role="tab">
+            <i class="ti ti-server"></i> FTP-Konfiguration
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="storage-tab" data-bs-toggle="tab" data-bs-target="#storage" type="button" role="tab">
+            <i class="ti ti-database"></i> Storage
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="import-export-tab" data-bs-toggle="tab" data-bs-target="#import-export" type="button" role="tab">
+            <i class="ti ti-file-import"></i> Import/Export
+        </button>
+    </li>
+</ul>
+
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="tab-content" id="settingsTabContent">
+        <!-- API & Services Tab -->
+        <div class="tab-pane fade show active" id="api" role="tabpanel">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-flame"></i> Firecrawl API</span>
+                    <a href="https://www.firecrawl.dev/" target="_blank" class="btn btn-sm btn-outline-secondary">
+                        <i class="ti ti-external-link"></i> Docs
+                    </a>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Firecrawl wird für die Website-Analyse und CI-Extraktion bei Kunden verwendet.
+                    </p>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="firecrawl_api_key" class="form-label">API Key</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="firecrawl_api_key" name="firecrawl_api_key"
+                                       value="{{ configs.firecrawl_api_key }}" placeholder="fc-...">
+                                <button type="button" class="btn btn-outline-secondary toggle-password" data-target="firecrawl_api_key">
+                                    <i class="ti ti-eye"></i>
+                                </button>
+                            </div>
+                            <div class="form-text">API-Schlüssel von firecrawl.dev</div>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="firecrawl_credit_kosten" class="form-label">Kosten pro Credit (€)</label>
+                            <input type="text" class="form-control" id="firecrawl_credit_kosten" name="firecrawl_credit_kosten"
+                                   value="{{ configs.firecrawl_credit_kosten or '0.005' }}" placeholder="0.005">
+                            <div class="form-text">Für Kostentracking</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Placeholder for future APIs -->
+            <div class="card mb-4 border-dashed opacity-50">
+                <div class="card-header">
+                    <i class="ti ti-robot"></i> OpenRouter API (geplant)
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-0">
+                        Für den Content Generator - wird in PRD-004 implementiert.
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- FTP Tab -->
+        <div class="tab-pane fade" id="ftp" role="tabpanel">
+            <!-- VEDES FTP -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-download"></i> VEDES FTP (Quelle)</span>
+                    <form action="{{ url_for('admin.test_ftp_vedes') }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-info">
+                            <i class="ti ti-plug"></i> Verbindung testen
+                        </button>
+                    </form>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        FTP-Server von VEDES für den Download der PRICAT-Dateien.
+                    </p>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="vedes_ftp_host" class="form-label">Host</label>
+                            <input type="text" class="form-control" id="vedes_ftp_host" name="vedes_ftp_host"
+                                   value="{{ configs.vedes_ftp_host }}" placeholder="ftp.vedes.de">
+                        </div>
+                        <div class="col-md-2 mb-3">
+                            <label for="vedes_ftp_port" class="form-label">Port</label>
+                            <input type="number" class="form-control" id="vedes_ftp_port" name="vedes_ftp_port"
+                                   value="{{ configs.vedes_ftp_port or '21' }}" placeholder="21">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="vedes_ftp_basepath" class="form-label">Basispfad</label>
+                            <input type="text" class="form-control" id="vedes_ftp_basepath" name="vedes_ftp_basepath"
+                                   value="{{ configs.vedes_ftp_basepath or '/pricat/' }}" placeholder="/pricat/">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="vedes_ftp_user" class="form-label">Benutzer</label>
+                            <input type="text" class="form-control" id="vedes_ftp_user" name="vedes_ftp_user"
+                                   value="{{ configs.vedes_ftp_user }}" placeholder="username">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="vedes_ftp_pass" class="form-label">Passwort</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="vedes_ftp_pass" name="vedes_ftp_pass"
+                                       value="{{ configs.vedes_ftp_pass }}">
+                                <button type="button" class="btn btn-outline-secondary toggle-password" data-target="vedes_ftp_pass">
+                                    <i class="ti ti-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Elena FTP -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-upload"></i> Elena FTP (Ziel)</span>
+                    <form action="{{ url_for('admin.test_ftp_elena') }}" method="POST" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-sm btn-outline-info">
+                            <i class="ti ti-plug"></i> Verbindung testen
+                        </button>
+                    </form>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        FTP-Server für den Upload der konvertierten Dateien nach Elena.
+                    </p>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="elena_ftp_host" class="form-label">Host</label>
+                            <input type="text" class="form-control" id="elena_ftp_host" name="elena_ftp_host"
+                                   value="{{ configs.elena_ftp_host }}" placeholder="ftp.elena-server.de">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="elena_ftp_port" class="form-label">Port</label>
+                            <input type="number" class="form-control" id="elena_ftp_port" name="elena_ftp_port"
+                                   value="{{ configs.elena_ftp_port or '21' }}" placeholder="21">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="elena_ftp_user" class="form-label">Benutzer</label>
+                            <input type="text" class="form-control" id="elena_ftp_user" name="elena_ftp_user"
+                                   value="{{ configs.elena_ftp_user }}" placeholder="username">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="elena_ftp_pass" class="form-label">Passwort</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="elena_ftp_pass" name="elena_ftp_pass"
+                                       value="{{ configs.elena_ftp_pass }}">
+                                <button type="button" class="btn btn-outline-secondary toggle-password" data-target="elena_ftp_pass">
+                                    <i class="ti ti-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Storage Tab -->
+        <div class="tab-pane fade" id="storage" role="tabpanel">
+            <!-- S3 Storage -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-cloud-upload"></i> S3 Storage (Optional)
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        S3-kompatibler Objektspeicher für Bilder und Dateien. Falls nicht konfiguriert, werden lokale Dateien verwendet.
+                    </p>
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="s3_enabled" name="s3_enabled" value="true"
+                               {{ 'checked' if configs.s3_enabled == 'true' else '' }}>
+                        <label class="form-check-label" for="s3_enabled">S3 Storage aktivieren</label>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="s3_endpoint" class="form-label">Endpoint URL</label>
+                            <input type="url" class="form-control" id="s3_endpoint" name="s3_endpoint"
+                                   value="{{ configs.s3_endpoint }}" placeholder="https://s3.eu-central-1.amazonaws.com">
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="s3_bucket" class="form-label">Bucket</label>
+                            <input type="text" class="form-control" id="s3_bucket" name="s3_bucket"
+                                   value="{{ configs.s3_bucket }}" placeholder="my-bucket">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="s3_access_key" class="form-label">Access Key</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="s3_access_key" name="s3_access_key"
+                                       value="{{ configs.s3_access_key }}">
+                                <button type="button" class="btn btn-outline-secondary toggle-password" data-target="s3_access_key">
+                                    <i class="ti ti-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="s3_secret_key" class="form-label">Secret Key</label>
+                            <div class="input-group">
+                                <input type="password" class="form-control" id="s3_secret_key" name="s3_secret_key"
+                                       value="{{ configs.s3_secret_key }}">
+                                <button type="button" class="btn btn-outline-secondary toggle-password" data-target="s3_secret_key">
+                                    <i class="ti ti-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Image Download Settings -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-photo-down"></i> Bild-Download Einstellungen
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Einstellungen für den parallelen Download von Produktbildern beim PRICAT-Import.
+                    </p>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="image_download_threads" class="form-label">Parallele Downloads</label>
+                            <input type="number" class="form-control" id="image_download_threads" name="image_download_threads"
+                                   value="{{ configs.image_download_threads or '5' }}" min="1" max="20" placeholder="5">
+                            <div class="form-text">Anzahl gleichzeitiger Downloads (1-20)</div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="image_timeout" class="form-label">Timeout (Sekunden)</label>
+                            <input type="number" class="form-control" id="image_timeout" name="image_timeout"
+                                   value="{{ configs.image_timeout or '30' }}" min="5" max="120" placeholder="30">
+                            <div class="form-text">Timeout pro Download (5-120 Sek.)</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Import/Export Tab -->
+        <div class="tab-pane fade" id="import-export" role="tabpanel">
+            <div class="row">
+                <!-- Export -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="ti ti-file-export"></i> Konfiguration exportieren
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">
+                                Exportiert alle Systemeinstellungen als JSON-Datei. Nützlich für Backup oder Migration.
+                            </p>
+                            <a href="{{ url_for('admin.config_export') }}" class="btn btn-outline-primary">
+                                <i class="ti ti-download"></i> Als JSON exportieren
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Import -->
+                <div class="col-md-6">
+                    <div class="card mb-4">
+                        <div class="card-header">
+                            <i class="ti ti-file-import"></i> Konfiguration importieren
+                        </div>
+                        <div class="card-body">
+                            <p class="text-muted small mb-3">
+                                Importiert Einstellungen aus einer JSON-Datei. Bestehende Werte werden überschrieben.
+                            </p>
+                            <form action="{{ url_for('admin.config_import') }}" method="POST" enctype="multipart/form-data">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <div class="input-group">
+                                    <input type="file" class="form-control" name="config_file" accept=".json" required>
+                                    <button type="submit" class="btn btn-outline-warning">
+                                        <i class="ti ti-upload"></i> Importieren
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Config Overview -->
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-list"></i> Alle Config-Einträge</span>
+                    <span class="badge bg-secondary">{{ config_count }} Einträge</span>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Schlüssel</th>
+                                    <th>Wert</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for key, value in all_configs.items() %}
+                                <tr>
+                                    <td><code>{{ key }}</code></td>
+                                    <td>
+                                        {% if 'pass' in key or 'key' in key or 'secret' in key %}
+                                        <span class="text-muted">••••••••</span>
+                                        {% elif value %}
+                                        {{ value[:50] }}{% if value|length > 50 %}...{% endif %}
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Save Button (floating for all tabs except Import/Export) -->
+    <div class="d-grid gap-2 mt-4">
+        <button type="submit" class="btn btn-primary btn-lg">
+            <i class="ti ti-device-floppy"></i> Einstellungen speichern
+        </button>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Toggle password visibility
+document.querySelectorAll('.toggle-password').forEach(function(button) {
+    button.addEventListener('click', function() {
+        const targetId = this.getAttribute('data-target');
+        const input = document.getElementById(targetId);
+        const icon = this.querySelector('i');
+
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('ti-eye');
+            icon.classList.add('ti-eye-off');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('ti-eye-off');
+            icon.classList.add('ti-eye');
+        }
+    });
+});
+
+// Activate tab from URL hash (e.g. #storage) or localStorage
+const hash = window.location.hash.substring(1);
+if (hash) {
+    // URL hash has priority
+    const tab = document.querySelector(`[data-bs-target="#${hash}"]`);
+    if (tab) {
+        new bootstrap.Tab(tab).show();
+    }
+} else {
+    // Fall back to localStorage
+    const activeTab = localStorage.getItem('settingsActiveTab');
+    if (activeTab) {
+        const tab = document.querySelector(`[data-bs-target="${activeTab}"]`);
+        if (tab) {
+            new bootstrap.Tab(tab).show();
+        }
+    }
+}
+
+document.querySelectorAll('#settingsTabs button').forEach(function(tab) {
+    tab.addEventListener('shown.bs.tab', function(e) {
+        localStorage.setItem('settingsActiveTab', e.target.getAttribute('data-bs-target'));
+    });
+});
+</script>
+{% endblock %}

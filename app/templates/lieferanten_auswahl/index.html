@@ -1,14 +1,18 @@
 {% extends "base.html" %}
+{% from "macros/module_header.html" import module_header %}
 
 {% block title %}Meine Lieferanten - {{ branding.app_title }}{% endblock %}
 
+{% set module = module_colors.get('lieferanten_auswahl', {'color_hex': '#0dcaf0', 'icon': 'ti-truck'}) %}
+
 {% block content %}
-<div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2><i class="ti ti-truck text-info"></i> Meine Lieferanten</h2>
-        <p class="text-muted mb-0">Relevante Lieferanten auswählen und verwalten</p>
-    </div>
-</div>
+{% call module_header(
+    title="Meine Lieferanten",
+    icon=module.icon,
+    color_hex=module.color_hex,
+    description="Relevante Lieferanten auswählen und verwalten"
+) %}
+{% endcall %}
 
 <div class="row g-4">
     <div class="col-lg-8">

@@ -4,6 +4,15 @@ Alle Änderungen am PRICAT Converter Modul.
 
 ---
 
+## [Unreleased]
+
+### Added
+
+- PRICAT Admin: Neue Card "Bild-Download Einstellungen" mit Link zu Systemeinstellungen
+- Deep-Link `/admin/settings#storage` führt direkt zum Storage-Tab
+
+---
+
 ## [1.0.0] - 2025-12-06
 
 ### Completed Tasks
