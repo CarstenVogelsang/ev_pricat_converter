@@ -471,6 +471,7 @@ def settings():
         _update_config('vedes_ftp_user', request.form.get('vedes_ftp_user', ''))
         _update_config('vedes_ftp_pass', request.form.get('vedes_ftp_pass', ''))
         _update_config('vedes_ftp_basepath', request.form.get('vedes_ftp_basepath', '/pricat/'))
+        _update_config('vedes_ftp_encoding', request.form.get('vedes_ftp_encoding', 'utf-8'))
 
         # FTP Elena
         _update_config('elena_ftp_host', request.form.get('elena_ftp_host', ''))
@@ -496,7 +497,7 @@ def settings():
     # Load all configs for display
     config_keys = [
         'firecrawl_api_key', 'firecrawl_credit_kosten',
-        'vedes_ftp_host', 'vedes_ftp_port', 'vedes_ftp_user', 'vedes_ftp_pass', 'vedes_ftp_basepath',
+        'vedes_ftp_host', 'vedes_ftp_port', 'vedes_ftp_user', 'vedes_ftp_pass', 'vedes_ftp_basepath', 'vedes_ftp_encoding',
         'elena_ftp_host', 'elena_ftp_port', 'elena_ftp_user', 'elena_ftp_pass',
         's3_enabled', 's3_endpoint', 's3_access_key', 's3_secret_key', 's3_bucket',
         'image_download_threads', 'image_timeout'
