@@ -80,3 +80,15 @@ Format: [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) mit Kategorien:
 - `Changed` - Änderungen an bestehenden Features
 - `Fixed` - Bugfixes
 - `Removed` - Entfernte Features
+
+## Playwright Login Credentials
+
+Für automatisierte Tests via Playwright MCP können Login-Credentials aus `.env` Variablen gelesen werden:
+
+```bash
+# .env
+EV247_ADMIN_EMAIL=carsten.vogelsang@e-vendo.de
+EV247_ADMIN_PASSWORD=admin123
+```
+
+Diese Variablen werden NICHT von der Flask-App verwendet, sondern nur für Claude Code Playwright-Tests.

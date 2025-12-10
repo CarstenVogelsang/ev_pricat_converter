@@ -1,0 +1,85 @@
+{#
+    Help Icon Macro
+    ================
+    Displays an info icon (i) that opens a modal with help text when clicked.
+
+    Usage:
+        {% from "macros/help.html" import help_icon with context %}
+
+        <div class="card-header">
+            <span>Branchen {{ help_icon('kunden.detail.branchen') }}</span>
+        </div>
+
+    IMPORTANT: You MUST use "with context" when importing this macro!
+    This is required because the macro uses the get_help_text() context processor.
+
+    Parameters:
+        - schluessel: The unique key for the help text (e.g., 'kunden.detail.branchen')
+
+    The help text is fetched from the database using the get_help_text() context processor.
+    If no help text exists or it's inactive, nothing is rendered.
+#}
+
+{% macro help_icon(schluessel) %}
+{% set help = get_help_text(schluessel) %}
+{% if help and help.aktiv %}
+<button type="button" class="btn btn-sm btn-link p-0 ms-2 help-icon-btn"
+        data-bs-toggle="modal" data-bs-target="#helpModal_{{ schluessel|replace('.', '_') }}"
+        title="Hilfe anzeigen">
+    <i class="ti ti-info-circle text-muted"></i>
+</button>
+
+<!-- Help Modal for {{ schluessel }} -->
+<div class="modal fade" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="ti ti-help-circle text-info"></i> {{ help.titel }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+            </div>
+            <div class="modal-body help-content">
+                {{ help.inhalt_markdown|markdown }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}
+
+
+{#
+    Help Icon with custom trigger (for use in complex layouts)
+    ===========================================================
+    Renders only the modal, you provide your own trigger button.
+
+    Usage:
+        {% from "macros/help.html" import help_modal %}
+
+        <button data-bs-toggle="modal" data-bs-target="#helpModal_kunden_detail_branchen">
+            <i class="ti ti-info-circle"></i>
+        </button>
+        {{ help_modal('kunden.detail.branchen') }}
+#}
+
+{% macro help_modal(schluessel) %}
+{% set help = get_help_text(schluessel) %}
+{% if help and help.aktiv %}
+<div class="modal fade" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="ti ti-help-circle text-info"></i> {{ help.titel }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+            </div>
+            <div class="modal-body help-content">
+                {{ help.inhalt_markdown|markdown }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endmacro %}

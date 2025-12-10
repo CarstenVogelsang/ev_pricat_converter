@@ -1,0 +1,236 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Hilfetexte - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<h2 class="mb-4"><i class="ti ti-help text-primary"></i> Hilfetexte verwalten</h2>
+
+<div class="row">
+    <!-- Add New Hilfetext -->
+    <div class="col-lg-5 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-plus"></i> Neuer Hilfetext</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="create">
+
+                    <div class="mb-3">
+                        <label for="schluessel" class="form-label">Schluessel *</label>
+                        <input type="text" class="form-control" id="schluessel" name="schluessel" required
+                               placeholder="z.B. kunden.detail.branchen"
+                               pattern="[a-z0-9._-]+"
+                               title="Nur Kleinbuchstaben, Zahlen, Punkt, Unterstrich und Bindestrich">
+                        <div class="form-text">
+                            Eindeutiger Schluessel zur Identifikation (z.B. <code>kunden.detail.branchen</code>)
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="titel" class="form-label">Titel *</label>
+                        <input type="text" class="form-control" id="titel" name="titel" required
+                               placeholder="z.B. Branchen zuordnen">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="inhalt_markdown" class="form-label">Inhalt (Markdown)</label>
+                        <textarea class="form-control" id="inhalt_markdown" name="inhalt_markdown" rows="6"
+                                  placeholder="## Ueberschrift&#10;&#10;**Fett** und *kursiv* Text..."></textarea>
+                        <div class="form-text">
+                            <a href="https://www.markdownguide.org/basic-syntax/" target="_blank">
+                                <i class="ti ti-external-link"></i> Markdown-Syntax
+                            </a>
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-plus"></i> Anlegen
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Preview Card -->
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="ti ti-eye"></i> Vorschau</h6>
+            </div>
+            <div class="card-body" id="preview-content">
+                <p class="text-muted mb-0"><em>Gib oben Inhalt ein...</em></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing Hilfetexte -->
+    <div class="col-lg-7">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-list"></i> Vorhandene Hilfetexte ({{ hilfetexte|length }})</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if hilfetexte %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Schluessel</th>
+                                <th>Titel</th>
+                                <th width="70">Status</th>
+                                <th width="140">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for help in hilfetexte %}
+                            <tr>
+                                <td><code>{{ help.schluessel }}</code></td>
+                                <td>
+                                    {{ help.titel }}
+                                    {% if help.updated_by %}
+                                    <br><small class="text-muted">
+                                        Bearbeitet von {{ help.updated_by.vorname }}
+                                        {% if help.updated_at %}
+                                        am {{ help.updated_at.strftime('%d.%m.%Y') }}
+                                        {% endif %}
+                                    </small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if help.aktiv %}
+                                    <span class="badge bg-success">Aktiv</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inaktiv</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal" data-bs-target="#editModal{{ help.id }}">
+                                        <i class="ti ti-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-sm btn-outline-info"
+                                            data-bs-toggle="modal" data-bs-target="#previewModal{{ help.id }}">
+                                        <i class="ti ti-eye"></i>
+                                    </button>
+                                    {% if current_user.rolle == 'admin' %}
+                                    <form method="POST" class="d-inline"
+                                          onsubmit="return confirm('Hilfetext wirklich loeschen?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="{{ help.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger">
+                                            <i class="ti ti-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="ti ti-help-off fs-1 d-block mb-2"></i>
+                    Noch keine Hilfetexte vorhanden.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Info Card -->
+        <div class="card mt-3">
+            <div class="card-body">
+                <h6><i class="ti ti-info-circle text-info"></i> Hinweise</h6>
+                <ul class="mb-0 small">
+                    <li>Schluessel verwenden das Format <code>bereich.seite.element</code></li>
+                    <li>Hilfetexte erscheinen als (i)-Icon in Card-Headern</li>
+                    <li>Inhalt kann mit Markdown formatiert werden</li>
+                    <li>Nur Administratoren koennen Hilfetexte loeschen</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modals -->
+{% for help in hilfetexte %}
+<div class="modal fade" id="editModal{{ help.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" value="{{ help.id }}">
+
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-edit"></i> Hilfetext bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Schluessel *</label>
+                        <input type="text" class="form-control" name="schluessel" value="{{ help.schluessel }}" required
+                               pattern="[a-z0-9._-]+"
+                               title="Nur Kleinbuchstaben, Zahlen, Punkt, Unterstrich und Bindestrich">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Titel *</label>
+                        <input type="text" class="form-control" name="titel" value="{{ help.titel }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Inhalt (Markdown)</label>
+                        <textarea class="form-control" name="inhalt_markdown" rows="10">{{ help.inhalt_markdown }}</textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv{{ help.id }}"
+                               {{ 'checked' if help.aktiv }}>
+                        <label class="form-check-label" for="aktiv{{ help.id }}">Aktiv</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Preview Modal -->
+<div class="modal fade" id="previewModal{{ help.id }}" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="ti ti-help-circle text-info"></i> {{ help.titel }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                {{ help.inhalt_markdown|markdown }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+// Live Preview for new help text
+const inhaltInput = document.getElementById('inhalt_markdown');
+const previewDiv = document.getElementById('preview-content');
+
+if (inhaltInput && previewDiv) {
+    inhaltInput.addEventListener('input', function() {
+        const markdown = this.value.trim();
+        if (markdown) {
+            previewDiv.innerHTML = marked.parse(markdown);
+        } else {
+            previewDiv.innerHTML = '<p class="text-muted mb-0"><em>Gib oben Inhalt ein...</em></p>';
+        }
+    });
+}
+</script>
+{% endblock %}

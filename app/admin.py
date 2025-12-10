@@ -101,7 +101,7 @@ class SecureAdminIndexView(AdminIndexView):
 
 def init_admin(app, db):
     """Initialize Flask-Admin with all model views."""
-    from app.models import Lieferant, Hersteller, Marke, Config, User
+    from app.models import Lieferant, Hersteller, Marke, Config, User, Branche, Verband, Kunde
 
     admin = Admin(
         app,
@@ -117,5 +117,8 @@ def init_admin(app, db):
     admin.add_view(SecureModelView(Marke, db.session, name='Marken'))
     admin.add_view(SecureModelView(Config, db.session, name='Config'))
     admin.add_view(SecureModelView(User, db.session, name='Users'))
+    admin.add_view(SecureModelView(Kunde, db.session, name='Kunden'))
+    admin.add_view(SecureModelView(Branche, db.session, name='Branchen'))
+    admin.add_view(SecureModelView(Verband, db.session, name='Verbände'))
 
     return admin

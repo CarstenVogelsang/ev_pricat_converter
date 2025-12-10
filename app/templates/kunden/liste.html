@@ -16,14 +16,60 @@
     </a>
 {% endcall %}
 
+<!-- Filter Row -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3 align-items-end">
+            <div class="col-md-3">
+                <label for="filterBranche" class="form-label">Branche</label>
+                <select class="form-select" id="filterBranche" name="branche" onchange="this.form.submit()">
+                    <option value="">Alle Branchen</option>
+                    {% for branche in alle_branchen %}
+                    <option value="{{ branche.id }}" {{ 'selected' if filter_branche == branche.id }}>
+                        {{ branche.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filterVerband" class="form-label">Verband</label>
+                <select class="form-select" id="filterVerband" name="verband" onchange="this.form.submit()">
+                    <option value="">Alle Verbände</option>
+                    {% for verband in alle_verbaende %}
+                    <option value="{{ verband.id }}" {{ 'selected' if filter_verband == verband.id }}>
+                        {{ verband.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="filterStatus" class="form-label">Status</label>
+                <select class="form-select" id="filterStatus" name="status" onchange="this.form.submit()">
+                    <option value="alle" {{ 'selected' if filter_status == 'alle' }}>Alle</option>
+                    <option value="aktiv" {{ 'selected' if filter_status == 'aktiv' }}>Aktiv</option>
+                    <option value="inaktiv" {{ 'selected' if filter_status == 'inaktiv' }}>Inaktiv</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                {% if filter_branche or filter_verband or filter_status != 'alle' %}
+                <a href="{{ url_for('kunden.liste') }}" class="btn btn-outline-secondary">
+                    <i class="ti ti-x"></i> Filter zurücksetzen
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
 {% if kunden %}
 <div class="table-responsive">
     <table class="table table-hover">
         <thead>
             <tr>
                 <th>Firmierung</th>
+                <th>Branchen</th>
+                <th>Verbände</th>
                 <th>Website</th>
-                <th>Shop</th>
                 <th>CI</th>
                 <th>Status</th>
                 <th class="text-end">Aktionen</th>
@@ -36,20 +82,40 @@
                     <a href="{{ url_for('kunden.detail', id=kunde.id) }}" class="text-decoration-none fw-bold">
                         {{ kunde.firmierung }}
                     </a>
+                    {% if kunde.ev_kdnr %}
+                    <br><small class="text-muted">{{ kunde.ev_kdnr }}</small>
+                    {% endif %}
                 </td>
                 <td>
-                    {% if kunde.website_url %}
-                    <a href="{{ kunde.website_url }}" target="_blank" class="text-muted">
-                        <i class="ti ti-external-link"></i>
-                    </a>
+                    {% if kunde.primaer_branchen %}
+                    <span class="d-flex gap-1">
+                        {% for branche in kunde.primaer_branchen %}
+                        <span data-bs-toggle="tooltip" title="{{ branche.name }}">
+                            <i class="ti ti-{{ branche.icon }}"></i>
+                        </span>
+                        {% endfor %}
+                    </span>
                     {% else %}
                     <span class="text-muted">-</span>
                     {% endif %}
                 </td>
                 <td>
-                    {% if kunde.shop_url %}
-                    <a href="{{ kunde.shop_url }}" target="_blank" class="text-muted">
-                        <i class="ti ti-shopping-cart"></i>
+                    {% if kunde.alle_verbaende %}
+                    <span class="d-flex gap-1">
+                        {% for verband in kunde.alle_verbaende %}
+                        <span class="badge bg-secondary" data-bs-toggle="tooltip" title="{{ verband.name }}">
+                            {{ verband.kuerzel or verband.name[:2] }}
+                        </span>
+                        {% endfor %}
+                    </span>
+                    {% else %}
+                    <span class="text-muted">-</span>
+                    {% endif %}
+                </td>
+                <td>
+                    {% if kunde.website_url %}
+                    <a href="{{ kunde.website_url }}" target="_blank" class="text-muted">
+                        <i class="ti ti-external-link"></i>
                     </a>
                     {% else %}
                     <span class="text-muted">-</span>
@@ -72,7 +138,7 @@
                     {% endif %}
                 </td>
                 <td class="text-end">
-                    {% if kunde.website_url %}
+                    {% if kunde.website_url and not kunde.ci %}
                     <form action="{{ url_for('kunden.analyse', id=kunde.id) }}" method="POST" class="d-inline">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-outline-info" title="Website-Analyse">
@@ -95,4 +161,15 @@
     <a href="{{ url_for('kunden.neu') }}">Ersten Kunden anlegen</a>
 </div>
 {% endif %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<script>
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
 {% endblock %}

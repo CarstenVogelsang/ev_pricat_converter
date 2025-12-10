@@ -17,21 +17,62 @@
                 <form method="POST">
                     {{ form.hidden_tag() }}
 
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="firmierung" class="form-label">Firmierung *</label>
+                            {{ form.firmierung(class="form-control" + (" is-invalid" if form.firmierung.errors else ""), placeholder="z.B. Mustermann GmbH") }}
+                            {% for error in form.firmierung.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="ev_kdnr" class="form-label">e-vendo Kundennr.</label>
+                            {{ form.ev_kdnr(class="form-control" + (" is-invalid" if form.ev_kdnr.errors else ""), placeholder="z.B. 12345") }}
+                            {% for error in form.ev_kdnr.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
                     <div class="mb-3">
-                        <label for="firmierung" class="form-label">Firmierung *</label>
-                        {{ form.firmierung(class="form-control" + (" is-invalid" if form.firmierung.errors else ""), placeholder="z.B. Mustermann GmbH") }}
-                        {% for error in form.firmierung.errors %}
+                        <label for="strasse" class="form-label">Straße</label>
+                        {{ form.strasse(class="form-control" + (" is-invalid" if form.strasse.errors else ""), placeholder="Musterstraße 123") }}
+                        {% for error in form.strasse.errors %}
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
                     </div>
 
-                    <div class="mb-3">
-                        <label for="adresse" class="form-label">Adresse</label>
-                        {{ form.adresse(class="form-control" + (" is-invalid" if form.adresse.errors else ""), rows="3", placeholder="Strasse, PLZ, Ort") }}
-                        {% for error in form.adresse.errors %}
-                        <div class="invalid-feedback">{{ error }}</div>
-                        {% endfor %}
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="plz" class="form-label">PLZ</label>
+                            {{ form.plz(class="form-control" + (" is-invalid" if form.plz.errors else ""), placeholder="12345") }}
+                            {% for error in form.plz.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-5 mb-3">
+                            <label for="ort" class="form-label">Ort</label>
+                            {{ form.ort(class="form-control" + (" is-invalid" if form.ort.errors else ""), placeholder="Musterstadt") }}
+                            {% for error in form.ort.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="land" class="form-label">Land</label>
+                            {{ form.land(class="form-control" + (" is-invalid" if form.land.errors else ""), placeholder="Deutschland") }}
+                            {% for error in form.land.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
                     </div>
+
+                    {% if form.adresse.data %}
+                    <div class="mb-3">
+                        <label for="adresse" class="form-label text-muted">Adresse (alt - nur Migration)</label>
+                        {{ form.adresse(class="form-control bg-light" + (" is-invalid" if form.adresse.errors else ""), rows="2", readonly=true) }}
+                        <div class="form-text">Dieses Feld wird nur noch zur Migration angezeigt. Bitte die strukturierten Felder oben verwenden.</div>
+                    </div>
+                    {% endif %}
 
                     <div class="mb-3">
                         <label for="website_url" class="form-label">Website URL</label>

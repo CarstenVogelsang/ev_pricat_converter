@@ -59,6 +59,7 @@ Multi-Tool-Plattform für e-vendo Mitarbeiter und Kunden.
 ### Aktiv
 - [PRD-001 PRICAT Converter](module/PRD-001-pricat-converter/PRD-001-pricat-converter.md) - VEDES PRICAT → Elena Import
 - [PRD-002 Lead & Kundenreport](module/PRD-002-lead-kundenreport/PRD-002-lead-kundenreport.md) - Kundenverwaltung mit CI-Analyse
+- [PRD-005 Hilfetexte](module/PRD-005-hilfetexte/PRD-005-hilfetexte.md) - Kontextsensitive Hilfetexte mit Markdown
 
 ### Geplant
 - [PRD-003 Kunde-Lieferanten-Zuordnung](module/PRD-003-kunde-hat-lieferanten/PRD-003-kunde-hat-lieferanten.md) - Kunden wählen relevante Lieferanten

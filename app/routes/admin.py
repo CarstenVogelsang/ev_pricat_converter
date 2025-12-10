@@ -9,9 +9,9 @@ from werkzeug.utils import secure_filename
 import flask
 
 from app import db
-from app.models import Config, Lieferant, User, Kunde, SubApp, KundeCI
+from app.models import Config, Lieferant, User, Kunde, SubApp, KundeCI, Branche, Verband, HelpText
 from app.services import FTPService, BrandingService
-from app.routes.auth import admin_required
+from app.routes.auth import admin_required, mitarbeiter_required
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
 
@@ -514,3 +514,200 @@ def settings():
         all_configs=all_configs,
         config_count=config_count
     )
+
+
+# ============================================================================
+# Branchen Management
+# ============================================================================
+
+@admin_bp.route('/branchen', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def branchen():
+    """Manage Branchen (Industries)."""
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'create':
+            name = request.form.get('name', '').strip()
+            icon = request.form.get('icon', 'category').strip()
+            sortierung = request.form.get('sortierung', 0, type=int)
+
+            if name:
+                existing = Branche.query.filter_by(name=name).first()
+                if existing:
+                    flash(f'Branche "{name}" existiert bereits', 'warning')
+                else:
+                    branche = Branche(name=name, icon=icon, sortierung=sortierung, aktiv=True)
+                    db.session.add(branche)
+                    db.session.commit()
+                    flash(f'Branche "{name}" angelegt', 'success')
+
+        elif action == 'update':
+            branche_id = request.form.get('id', type=int)
+            branche = Branche.query.get(branche_id)
+            if branche:
+                branche.name = request.form.get('name', branche.name).strip()
+                branche.icon = request.form.get('icon', branche.icon).strip()
+                branche.sortierung = request.form.get('sortierung', branche.sortierung, type=int)
+                branche.aktiv = request.form.get('aktiv') == 'on'
+                db.session.commit()
+                flash(f'Branche "{branche.name}" aktualisiert', 'success')
+
+        elif action == 'delete':
+            branche_id = request.form.get('id', type=int)
+            branche = Branche.query.get(branche_id)
+            if branche:
+                # Check if used
+                if branche.kunden:
+                    flash(f'Branche "{branche.name}" wird von {len(branche.kunden)} Kunden verwendet und kann nicht gelöscht werden', 'warning')
+                else:
+                    name = branche.name
+                    db.session.delete(branche)
+                    db.session.commit()
+                    flash(f'Branche "{name}" gelöscht', 'success')
+
+        return redirect(url_for('admin.branchen'))
+
+    branchen_list = Branche.query.order_by(Branche.sortierung, Branche.name).all()
+    return render_template('administration/branchen.html', branchen=branchen_list)
+
+
+# ============================================================================
+# Verbände Management
+# ============================================================================
+
+@admin_bp.route('/verbaende', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def verbaende():
+    """Manage Verbände (Associations)."""
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'create':
+            name = request.form.get('name', '').strip()
+            kuerzel = request.form.get('kuerzel', '').strip()
+            website_url = request.form.get('website_url', '').strip()
+            logo_url = request.form.get('logo_url', '').strip()
+
+            if name:
+                existing = Verband.query.filter_by(name=name).first()
+                if existing:
+                    flash(f'Verband "{name}" existiert bereits', 'warning')
+                else:
+                    verband = Verband(
+                        name=name,
+                        kuerzel=kuerzel or None,
+                        website_url=website_url or None,
+                        logo_url=logo_url or None,
+                        aktiv=True
+                    )
+                    db.session.add(verband)
+                    db.session.commit()
+                    flash(f'Verband "{name}" angelegt', 'success')
+
+        elif action == 'update':
+            verband_id = request.form.get('id', type=int)
+            verband = Verband.query.get(verband_id)
+            if verband:
+                verband.name = request.form.get('name', verband.name).strip()
+                verband.kuerzel = request.form.get('kuerzel', '').strip() or None
+                verband.website_url = request.form.get('website_url', '').strip() or None
+                verband.logo_url = request.form.get('logo_url', '').strip() or None
+                verband.aktiv = request.form.get('aktiv') == 'on'
+                db.session.commit()
+                flash(f'Verband "{verband.name}" aktualisiert', 'success')
+
+        elif action == 'delete':
+            verband_id = request.form.get('id', type=int)
+            verband = Verband.query.get(verband_id)
+            if verband:
+                # Check if used
+                if verband.kunden:
+                    flash(f'Verband "{verband.name}" wird von {len(verband.kunden)} Kunden verwendet und kann nicht gelöscht werden', 'warning')
+                else:
+                    name = verband.name
+                    db.session.delete(verband)
+                    db.session.commit()
+                    flash(f'Verband "{name}" gelöscht', 'success')
+
+        return redirect(url_for('admin.verbaende'))
+
+    verbaende_list = Verband.query.order_by(Verband.name).all()
+    return render_template('administration/verbaende.html', verbaende=verbaende_list)
+
+
+# ============================================================================
+# Hilfetexte Management
+# ============================================================================
+
+@admin_bp.route('/hilfetexte', methods=['GET', 'POST'])
+@login_required
+@mitarbeiter_required
+def hilfetexte():
+    """Manage help texts for UI components."""
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'create':
+            schluessel = request.form.get('schluessel', '').strip()
+            titel = request.form.get('titel', '').strip()
+            inhalt_markdown = request.form.get('inhalt_markdown', '').strip()
+
+            if schluessel and titel:
+                existing = HelpText.query.filter_by(schluessel=schluessel).first()
+                if existing:
+                    flash(f'Hilfetext mit Schlüssel "{schluessel}" existiert bereits', 'warning')
+                else:
+                    help_text = HelpText(
+                        schluessel=schluessel,
+                        titel=titel,
+                        inhalt_markdown=inhalt_markdown,
+                        aktiv=True,
+                        updated_by_id=current_user.id
+                    )
+                    db.session.add(help_text)
+                    db.session.commit()
+                    flash(f'Hilfetext "{titel}" angelegt', 'success')
+            else:
+                flash('Schlüssel und Titel sind Pflichtfelder', 'warning')
+
+        elif action == 'update':
+            help_id = request.form.get('id', type=int)
+            help_text = HelpText.query.get(help_id)
+            if help_text:
+                # Check if new schluessel conflicts with existing
+                new_schluessel = request.form.get('schluessel', '').strip()
+                if new_schluessel != help_text.schluessel:
+                    existing = HelpText.query.filter_by(schluessel=new_schluessel).first()
+                    if existing:
+                        flash(f'Schlüssel "{new_schluessel}" wird bereits verwendet', 'warning')
+                        return redirect(url_for('admin.hilfetexte'))
+
+                help_text.schluessel = new_schluessel
+                help_text.titel = request.form.get('titel', help_text.titel).strip()
+                help_text.inhalt_markdown = request.form.get('inhalt_markdown', '').strip()
+                help_text.aktiv = request.form.get('aktiv') == 'on'
+                help_text.updated_by_id = current_user.id
+                db.session.commit()
+                flash(f'Hilfetext "{help_text.titel}" aktualisiert', 'success')
+
+        elif action == 'delete':
+            # Only admins can delete
+            if current_user.rolle != 'admin':
+                flash('Nur Administratoren können Hilfetexte löschen', 'danger')
+                return redirect(url_for('admin.hilfetexte'))
+
+            help_id = request.form.get('id', type=int)
+            help_text = HelpText.query.get(help_id)
+            if help_text:
+                titel = help_text.titel
+                db.session.delete(help_text)
+                db.session.commit()
+                flash(f'Hilfetext "{titel}" gelöscht', 'success')
+
+        return redirect(url_for('admin.hilfetexte'))
+
+    hilfetexte_list = HelpText.query.order_by(HelpText.schluessel).all()
+    return render_template('administration/hilfetexte.html', hilfetexte=hilfetexte_list)

@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros/module_header.html" import module_header %}
+{% from "macros/help.html" import help_icon with context %}
 
 {% block title %}{{ kunde.firmierung }} - {{ branding.app_title }}{% endblock %}
 
@@ -33,16 +34,31 @@
 <div class="row">
     <div class="col-md-6">
         <div class="card mb-4">
-            <div class="card-header">
-                <i class="ti ti-building"></i> Stammdaten
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="ti ti-building"></i> Stammdaten {{ help_icon('kunden.detail.stammdaten') }}</span>
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
                     <dt class="col-sm-4">Firmierung</dt>
                     <dd class="col-sm-8">{{ kunde.firmierung }}</dd>
 
+                    {% if kunde.ev_kdnr %}
+                    <dt class="col-sm-4">e-vendo Kdnr.</dt>
+                    <dd class="col-sm-8"><code>{{ kunde.ev_kdnr }}</code></dd>
+                    {% endif %}
+
                     <dt class="col-sm-4">Adresse</dt>
-                    <dd class="col-sm-8">{{ kunde.adresse|default('-', true)|nl2br }}</dd>
+                    <dd class="col-sm-8">
+                        {% if kunde.strasse or kunde.plz or kunde.ort %}
+                        {{ kunde.strasse }}<br>
+                        {{ kunde.plz }} {{ kunde.ort }}<br>
+                        {% if kunde.land and kunde.land != 'Deutschland' %}{{ kunde.land }}{% endif %}
+                        {% elif kunde.adresse %}
+                        {{ kunde.adresse|nl2br }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
 
                     <dt class="col-sm-4">Website</dt>
                     <dd class="col-sm-8">
@@ -88,12 +104,73 @@
             </div>
         </div>
         {% endif %}
+
+        <!-- Branchen Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="ti ti-category"></i> Branchen {{ help_icon('kunden.detail.branchen') }}</span>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2" id="branchen-container">
+                    {% for branche in alle_branchen %}
+                    {% set ist_zugeordnet = branche.id in kunde_branchen_ids %}
+                    {% set ist_primaer = branche.id in kunde_primaer_ids %}
+                    <button type="button"
+                            class="btn btn-{{ 'primary' if ist_zugeordnet else 'outline-secondary' }} position-relative branche-btn"
+                            data-branche-id="{{ branche.id }}"
+                            data-bs-toggle="tooltip"
+                            title="{{ branche.name }}{% if ist_primaer %} (Primär){% endif %}"
+                            onclick="toggleBranche({{ branche.id }})"
+                            oncontextmenu="togglePrimaer({{ branche.id }}); return false;">
+                        <i class="ti ti-{{ branche.icon }}"></i>
+                        {% if ist_primaer %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark" style="font-size: 0.6em;">
+                            P
+                        </span>
+                        {% endif %}
+                    </button>
+                    {% endfor %}
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    <i class="ti ti-info-circle"></i> Klick = Zuordnen/Entfernen | Rechtsklick = Primärbranche (max. 3)
+                </small>
+            </div>
+        </div>
+
+        <!-- Verbände Card -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="ti ti-building-community"></i> Verbände {{ help_icon('kunden.detail.verbaende') }}</span>
+            </div>
+            <div class="card-body">
+                <div class="d-flex flex-wrap gap-2" id="verbaende-container">
+                    {% for verband in alle_verbaende %}
+                    {% set ist_zugeordnet = verband.id in kunde_verbaende_ids %}
+                    <button type="button"
+                            class="btn btn-{{ 'success' if ist_zugeordnet else 'outline-secondary' }} verband-btn"
+                            data-verband-id="{{ verband.id }}"
+                            data-bs-toggle="tooltip"
+                            title="{{ verband.name }}"
+                            onclick="toggleVerband({{ verband.id }})">
+                        {% if verband.logo_url %}
+                        <img src="{{ verband.logo_url }}" alt="{{ verband.kuerzel }}" style="height: 20px;">
+                        {% else %}
+                        {{ verband.kuerzel or verband.name[:3] }}
+                        {% endif %}
+                    </button>
+                    {% endfor %}
+                </div>
+                <small class="text-muted mt-2 d-block">
+                    <i class="ti ti-info-circle"></i> Klick = Mitgliedschaft zuordnen/entfernen
+                </small>
+            </div>
+        </div>
     </div>
 
     <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="ti ti-palette"></i> Corporate Identity</span>
+                <span><i class="ti ti-palette"></i> Corporate Identity {{ help_icon('kunden.detail.ci') }}</span>
                 <div>
                     {% if kunde.ci and kunde.ci.raw_response %}
                     <button type="button" class="btn btn-sm btn-outline-secondary me-2"
@@ -270,6 +347,94 @@
 
 {% block scripts %}
 {{ super() }}
+<script>
+const kundeId = {{ kunde.id }};
+const csrfToken = '{{ csrf_token() }}';
+
+function showToast(message, type = 'success') {
+    const toastHtml = `
+        <div class="toast align-items-center text-bg-${type} border-0" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    const container = document.querySelector('.toast-container');
+    if (container) {
+        container.insertAdjacentHTML('beforeend', toastHtml);
+        const newToast = container.lastElementChild;
+        new bootstrap.Toast(newToast).show();
+    }
+}
+
+async function toggleBranche(brancheId) {
+    try {
+        const response = await fetch(`/kunden/${kundeId}/branche/${brancheId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            showToast(data.error || 'Fehler beim Speichern', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+async function togglePrimaer(brancheId) {
+    try {
+        const response = await fetch(`/kunden/${kundeId}/branche/${brancheId}/primaer`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            showToast(data.error || 'Fehler beim Speichern', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+async function toggleVerband(verbandId) {
+    try {
+        const response = await fetch(`/kunden/${kundeId}/verband/${verbandId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            location.reload();
+        } else {
+            showToast(data.error || 'Fehler beim Speichern', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
+
 {% if kunde.ci and kunde.ci.raw_response %}
 <script>
 // Format JSON when modal opens
@@ -286,21 +451,7 @@ document.getElementById('rawJsonModal').addEventListener('show.bs.modal', functi
 function copyRawJson() {
     const text = document.getElementById('rawJsonCode').textContent;
     navigator.clipboard.writeText(text).then(() => {
-        // Show toast feedback
-        const toastHtml = `
-            <div class="toast align-items-center text-bg-success border-0" role="alert" aria-live="assertive" aria-atomic="true">
-                <div class="d-flex">
-                    <div class="toast-body">JSON in Zwischenablage kopiert!</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `;
-        const container = document.querySelector('.toast-container');
-        if (container) {
-            container.insertAdjacentHTML('beforeend', toastHtml);
-            const newToast = container.lastElementChild;
-            new bootstrap.Toast(newToast).show();
-        }
+        showToast('JSON in Zwischenablage kopiert!', 'success');
     });
 }
 </script>

@@ -3,6 +3,7 @@ import os
 from datetime import datetime
 
 import click
+import markdown
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
@@ -92,6 +93,16 @@ def create_app(config_name=None):
             return ''
         return Markup(escape(text).replace('\n', Markup('<br>')))
 
+    @app.template_filter('markdown')
+    def markdown_filter(text):
+        """Convert Markdown text to HTML."""
+        from markupsafe import Markup
+        if not text:
+            return ''
+        # Use tables and fenced_code extensions for better formatting
+        html = markdown.markdown(text, extensions=['tables', 'fenced_code', 'nl2br'])
+        return Markup(html)
+
     # Context processor for branding
     @app.context_processor
     def inject_branding():
@@ -124,6 +135,20 @@ def create_app(config_name=None):
             pass
         return {'module_colors': module_colors}
 
+    # Context processor for help texts
+    @app.context_processor
+    def inject_help_text_function():
+        """Make get_help_text function available in all templates."""
+        def get_help_text(schluessel):
+            """Retrieve a help text by its key."""
+            from app.models import HelpText
+            try:
+                return HelpText.query.filter_by(schluessel=schluessel, aktiv=True).first()
+            except Exception:
+                # DB not initialized yet
+                return None
+        return {'get_help_text': get_help_text}
+
     return app
 
 
@@ -133,7 +158,10 @@ def register_cli_commands(app):
     @app.cli.command('seed')
     def seed_command():
         """Seed the database with initial data."""
-        from app.models import Lieferant, Config as ConfigModel, Rolle, SubApp, SubAppAccess
+        from app.models import (
+            Lieferant, Config as ConfigModel, Rolle, SubApp, SubAppAccess,
+            Branche, Verband, HelpText
+        )
 
         # Create roles
         roles_data = [
@@ -267,6 +295,125 @@ def register_cli_commands(app):
                 )
                 db.session.add(config_entry)
                 click.echo(f'Created config: {key}')
+
+        # Create Branchen (Industries)
+        branchen_data = [
+            ('Einzelhandel Modellbahn', 'train', 10),
+            ('Einzelhandel Spielwaren', 'lego', 20),
+            ('Einzelhandel Fahrrad', 'bike', 30),
+            ('Einzelhandel GPK', 'glass', 40),
+            ('Einzelhandel Geschenkartikel', 'gift', 50),
+            ('Großhandel', 'building-warehouse', 60),
+            ('Online-Handel', 'shopping-cart', 70),
+            ('Fachmarkt', 'building-store', 80),
+            ('Babyausstattung', 'baby-carriage', 90),
+            ('Schreibwaren', 'pencil', 100),
+        ]
+        for name, icon, sortierung in branchen_data:
+            existing = Branche.query.filter_by(name=name).first()
+            if not existing:
+                branche = Branche(name=name, icon=icon, sortierung=sortierung, aktiv=True)
+                db.session.add(branche)
+                click.echo(f'Created Branche: {name}')
+
+        # Create Verbände (Associations)
+        verbaende_data = [
+            ('VEDES', 'VEDES', 'https://www.vedes.com', None),
+            ('idee+spiel', 'I+S', 'https://www.idee-und-spiel.de', None),
+            ('Spielwaren-Ring', 'SWR', 'https://www.spielwarenring.de', None),
+            ('EK/servicegroup', 'EK', 'https://www.ek-servicegroup.de', None),
+            ('expert', 'expert', 'https://www.expert.de', None),
+        ]
+        for name, kuerzel, website, logo in verbaende_data:
+            existing = Verband.query.filter_by(name=name).first()
+            if not existing:
+                verband = Verband(
+                    name=name, kuerzel=kuerzel,
+                    website_url=website, logo_url=logo, aktiv=True
+                )
+                db.session.add(verband)
+                click.echo(f'Created Verband: {name}')
+
+        # Create HelpTexts for UI components
+        hilfetexte_data = [
+            (
+                'kunden.detail.stammdaten',
+                'Stammdaten',
+                '''## Kundenstammdaten
+
+Die Stammdaten enthalten die wichtigsten Informationen zum Kunden:
+
+- **Firmierung**: Offizieller Firmenname
+- **e-vendo Kdnr.**: Kundennummer im e-vendo System
+- **Adresse**: Geschaeftsadresse des Kunden
+- **Website & Shop**: Links zur Webpraesenz
+
+Diese Daten koennen ueber "Bearbeiten" geaendert werden.'''
+            ),
+            (
+                'kunden.detail.branchen',
+                'Branchen zuordnen',
+                '''## Branchen zuordnen
+
+Ordnen Sie dem Kunden passende Branchen zu, um ihn besser kategorisieren zu koennen.
+
+### Bedienung
+
+- **Linksklick**: Branche zuordnen oder entfernen
+- **Rechtsklick**: Als **Primaerbranche** markieren (max. 3)
+
+### Primaerbranchen
+
+Primaerbranchen werden mit einem **P** markiert und erscheinen in der Kundenliste.
+Sie helfen bei der schnellen Identifikation der Hauptgeschaeftsfelder.'''
+            ),
+            (
+                'kunden.detail.verbaende',
+                'Verbaende zuordnen',
+                '''## Verbandsmitgliedschaften
+
+Hier koennen Sie die Verbandszugehoerigkeiten des Kunden pflegen.
+
+### Bekannte Verbaende
+
+- **VEDES**: Spielwarenverband
+- **idee+spiel**: Franchise-System
+- **EK/servicegroup**: Einkaufsverband
+
+**Tipp**: Klicken Sie auf einen Verband, um die Mitgliedschaft zu togglen.'''
+            ),
+            (
+                'kunden.detail.ci',
+                'Corporate Identity',
+                '''## Corporate Identity (CI)
+
+Die CI-Daten werden automatisch von der Kundenwebsite analysiert.
+
+### Analysierte Elemente
+
+- **Logo**: Hauptlogo der Website
+- **Farben**: Primaer-, Sekundaer- und Akzentfarben
+- **Typografie**: Schriftarten (falls erkennbar)
+
+### Analyse starten
+
+Klicken Sie auf "Website-Analyse", um die CI neu zu erfassen.
+Die Analyse nutzt die Firecrawl API.
+
+**Hinweis**: Die Analyse kostet Credits.'''
+            ),
+        ]
+        for schluessel, titel, inhalt in hilfetexte_data:
+            existing = HelpText.query.filter_by(schluessel=schluessel).first()
+            if not existing:
+                help_text = HelpText(
+                    schluessel=schluessel,
+                    titel=titel,
+                    inhalt_markdown=inhalt,
+                    aktiv=True
+                )
+                db.session.add(help_text)
+                click.echo(f'Created HelpText: {schluessel}')
 
         db.session.commit()
         click.echo('Database seeded successfully!')

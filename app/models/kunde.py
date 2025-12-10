@@ -10,7 +10,19 @@ class Kunde(db.Model):
 
     id = db.Column(db.Integer, primary_key=True)
     firmierung = db.Column(db.String(200), nullable=False)
+
+    # e-vendo customer number
+    ev_kdnr = db.Column(db.String(50), unique=True)
+
+    # Structured address fields
+    strasse = db.Column(db.String(200))
+    plz = db.Column(db.String(20))
+    ort = db.Column(db.String(100))
+    land = db.Column(db.String(100), default='Deutschland')
+
+    # Legacy address field (kept for migration fallback)
     adresse = db.Column(db.Text)
+
     website_url = db.Column(db.String(500))
     shop_url = db.Column(db.String(500))
     notizen = db.Column(db.Text)
@@ -22,20 +34,64 @@ class Kunde(db.Model):
     ci = db.relationship('KundeCI', backref='kunde', uselist=False,
                          cascade='all, delete-orphan')
 
+    # Relationships to Branchen and Verbände (N:M)
+    branchen = db.relationship('KundeBranche', back_populates='kunde',
+                               cascade='all, delete-orphan')
+    verbaende = db.relationship('KundeVerband', back_populates='kunde',
+                                cascade='all, delete-orphan')
+
     def __repr__(self):
         return f'<Kunde {self.firmierung}>'
+
+    @property
+    def primaer_branchen(self):
+        """Get primary branches (max 3)."""
+        return [kb.branche for kb in self.branchen if kb.ist_primaer]
+
+    @property
+    def alle_branchen(self):
+        """Get all assigned branches."""
+        return [kb.branche for kb in self.branchen]
+
+    @property
+    def alle_verbaende(self):
+        """Get all assigned associations."""
+        return [kv.verband for kv in self.verbaende]
+
+    @property
+    def adresse_formatiert(self):
+        """Get formatted address from structured fields or legacy field."""
+        if self.strasse or self.plz or self.ort:
+            parts = []
+            if self.strasse:
+                parts.append(self.strasse)
+            if self.plz or self.ort:
+                city_part = ' '.join(filter(None, [self.plz, self.ort]))
+                parts.append(city_part)
+            if self.land and self.land != 'Deutschland':
+                parts.append(self.land)
+            return ', '.join(parts)
+        return self.adresse or ''
 
     def to_dict(self):
         """Return dictionary representation."""
         return {
             'id': self.id,
             'firmierung': self.firmierung,
+            'ev_kdnr': self.ev_kdnr,
+            'strasse': self.strasse,
+            'plz': self.plz,
+            'ort': self.ort,
+            'land': self.land,
             'adresse': self.adresse,
+            'adresse_formatiert': self.adresse_formatiert,
             'website_url': self.website_url,
             'shop_url': self.shop_url,
             'notizen': self.notizen,
             'aktiv': self.aktiv,
             'has_ci': self.ci is not None,
+            'branchen': [b.to_dict() for b in self.alle_branchen],
+            'verbaende': [v.to_dict() for v in self.alle_verbaende],
         }
 
 

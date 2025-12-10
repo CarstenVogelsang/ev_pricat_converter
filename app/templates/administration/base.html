@@ -45,6 +45,15 @@
                    class="list-group-item list-group-item-action{% if 'content_generator' in request.endpoint %} active{% endif %}">
                     <i class="ti ti-writing"></i><span>Content Generator</span>
                 </a>
+                <div class="list-group-item text-muted small py-2">Stammdaten</div>
+                <a href="{{ url_for('admin.branchen') }}"
+                   class="list-group-item list-group-item-action{% if 'branchen' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-category"></i><span>Branchen</span>
+                </a>
+                <a href="{{ url_for('admin.verbaende') }}"
+                   class="list-group-item list-group-item-action{% if 'verbaende' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-building-community"></i><span>Verbände</span>
+                </a>
                 <div class="list-group-item text-muted small py-2">Einstellungen</div>
                 <a href="{{ url_for('admin.settings') }}"
                    class="list-group-item list-group-item-action{% if 'settings' in request.endpoint %} active{% endif %}">
@@ -53,6 +62,10 @@
                 <a href="{{ url_for('admin.branding') }}"
                    class="list-group-item list-group-item-action{% if 'branding' in request.endpoint %} active{% endif %}">
                     <i class="ti ti-palette"></i><span>Branding</span>
+                </a>
+                <a href="{{ url_for('admin.hilfetexte') }}"
+                   class="list-group-item list-group-item-action{% if 'hilfetexte' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-help"></i><span>Hilfetexte</span>
                 </a>
                 <a href="{{ url_for('dbadmin.index') }}"
                    class="list-group-item list-group-item-action">

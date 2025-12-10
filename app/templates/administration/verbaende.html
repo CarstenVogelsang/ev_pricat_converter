@@ -1,0 +1,182 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Verbände - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<h2 class="mb-4"><i class="ti ti-building-community text-primary"></i> Verbände verwalten</h2>
+
+<div class="row">
+    <!-- Add New Verband -->
+    <div class="col-md-5 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-plus"></i> Neuer Verband</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="create">
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               placeholder="z.B. VEDES">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="kuerzel" class="form-label">Kürzel</label>
+                        <input type="text" class="form-control" id="kuerzel" name="kuerzel"
+                               placeholder="z.B. VEDES, EK">
+                        <div class="form-text">
+                            Kurzform für die Anzeige in der Kundenliste
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="website_url" class="form-label">Website</label>
+                        <input type="url" class="form-control" id="website_url" name="website_url"
+                               placeholder="https://www.beispiel.de">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="logo_url" class="form-label">Logo URL</label>
+                        <input type="url" class="form-control" id="logo_url" name="logo_url"
+                               placeholder="https://www.beispiel.de/logo.png">
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-plus"></i> Anlegen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing Verbände -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-list"></i> Vorhandene Verbände ({{ verbaende|length }})</h5>
+            </div>
+            <div class="card-body p-0">
+                {% if verbaende %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="60">Logo</th>
+                                <th>Name</th>
+                                <th width="80">Kürzel</th>
+                                <th width="70">Status</th>
+                                <th width="140">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for verband in verbaende %}
+                            <tr>
+                                <td class="text-center">
+                                    {% if verband.logo_url %}
+                                    <img src="{{ verband.logo_url }}" alt="{{ verband.kuerzel }}" style="height: 24px;">
+                                    {% else %}
+                                    <i class="ti ti-building-community fs-4 text-muted"></i>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {{ verband.name }}
+                                    {% if verband.website_url %}
+                                    <a href="{{ verband.website_url }}" target="_blank" class="text-muted ms-1">
+                                        <i class="ti ti-external-link"></i>
+                                    </a>
+                                    {% endif %}
+                                </td>
+                                <td><code>{{ verband.kuerzel or '-' }}</code></td>
+                                <td>
+                                    {% if verband.aktiv %}
+                                    <span class="badge bg-success">Aktiv</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inaktiv</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal" data-bs-target="#editModal{{ verband.id }}">
+                                        <i class="ti ti-edit"></i>
+                                    </button>
+                                    <form method="POST" class="d-inline"
+                                          onsubmit="return confirm('Verband wirklich löschen?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="{{ verband.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                {% if verband.kunden %}disabled title="Wird verwendet"{% endif %}>
+                                            <i class="ti ti-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    Noch keine Verbände vorhanden.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modals -->
+{% for verband in verbaende %}
+<div class="modal fade" id="editModal{{ verband.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" value="{{ verband.id }}">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">Verband bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" name="name" value="{{ verband.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Kürzel</label>
+                        <input type="text" class="form-control" name="kuerzel" value="{{ verband.kuerzel or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Website</label>
+                        <input type="url" class="form-control" name="website_url" value="{{ verband.website_url or '' }}">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Logo URL</label>
+                        <input type="url" class="form-control" name="logo_url" value="{{ verband.logo_url or '' }}">
+                        {% if verband.logo_url %}
+                        <div class="mt-2">
+                            <img src="{{ verband.logo_url }}" alt="Logo Vorschau" style="max-height: 40px;">
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv{{ verband.id }}"
+                               {{ 'checked' if verband.aktiv }}>
+                        <label class="form-check-label" for="aktiv{{ verband.id }}">Aktiv</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
