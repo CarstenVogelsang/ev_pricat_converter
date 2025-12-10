@@ -18,8 +18,8 @@ ENV/
 .env
 .env.local
 
-# Database
-instance/*.db
+# Database & Instance data (runtime files, not for repo)
+instance/
 *.sqlite
 
 # Data directories (keep structure, ignore content)
