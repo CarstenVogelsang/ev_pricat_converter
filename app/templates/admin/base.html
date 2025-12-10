@@ -106,9 +106,9 @@
                                     {% elif subitem.name == 'Marken' %}<i class="ti ti-tag"></i>
                                     {% elif subitem.name == 'Kunden' %}<i class="ti ti-users"></i>
                                     {% elif subitem.name == 'Branchen' %}<i class="ti ti-category"></i>
-                                    {% elif subitem.name == 'Verbände' %}<i class="ti ti-building-community"></i>
-                                    {% elif subitem.name == 'Users' %}<i class="ti ti-user"></i>
-                                    {% elif subitem.name == 'Config' %}<i class="ti ti-settings"></i>
+                                    {% elif subitem.name == 'Verbaende' %}<i class="ti ti-building-community"></i>
+                                    {% elif subitem.name == 'Benutzer' %}<i class="ti ti-user"></i>
+                                    {% elif subitem.name == 'Konfiguration' %}<i class="ti ti-settings"></i>
                                     {% else %}<i class="ti ti-database"></i>
                                     {% endif %}
                                     <span>{{ subitem.name }}</span>
@@ -151,6 +151,93 @@
 <script src="{{ js_url }}" type="text/javascript"></script>
 {% endfor %}
 {% endif %}
+<script>
+// German translations for Flask-Admin UI
+(function() {
+    const translations = {
+        // Navigation & List
+        'List': 'Liste',
+        'Create': 'Neu erstellen',
+        'Edit': 'Bearbeiten',
+        'Delete': 'Loeschen',
+        'With selected': 'Auswahl',
+        'Search': 'Suchen',
+        'Apply': 'Anwenden',
+        'Reset': 'Zuruecksetzen',
+        'Export': 'Exportieren',
+        'Filter': 'Filtern',
+        'Add Filter': 'Filter hinzufuegen',
+        'Home': 'Startseite',
+        'Actions': 'Aktionen',
+        'items per page': 'Eintraege pro Seite',
+        'Page Size': 'Seitengroesse',
+        // Form buttons
+        'Save': 'Speichern',
+        'Save and Add Another': 'Speichern und neu',
+        'Save and Continue Editing': 'Speichern und weiter',
+        'Cancel': 'Abbrechen',
+        'Yes': 'Ja',
+        'No': 'Nein',
+        'Submit': 'Absenden',
+        'Back': 'Zurueck',
+        'Details': 'Details',
+        // Messages
+        'Please select at least one record.': 'Bitte waehlen Sie mindestens einen Eintrag aus.',
+        'Are you sure you want to delete selected records?': 'Moechten Sie die ausgewaehlten Eintraege wirklich loeschen?',
+        'Are you sure you want to delete this record?': 'Moechten Sie diesen Eintrag wirklich loeschen?',
+        'Record was successfully deleted.': 'Eintrag wurde erfolgreich geloescht.',
+        'Record was successfully created.': 'Eintrag wurde erfolgreich erstellt.',
+        'Record was successfully saved.': 'Eintrag wurde erfolgreich gespeichert.',
+        'Failed to delete record.': 'Eintrag konnte nicht geloescht werden.',
+        'Failed to create record.': 'Eintrag konnte nicht erstellt werden.',
+        'Failed to update record.': 'Eintrag konnte nicht aktualisiert werden.'
+    };
+
+    function translateText(element) {
+        if (element.nodeType === Node.TEXT_NODE) {
+            var text = element.nodeValue.trim();
+            if (translations[text]) {
+                element.nodeValue = element.nodeValue.replace(text, translations[text]);
+            }
+        } else if (element.nodeType === Node.ELEMENT_NODE) {
+            // Translate placeholder and title attributes
+            if (element.placeholder && translations[element.placeholder]) {
+                element.placeholder = translations[element.placeholder];
+            }
+            if (element.title && translations[element.title]) {
+                element.title = translations[element.title];
+            }
+            // Handle nav-link text like "List (123)"
+            if (element.classList && element.classList.contains('nav-link')) {
+                var match = element.textContent.match(/^(List|Create|Edit)\s*(\(\d+\))?$/);
+                if (match) {
+                    element.textContent = translations[match[1]] + (match[2] ? ' ' + match[2] : '');
+                }
+            }
+            // Handle button elements directly
+            if (element.tagName === 'BUTTON' || element.tagName === 'INPUT' && element.type === 'submit') {
+                var btnText = element.textContent.trim();
+                if (translations[btnText]) {
+                    element.textContent = translations[btnText];
+                }
+                // Also check value attribute for input buttons
+                if (element.value && translations[element.value]) {
+                    element.value = translations[element.value];
+                }
+            }
+            // Recursively translate children
+            for (var i = 0; i < element.childNodes.length; i++) {
+                translateText(element.childNodes[i]);
+            }
+        }
+    }
+
+    // Run translation after DOM is loaded
+    document.addEventListener('DOMContentLoaded', function() {
+        translateText(document.body);
+    });
+})();
+</script>
 {% endblock %}
 {% block tail %}{% endblock %}
 </body>

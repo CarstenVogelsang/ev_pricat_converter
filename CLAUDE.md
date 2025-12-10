@@ -49,6 +49,12 @@ Alle Details zur Architektur, Datenmodellen und Features sind in den PRD-Dokumen
 
 Jedes Modul hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 
+### V2 Roadmap (nach MVP)
+
+| Feature | Dokument | Hinweis |
+|---------|----------|---------|
+| Internationalisierung (i18n) | [ROADMAP-V2-i18n](docs/prd/roadmap/ROADMAP-V2-i18n.md) | Nur auf Nachfrage starten! |
+
 ## Wichtige Konventionen
 
 - **UI-Feedback:** Bootstrap Toasts (keine Alert-Boxen)
