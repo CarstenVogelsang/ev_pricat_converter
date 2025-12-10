@@ -111,14 +111,19 @@ def init_admin(app, db):
         index_view=SecureAdminIndexView(url='/db-admin', endpoint='dbadmin')
     )
 
-    # Add model views
-    admin.add_view(SecureModelView(Lieferant, db.session, name='Lieferanten'))
-    admin.add_view(SecureModelView(Hersteller, db.session, name='Hersteller'))
-    admin.add_view(SecureModelView(Marke, db.session, name='Marken'))
-    admin.add_view(SecureModelView(Config, db.session, name='Config'))
-    admin.add_view(SecureModelView(User, db.session, name='Users'))
-    admin.add_view(SecureModelView(Kunde, db.session, name='Kunden'))
-    admin.add_view(SecureModelView(Branche, db.session, name='Branchen'))
-    admin.add_view(SecureModelView(Verband, db.session, name='Verbände'))
+    # Add model views with categories
+    # PRICAT
+    admin.add_view(SecureModelView(Lieferant, db.session, name='Lieferanten', category='PRICAT'))
+    admin.add_view(SecureModelView(Hersteller, db.session, name='Hersteller', category='PRICAT'))
+    admin.add_view(SecureModelView(Marke, db.session, name='Marken', category='PRICAT'))
+
+    # Kunden
+    admin.add_view(SecureModelView(Kunde, db.session, name='Kunden', category='Kunden'))
+    admin.add_view(SecureModelView(Branche, db.session, name='Branchen', category='Kunden'))
+    admin.add_view(SecureModelView(Verband, db.session, name='Verbände', category='Kunden'))
+
+    # System
+    admin.add_view(SecureModelView(User, db.session, name='Users', category='System'))
+    admin.add_view(SecureModelView(Config, db.session, name='Config', category='System'))
 
     return admin
