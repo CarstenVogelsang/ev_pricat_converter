@@ -12,6 +12,11 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Added
 
+- **Verbände Logo-Upload:** Logos können direkt im Admin-Dialog hochgeladen werden
+  - Automatische Thumbnail-Erstellung (max. 100x100px) mit Pillow
+  - Speicherort: `static/uploads/verbaende/`
+  - Fallback auf externe Logo-URL
+  - Geplant: Original-Speicherung auf S3
 - **Systemeinstellungen-Seite** `/admin/settings` mit 4 Tabs:
   - API & Services (Firecrawl API-Key, Credit-Kosten)
   - FTP-Konfiguration (VEDES + Elena mit Test-Buttons)

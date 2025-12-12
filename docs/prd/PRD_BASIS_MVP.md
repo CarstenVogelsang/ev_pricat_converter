@@ -155,6 +155,35 @@ ev247/
 | beschreibung | VARCHAR(255) | Beschreibung des Calls |
 | created_at | DATETIME | Zeitpunkt des Calls |
 
+### Verband Model (Admin-Stammdaten)
+
+| Spalte | Typ | Beschreibung |
+|--------|-----|--------------|
+| id | INTEGER PK | Primärschlüssel |
+| name | VARCHAR(100) UNIQUE | Name des Verbands |
+| kuerzel | VARCHAR(20) | Kurzform (z.B. "VEDES", "EK") |
+| logo_url | VARCHAR(500) | Externe Logo-URL (Fallback) |
+| logo_thumb | VARCHAR(255) | Lokaler Pfad zum Thumbnail |
+| website_url | VARCHAR(500) | Website des Verbands |
+| aktiv | BOOLEAN | Status |
+
+**Logo-Upload:**
+
+- Logos können direkt hochgeladen werden (PNG, JPG, GIF, SVG)
+- Automatische Thumbnail-Erstellung (max. 100x100 Pixel)
+- Speicherort: `static/uploads/verbaende/`
+- Geplant: Original-Speicherung auf S3 für spätere Verwendung
+
+### Branche Model (Admin-Stammdaten)
+
+| Spalte | Typ | Beschreibung |
+|--------|-----|--------------|
+| id | INTEGER PK | Primärschlüssel |
+| name | VARCHAR(100) UNIQUE | Name der Branche |
+| icon | VARCHAR(50) | Tabler Icon Name |
+| aktiv | BOOLEAN | Status |
+| sortierung | INTEGER | Sortierreihenfolge |
+
 ---
 
 ## 8. Infrastruktur

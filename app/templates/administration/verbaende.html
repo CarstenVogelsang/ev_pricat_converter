@@ -13,7 +13,7 @@
                 <h5 class="mb-0"><i class="ti ti-plus"></i> Neuer Verband</h5>
             </div>
             <div class="card-body">
-                <form method="POST">
+                <form method="POST" enctype="multipart/form-data">
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     <input type="hidden" name="action" value="create">
 
@@ -39,9 +39,21 @@
                     </div>
 
                     <div class="mb-3">
-                        <label for="logo_url" class="form-label">Logo URL</label>
+                        <label for="logo" class="form-label">Logo hochladen</label>
+                        <input type="file" class="form-control" id="logo" name="logo"
+                               accept=".png,.jpg,.jpeg,.gif,.svg">
+                        <div class="form-text">
+                            Max. 100x100 Pixel Thumbnail. PNG, JPG, GIF oder SVG.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="logo_url" class="form-label">Logo URL (alternativ)</label>
                         <input type="url" class="form-control" id="logo_url" name="logo_url"
                                placeholder="https://www.beispiel.de/logo.png">
+                        <div class="form-text">
+                            Externe URL als Fallback, wenn kein Bild hochgeladen wird.
+                        </div>
                     </div>
 
                     <button type="submit" class="btn btn-primary">
@@ -75,7 +87,9 @@
                             {% for verband in verbaende %}
                             <tr>
                                 <td class="text-center">
-                                    {% if verband.logo_url %}
+                                    {% if verband.logo_thumb %}
+                                    <img src="{{ url_for('static', filename='uploads/verbaende/' ~ verband.logo_thumb) }}" alt="{{ verband.kuerzel }}" style="height: 24px;">
+                                    {% elif verband.logo_url %}
                                     <img src="{{ verband.logo_url }}" alt="{{ verband.kuerzel }}" style="height: 24px;">
                                     {% else %}
                                     <i class="ti ti-building-community fs-4 text-muted"></i>
@@ -133,7 +147,7 @@
 <div class="modal fade" id="editModal{{ verband.id }}" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
-            <form method="POST">
+            <form method="POST" enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="hidden" name="action" value="update">
                 <input type="hidden" name="id" value="{{ verband.id }}">
@@ -156,9 +170,28 @@
                         <input type="url" class="form-control" name="website_url" value="{{ verband.website_url or '' }}">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Logo URL</label>
+                        <label class="form-label">Logo hochladen</label>
+                        <input type="file" class="form-control" name="logo"
+                               accept=".png,.jpg,.jpeg,.gif,.svg">
+                        <div class="form-text">
+                            Neues Logo hochladen (ersetzt vorhandenes).
+                        </div>
+                        {% if verband.logo_thumb %}
+                        <div class="mt-2 d-flex align-items-center gap-2">
+                            <img src="{{ url_for('static', filename='uploads/verbaende/' ~ verband.logo_thumb) }}" alt="Logo Vorschau" style="max-height: 40px;">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="delete_logo" id="deleteLogo{{ verband.id }}">
+                                <label class="form-check-label text-danger" for="deleteLogo{{ verband.id }}">
+                                    <i class="ti ti-trash"></i> Löschen
+                                </label>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Logo URL (alternativ)</label>
                         <input type="url" class="form-control" name="logo_url" value="{{ verband.logo_url or '' }}">
-                        {% if verband.logo_url %}
+                        {% if verband.logo_url and not verband.logo_thumb %}
                         <div class="mt-2">
                             <img src="{{ verband.logo_url }}" alt="Logo Vorschau" style="max-height: 40px;">
                         </div>

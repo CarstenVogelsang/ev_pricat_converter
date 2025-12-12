@@ -7,6 +7,44 @@
 {% set module = module_colors.get('kunden', {'color_hex': '#198754', 'icon': 'ti-users'}) %}
 
 {% block content %}
+<style>
+/* Größere Badges für Branchen und Verbände */
+.branche-btn, .verband-btn {
+    width: 52px;
+    height: 52px;
+    font-size: 1.25rem;
+    border-width: 2px !important;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 !important;
+}
+.branche-btn i {
+    font-size: 1.4rem;
+}
+.verband-btn img {
+    max-height: 28px !important;
+    max-width: 40px !important;
+    object-fit: contain;
+}
+
+/* Verbände: weißer Hintergrund, unterschiedliche Hover-Farbe */
+.verband-btn {
+    background-color: white !important;
+    border-color: #dee2e6 !important; /* Hellgrau für deaktiviert */
+}
+.verband-btn:hover {
+    background-color: white !important;
+    border-color: #0d6efd !important; /* Blau beim Hover */
+}
+.verband-btn:focus {
+    background-color: white !important;
+}
+/* Aktiver Zustand überschreibt */
+.verband-btn.border-success {
+    border-color: var(--bs-success) !important;
+}
+</style>
 {% call module_header(
     title=kunde.firmierung,
     icon=module.icon,
@@ -147,15 +185,22 @@
                     {% for verband in alle_verbaende %}
                     {% set ist_zugeordnet = verband.id in kunde_verbaende_ids %}
                     <button type="button"
-                            class="btn btn-{{ 'success' if ist_zugeordnet else 'outline-secondary' }} verband-btn"
+                            class="btn btn-outline-secondary position-relative verband-btn{% if ist_zugeordnet %} border-success{% endif %}"
                             data-verband-id="{{ verband.id }}"
                             data-bs-toggle="tooltip"
                             title="{{ verband.name }}"
                             onclick="toggleVerband({{ verband.id }})">
-                        {% if verband.logo_url %}
-                        <img src="{{ verband.logo_url }}" alt="{{ verband.kuerzel }}" style="height: 20px;">
+                        {% if verband.logo_thumb %}
+                        <img src="{{ url_for('static', filename='uploads/verbaende/' ~ verband.logo_thumb) }}" alt="{{ verband.kuerzel }}">
+                        {% elif verband.logo_url %}
+                        <img src="{{ verband.logo_url }}" alt="{{ verband.kuerzel }}">
                         {% else %}
                         {{ verband.kuerzel or verband.name[:3] }}
+                        {% endif %}
+                        {% if ist_zugeordnet %}
+                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-circle bg-success" style="font-size: 0.6em; padding: 0.35em;">
+                            <i class="ti ti-check" style="font-size: 0.7rem;"></i>
+                        </span>
                         {% endif %}
                     </button>
                     {% endfor %}

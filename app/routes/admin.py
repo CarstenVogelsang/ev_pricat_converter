@@ -14,11 +14,56 @@ from app.services import FTPService, BrandingService
 from app.routes.auth import admin_required, mitarbeiter_required
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
+THUMB_MAX_SIZE = (100, 100)  # Max thumbnail dimensions
 
 
 def allowed_file(filename):
     """Check if file extension is allowed."""
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+
+def create_thumbnail(file, save_path, max_size=THUMB_MAX_SIZE):
+    """Create a thumbnail from uploaded image file.
+
+    Args:
+        file: File-like object with image data
+        save_path: Path where to save the thumbnail
+        max_size: Tuple of (width, height) for max dimensions
+
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        from PIL import Image
+
+        img = Image.open(file)
+
+        # Convert RGBA to RGB for JPEG
+        if img.mode == 'RGBA' and save_path.lower().endswith(('.jpg', '.jpeg')):
+            background = Image.new('RGB', img.size, (255, 255, 255))
+            background.paste(img, mask=img.split()[3])
+            img = background
+
+        # Create thumbnail (maintains aspect ratio)
+        img.thumbnail(max_size, Image.Resampling.LANCZOS)
+
+        # Determine format
+        if save_path.lower().endswith('.png'):
+            img.save(save_path, 'PNG', optimize=True)
+        elif save_path.lower().endswith('.gif'):
+            img.save(save_path, 'GIF')
+        elif save_path.lower().endswith('.svg'):
+            # SVG cannot be thumbnailed, just copy
+            file.seek(0)
+            with open(save_path, 'wb') as f:
+                f.write(file.read())
+        else:
+            img.save(save_path, 'JPEG', quality=85, optimize=True)
+
+        return True
+    except Exception as e:
+        current_app.logger.error(f"Thumbnail creation failed: {e}")
+        return False
 
 admin_bp = Blueprint('admin', __name__)
 
@@ -574,9 +619,72 @@ def branchen():
     return render_template('administration/branchen.html', branchen=branchen_list)
 
 
+@admin_bp.route('/branchen/reorder', methods=['POST'])
+@login_required
+@admin_required
+def branchen_reorder():
+    """Update sort order for Branchen via AJAX."""
+    data = request.get_json()
+
+    if not data or 'order' not in data:
+        return jsonify({'success': False, 'message': 'Keine Sortierreihenfolge übergeben'}), 400
+
+    order = data['order']  # Liste von IDs in neuer Reihenfolge
+
+    try:
+        for index, branche_id in enumerate(order):
+            branche = Branche.query.get(int(branche_id))
+            if branche:
+                branche.sortierung = (index + 1) * 10  # 10, 20, 30, ...
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Sortierung gespeichert'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
 # ============================================================================
 # Verbände Management
 # ============================================================================
+
+def _handle_verband_logo_upload(verband_id):
+    """Handle logo upload for a Verband, creating a thumbnail.
+
+    Args:
+        verband_id: ID of the Verband
+
+    Returns:
+        Filename of saved thumbnail or None
+    """
+    if 'logo' not in request.files:
+        return None
+
+    file = request.files['logo']
+    if not file or not file.filename:
+        return None
+
+    if not allowed_file(file.filename):
+        flash('Ungültiges Dateiformat. Erlaubt: PNG, JPG, JPEG, GIF, SVG', 'warning')
+        return None
+
+    # Ensure upload directory exists
+    upload_dir = os.path.join(current_app.static_folder, 'uploads', 'verbaende')
+    os.makedirs(upload_dir, exist_ok=True)
+
+    # Generate filename with timestamp
+    filename = secure_filename(file.filename)
+    name, ext = os.path.splitext(filename)
+    thumb_filename = f"verband_{verband_id}_{int(datetime.now().timestamp())}{ext}"
+    save_path = os.path.join(upload_dir, thumb_filename)
+
+    # Create thumbnail
+    if create_thumbnail(file, save_path):
+        return thumb_filename
+    else:
+        flash('Fehler beim Erstellen des Thumbnails', 'danger')
+        return None
+
 
 @admin_bp.route('/verbaende', methods=['GET', 'POST'])
 @login_required
@@ -606,6 +714,13 @@ def verbaende():
                     )
                     db.session.add(verband)
                     db.session.commit()
+
+                    # Handle logo upload after we have an ID
+                    thumb_filename = _handle_verband_logo_upload(verband.id)
+                    if thumb_filename:
+                        verband.logo_thumb = thumb_filename
+                        db.session.commit()
+
                     flash(f'Verband "{name}" angelegt', 'success')
 
         elif action == 'update':
@@ -617,6 +732,29 @@ def verbaende():
                 verband.website_url = request.form.get('website_url', '').strip() or None
                 verband.logo_url = request.form.get('logo_url', '').strip() or None
                 verband.aktiv = request.form.get('aktiv') == 'on'
+
+                # Handle logo upload
+                thumb_filename = _handle_verband_logo_upload(verband.id)
+                if thumb_filename:
+                    # Delete old thumbnail if exists
+                    if verband.logo_thumb:
+                        old_path = os.path.join(
+                            current_app.static_folder, 'uploads', 'verbaende', verband.logo_thumb
+                        )
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
+                    verband.logo_thumb = thumb_filename
+
+                # Handle logo deletion
+                if request.form.get('delete_logo') == 'on':
+                    if verband.logo_thumb:
+                        old_path = os.path.join(
+                            current_app.static_folder, 'uploads', 'verbaende', verband.logo_thumb
+                        )
+                        if os.path.exists(old_path):
+                            os.remove(old_path)
+                        verband.logo_thumb = None
+
                 db.session.commit()
                 flash(f'Verband "{verband.name}" aktualisiert', 'success')
 
@@ -628,6 +766,14 @@ def verbaende():
                 if verband.kunden:
                     flash(f'Verband "{verband.name}" wird von {len(verband.kunden)} Kunden verwendet und kann nicht gelöscht werden', 'warning')
                 else:
+                    # Delete logo file if exists
+                    if verband.logo_thumb:
+                        logo_path = os.path.join(
+                            current_app.static_folder, 'uploads', 'verbaende', verband.logo_thumb
+                        )
+                        if os.path.exists(logo_path):
+                            os.remove(logo_path)
+
                     name = verband.name
                     db.session.delete(verband)
                     db.session.commit()
