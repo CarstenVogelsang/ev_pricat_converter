@@ -47,10 +47,10 @@ class BrevoService:
 
     def _load_config(self):
         """Load configuration from database."""
-        self._api_key = Config.get('brevo_api_key')
-        self._sender_email = Config.get('brevo_sender_email', 'noreply@e-vendo.de')
-        self._sender_name = Config.get('brevo_sender_name', 'e-vendo AG')
-        self._portal_base_url = Config.get('portal_base_url', 'https://portal.e-vendo.de')
+        self._api_key = Config.get_value('brevo_api_key')
+        self._sender_email = Config.get_value('brevo_sender_email', 'noreply@e-vendo.de')
+        self._sender_name = Config.get_value('brevo_sender_name', 'e-vendo AG')
+        self._portal_base_url = Config.get_value('portal_base_url', 'https://portal.e-vendo.de')
 
     @property
     def is_configured(self) -> bool:
@@ -60,15 +60,13 @@ class BrevoService:
 
     def _reset_quota_if_new_day(self) -> None:
         """Reset the daily quota counter if a new day has started."""
-        from app import db
         today_str = date.today().isoformat()
-        last_reset = Config.get('brevo_last_reset_date', '')
+        last_reset = Config.get_value('brevo_last_reset_date', '')
 
         if last_reset != today_str:
-            # New day - reset counter
-            Config.set('brevo_emails_sent_today', '0')
-            Config.set('brevo_last_reset_date', today_str)
-            db.session.commit()
+            # New day - reset counter (set_value commits automatically)
+            Config.set_value('brevo_emails_sent_today', '0')
+            Config.set_value('brevo_last_reset_date', today_str)
 
     def _check_and_update_quota(self) -> bool:
         """Check if quota is available and increment counter.
@@ -79,11 +77,10 @@ class BrevoService:
         Raises:
             QuotaExceededError: If daily limit is reached.
         """
-        from app import db
         self._reset_quota_if_new_day()
 
-        daily_limit = int(Config.get('brevo_daily_limit', '300'))
-        sent_today = int(Config.get('brevo_emails_sent_today', '0'))
+        daily_limit = int(Config.get_value('brevo_daily_limit', '300'))
+        sent_today = int(Config.get_value('brevo_emails_sent_today', '0'))
 
         if sent_today >= daily_limit:
             raise QuotaExceededError(
@@ -91,9 +88,8 @@ class BrevoService:
                 f'Bitte warten Sie bis morgen oder erhöhen Sie das Limit in den Einstellungen.'
             )
 
-        # Increment counter
-        Config.set('brevo_emails_sent_today', str(sent_today + 1))
-        db.session.commit()
+        # Increment counter (set_value commits automatically)
+        Config.set_value('brevo_emails_sent_today', str(sent_today + 1))
         return True
 
     def get_remaining_quota(self) -> int:
@@ -103,8 +99,8 @@ class BrevoService:
             Number of emails that can still be sent today.
         """
         self._reset_quota_if_new_day()
-        daily_limit = int(Config.get('brevo_daily_limit', '300'))
-        sent_today = int(Config.get('brevo_emails_sent_today', '0'))
+        daily_limit = int(Config.get_value('brevo_daily_limit', '300'))
+        sent_today = int(Config.get_value('brevo_emails_sent_today', '0'))
         return max(0, daily_limit - sent_today)
 
     def get_quota_info(self) -> dict:
@@ -114,8 +110,8 @@ class BrevoService:
             Dict with quota details.
         """
         self._reset_quota_if_new_day()
-        daily_limit = int(Config.get('brevo_daily_limit', '300'))
-        sent_today = int(Config.get('brevo_emails_sent_today', '0'))
+        daily_limit = int(Config.get_value('brevo_daily_limit', '300'))
+        sent_today = int(Config.get_value('brevo_emails_sent_today', '0'))
         remaining = max(0, daily_limit - sent_today)
         percent_used = (sent_today / daily_limit * 100) if daily_limit > 0 else 0
 
