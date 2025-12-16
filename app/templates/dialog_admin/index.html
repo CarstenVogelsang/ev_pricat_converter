@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+
+{% block title %}Fragebögen verwalten - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="ti ti-messages"></i> Fragebögen</h1>
+        <a href="{{ url_for('dialog_admin.neu') }}" class="btn btn-primary">
+            <i class="ti ti-plus"></i> Neuer Fragebogen
+        </a>
+    </div>
+
+    {% if entwuerfe %}
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="ti ti-pencil"></i> Entwürfe ({{ entwuerfe|length }})</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Titel</th>
+                        <th class="text-center">Fragen</th>
+                        <th class="text-center">Teilnehmer</th>
+                        <th>Erstellt</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fb in entwuerfe %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
+                        </td>
+                        <td class="text-center">{{ fb.anzahl_fragen }}</td>
+                        <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
+                        <td>{{ fb.erstellt_am.strftime('%d.%m.%Y') }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('dialog_admin.edit', id=fb.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="ti ti-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if aktive %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="ti ti-player-play"></i> Aktiv ({{ aktive|length }})</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Titel</th>
+                        <th class="text-center">Fragen</th>
+                        <th class="text-center">Teilnehmer</th>
+                        <th class="text-center">Abgeschlossen</th>
+                        <th>Aktiviert</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fb in aktive %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
+                        </td>
+                        <td class="text-center">{{ fb.anzahl_fragen }}</td>
+                        <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
+                        <td class="text-center">
+                            <span class="badge bg-success">{{ fb.anzahl_abgeschlossen }}</span>
+                        </td>
+                        <td>{{ fb.aktiviert_am.strftime('%d.%m.%Y') if fb.aktiviert_am else '-' }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('dialog_admin.teilnehmer', id=fb.id) }}" class="btn btn-sm btn-outline-primary">
+                                <i class="ti ti-users"></i>
+                            </a>
+                            <a href="{{ url_for('dialog_admin.auswertung', id=fb.id) }}" class="btn btn-sm btn-outline-info">
+                                <i class="ti ti-chart-bar"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if geschlossene %}
+    <div class="card mb-4">
+        <div class="card-header bg-dark text-white">
+            <h5 class="mb-0"><i class="ti ti-lock"></i> Geschlossen ({{ geschlossene|length }})</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Titel</th>
+                        <th class="text-center">Teilnehmer</th>
+                        <th class="text-center">Abgeschlossen</th>
+                        <th>Geschlossen</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for fb in geschlossene %}
+                    <tr class="text-muted">
+                        <td>
+                            <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
+                        </td>
+                        <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
+                        <td class="text-center">{{ fb.anzahl_abgeschlossen }}</td>
+                        <td>{{ fb.geschlossen_am.strftime('%d.%m.%Y') if fb.geschlossen_am else '-' }}</td>
+                        <td class="text-end">
+                            <a href="{{ url_for('dialog_admin.auswertung', id=fb.id) }}" class="btn btn-sm btn-outline-info">
+                                <i class="ti ti-chart-bar"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not entwuerfe and not aktive and not geschlossene %}
+    <div class="alert alert-info">
+        <i class="ti ti-info-circle"></i>
+        Noch keine Fragebögen vorhanden.
+        <a href="{{ url_for('dialog_admin.neu') }}">Jetzt erstellen</a>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

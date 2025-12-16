@@ -29,31 +29,24 @@ def landing():
 @main_bp.route('/dashboard')
 @login_required
 def dashboard():
-    """Dashboard with role-based app access."""
-    from app.models import SubApp, SubAppAccess
+    """Dashboard with role-based module access."""
+    from app.models import Modul
 
-    # Admin sees all active apps
-    if current_user.is_admin:
-        subapps = SubApp.query.filter_by(aktiv=True).order_by(SubApp.sort_order).all()
-    else:
-        # Non-admin: query apps accessible to their role
-        subapps = SubApp.query.join(SubAppAccess).filter(
-            SubApp.aktiv == True,
-            SubAppAccess.rolle_id == current_user.rolle_id
-        ).order_by(SubApp.sort_order).all()
+    # Get dashboard modules based on user's role
+    modules = Modul.get_dashboard_modules(current_user)
 
     # Convert to template-friendly format
     apps = []
-    for subapp in subapps:
+    for modul in modules:
         app_data = {
-            'id': subapp.slug,
-            'name': subapp.name,
-            'description': subapp.beschreibung,
-            'icon': subapp.icon,
-            'color': subapp.color,
-            'color_hex': subapp.color_hex or '#0d6efd',  # Fallback to Bootstrap primary
-            'disabled': not subapp.route_endpoint,
-            'url': url_for(subapp.route_endpoint) if subapp.route_endpoint else '#'
+            'id': modul.code,
+            'name': modul.name,
+            'description': modul.beschreibung,
+            'icon': modul.icon,
+            'color': modul.color,
+            'color_hex': modul.color_hex or '#0d6efd',  # Fallback to Bootstrap primary
+            'disabled': not modul.route_endpoint,
+            'url': url_for(modul.route_endpoint) if modul.route_endpoint else '#'
         }
         apps.append(app_data)
 

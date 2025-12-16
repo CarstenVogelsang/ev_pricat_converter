@@ -5,7 +5,7 @@
 {% block content %}
 <div class="mb-4">
     <a href="{{ url_for('kunden.liste') }}" class="text-muted text-decoration-none">
-        <i class="ti ti-arrow-left"></i> Zurueck zur Liste
+        <i class="ti ti-arrow-left"></i> Zurück zur Liste
     </a>
     <h2 class="mt-2">{{ titel }}</h2>
 </div>
@@ -80,7 +80,7 @@
                         {% for error in form.website_url.errors %}
                         <div class="invalid-feedback">{{ error }}</div>
                         {% endfor %}
-                        <div class="form-text">Fuer die CI-Analyse wird diese URL verwendet.</div>
+                        <div class="form-text">Für die CI-Analyse wird diese URL verwendet.</div>
                     </div>
 
                     <div class="mb-3">

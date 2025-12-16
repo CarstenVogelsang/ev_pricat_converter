@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Meine Fragebögen - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <h1 class="mb-4">
+        <i class="ti ti-messages"></i> Meine Fragebögen
+    </h1>
+
+    {% if aktive %}
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="ti ti-clipboard-list"></i> Offene Fragebögen</h5>
+        </div>
+        <div class="list-group list-group-flush">
+            {% for teilnahme in aktive %}
+            <a href="{{ url_for('dialog.fragebogen', id=teilnahme.fragebogen.id) }}"
+               class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">{{ teilnahme.fragebogen.titel }}</h6>
+                    {% if teilnahme.fragebogen.beschreibung %}
+                    <small class="text-muted">{{ teilnahme.fragebogen.beschreibung[:100] }}{% if teilnahme.fragebogen.beschreibung|length > 100 %}...{% endif %}</small>
+                    {% endif %}
+                </div>
+                <div class="text-end">
+                    {% if teilnahme.is_gestartet %}
+                    <span class="badge bg-warning">In Bearbeitung</span>
+                    {% else %}
+                    <span class="badge bg-info">Neu</span>
+                    {% endif %}
+                    <br>
+                    <small class="text-muted">{{ teilnahme.fragebogen.anzahl_fragen }} Fragen</small>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if abgeschlossene %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="ti ti-circle-check"></i> Abgeschlossene Fragebögen</h5>
+        </div>
+        <div class="list-group list-group-flush">
+            {% for teilnahme in abgeschlossene %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div>
+                    <h6 class="mb-1">{{ teilnahme.fragebogen.titel }}</h6>
+                    <small class="text-muted">
+                        Abgeschlossen am {{ teilnahme.abgeschlossen_am.strftime('%d.%m.%Y') }}
+                    </small>
+                </div>
+                <span class="badge bg-success">
+                    <i class="ti ti-check"></i> Abgeschlossen
+                </span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if geschlossene %}
+    <div class="card mb-4">
+        <div class="card-header bg-secondary text-white">
+            <h5 class="mb-0"><i class="ti ti-lock"></i> Geschlossene Fragebögen</h5>
+        </div>
+        <div class="list-group list-group-flush">
+            {% for teilnahme in geschlossene %}
+            <div class="list-group-item d-flex justify-content-between align-items-center text-muted">
+                <div>
+                    <h6 class="mb-1">{{ teilnahme.fragebogen.titel }}</h6>
+                    <small>Dieser Fragebogen nimmt keine Antworten mehr an.</small>
+                </div>
+                <span class="badge bg-secondary">Geschlossen</span>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not aktive and not abgeschlossene and not geschlossene %}
+    <div class="alert alert-info">
+        <i class="ti ti-info-circle"></i>
+        Sie haben derzeit keine Fragebögen.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

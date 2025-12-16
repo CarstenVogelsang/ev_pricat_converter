@@ -46,6 +46,7 @@ Alle Details zur Architektur, Datenmodellen und Features sind in den PRD-Dokumen
 | Lead & Kundenreport | [PRD-002](docs/prd/module/PRD-002-lead-kundenreport/PRD-002-lead-kundenreport.md) | Aktiv |
 | Kunde-Lieferanten | [PRD-003](docs/prd/module/PRD-003-kunde-hat-lieferanten/PRD-003-kunde-hat-lieferanten.md) | Geplant |
 | Content Generator | [PRD-004](docs/prd/module/PRD-004-content-generator/PRD-004-content-generator.md) | Geplant |
+| Kunden-Dialog | [PRD-006](docs/prd/module/PRD-006-kunden-dialog/PRD-006-kunden-dialog.md) | Aktiv |
 
 Jedes Modul hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 
@@ -54,6 +55,7 @@ Jedes Modul hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 | Feature | Dokument | Hinweis |
 |---------|----------|---------|
 | Internationalisierung (i18n) | [ROADMAP-V2-i18n](docs/prd/roadmap/ROADMAP-V2-i18n.md) | Nur auf Nachfrage starten! |
+| PRD-Management in DB | [ROADMAP-V2-prd-management](docs/prd/roadmap/ROADMAP-V2-prd-management.md) | Nach PRD-006 diskutieren |
 
 ## Wichtige Konventionen
 
@@ -62,6 +64,69 @@ Jedes Modul hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 - **DB-Schema:** Bei Änderungen `flask db migrate` + `flask db upgrade`, NICHT DB löschen!
 - **Sprache Docs:** Deutsch
 - **Sprache Code:** Englisch
+- **Deutsche Texte:** Immer echte Umlaute (ä, ü, ö, ß) verwenden, NICHT ae/ue/oe/ss
+
+## UI-Konventionen für Module
+
+### Audit-Logging
+
+Alle Module müssen wichtige Benutzeraktionen in die `audit_log` Tabelle loggen.
+Nutze dafür den `logging_service`:
+
+```python
+from app.services import log_event, log_kritisch, log_hoch, log_mittel
+
+# Standard-Log
+log_event('entity_type', entity_id, 'aktion', 'Beschreibung der Aktion')
+
+# Mit Priorität
+log_hoch('kunde', kunde_id, 'user_erstellt', f'User {email} für Kunde erstellt')
+```
+
+### Hilfe-Button (i)
+
+Jedes Modul hat oben rechts einen Hilfe-Button für Enduser-Dokumentation:
+
+```html
+<button type="button" class="btn btn-sm btn-outline-info"
+        data-bs-toggle="modal" data-bs-target="#helpModal">
+    <i class="ti ti-info-circle"></i>
+</button>
+```
+
+### DEV-Button (nur admin/mitarbeiter)
+
+Jedes Modul hat oben rechts einen DEV-Button für Entwickler:
+
+- Zeigt das PRD-Dokument aus Entwicklersicht
+- Ermöglicht ggf. Bearbeitung des PRD (V2)
+
+```html
+{% if current_user.rolle.name in ['admin', 'mitarbeiter'] %}
+<a href="{{ url_for('admin.prd_view', module='dialog') }}"
+   class="btn btn-sm btn-outline-secondary">
+    <i class="ti ti-code"></i> DEV
+</a>
+{% endif %}
+```
+
+### Hilfetexte-System
+
+Hilfetexte werden in der `help_text` Tabelle gespeichert mit:
+
+- **Schlüssel:** Format `bereich.seite.element` (z.B. `kunden.detail.stammdaten`)
+- **Inhalt:** Markdown-formatierter Text
+- **Anzeige:** (i)-Icons in Card-Headern mit Popover/Modal
+
+```html
+{% set help = get_help_text('kunden.detail.stammdaten') %}
+{% if help %}
+<button type="button" class="btn btn-sm btn-link text-muted"
+        data-bs-toggle="popover" data-bs-content="{{ help.inhalt_markdown | markdown }}">
+    <i class="ti ti-info-circle"></i>
+</button>
+{% endif %}
+```
 
 ## Arbeitsweise
 

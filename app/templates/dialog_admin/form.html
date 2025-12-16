@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+
+{% block title %}{% if fragebogen %}Fragebogen bearbeiten{% else %}Neuer Fragebogen{% endif %} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.index') }}">Fragebögen</a></li>
+            {% if fragebogen %}
+            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.detail', id=fragebogen.id) }}">{{ fragebogen.titel }}</a></li>
+            <li class="breadcrumb-item active">Bearbeiten</li>
+            {% else %}
+            <li class="breadcrumb-item active">Neu</li>
+            {% endif %}
+        </ol>
+    </nav>
+
+    <div class="card">
+        <div class="card-header">
+            <h4 class="mb-0">
+                {% if fragebogen %}
+                <i class="ti ti-edit"></i> Fragebogen bearbeiten
+                {% else %}
+                <i class="ti ti-plus"></i> Neuer Fragebogen
+                {% endif %}
+            </h4>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="titel" class="form-label">Titel *</label>
+                            <input type="text" class="form-control" id="titel" name="titel"
+                                   value="{{ titel }}" required>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="beschreibung" class="form-label">Beschreibung</label>
+                            <textarea class="form-control" id="beschreibung" name="beschreibung"
+                                      rows="3">{{ beschreibung }}</textarea>
+                            <small class="text-muted">Wird den Teilnehmern angezeigt</small>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label for="definition_json" class="form-label">
+                                Fragen-Definition (JSON) *
+                            </label>
+                            <textarea class="form-control font-monospace" id="definition_json"
+                                      name="definition_json" rows="15" required
+                                      style="font-size: 0.85rem;">{{ definition_json }}</textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <h6><i class="ti ti-info-circle"></i> JSON-Schema Hilfe</h6>
+                    <p class="mb-2">Unterstützte Fragetypen:</p>
+                    <ul class="mb-0 small">
+                        <li><code>single_choice</code> - Eine Auswahl (mit <code>optionen</code>)</li>
+                        <li><code>multiple_choice</code> - Mehrfachauswahl (mit <code>optionen</code>)</li>
+                        <li><code>skala</code> - Bewertungsskala (mit <code>min</code>, <code>max</code>, optional <code>labels</code>)</li>
+                        <li><code>text</code> - Freitext (optional <code>multiline: true</code>)</li>
+                        <li><code>ja_nein</code> - Ja/Nein Auswahl</li>
+                    </ul>
+                </div>
+
+                <hr>
+
+                <div class="d-flex justify-content-between">
+                    <a href="{{ url_for('dialog_admin.index') }}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> Abbrechen
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

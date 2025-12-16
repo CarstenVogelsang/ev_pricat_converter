@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ihr Passwort - e-vendo Kundenportal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='tabler-icons/tabler-icons.min.css') }}">
+    <style>
+        body {
+            background-color: #f5f5f5;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .password-card {
+            max-width: 500px;
+            width: 100%;
+        }
+        .password-display {
+            font-family: monospace;
+            font-size: 1.5rem;
+            letter-spacing: 2px;
+            background-color: #fff3cd;
+            padding: 15px 20px;
+            border-radius: 8px;
+            border: 2px dashed #ffc107;
+            text-align: center;
+            word-break: break-all;
+        }
+        .copy-btn {
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card password-card shadow">
+            <div class="card-header bg-success text-white text-center">
+                <h4 class="mb-0">
+                    <i class="ti ti-key"></i> Ihr Passwort
+                </h4>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <i class="ti ti-alert-triangle"></i>
+                    <strong>Wichtig:</strong> Notieren Sie sich dieses Passwort jetzt!
+                    Es wird nur einmal angezeigt.
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Benutzername:</label>
+                    <div class="input-group">
+                        <span class="form-control bg-light">{{ user.email }}</span>
+                        <button class="btn btn-outline-secondary copy-btn" type="button"
+                                onclick="copyToClipboard('{{ user.email }}', this)">
+                            <i class="ti ti-copy"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Ihr Passwort:</label>
+                    <div class="password-display" id="password">{{ password }}</div>
+                    <div class="text-center mt-2">
+                        <button class="btn btn-outline-primary btn-sm copy-btn"
+                                onclick="copyToClipboard('{{ password }}', this)">
+                            <i class="ti ti-copy"></i> Passwort kopieren
+                        </button>
+                    </div>
+                </div>
+
+                <hr>
+
+                <div class="text-center">
+                    <p class="text-muted mb-3">
+                        Sie können sich jetzt im Portal anmelden:
+                    </p>
+                    <a href="{{ url_for('auth.login') }}" class="btn btn-primary">
+                        <i class="ti ti-login"></i> Zum Login
+                    </a>
+                </div>
+            </div>
+            <div class="card-footer text-muted text-center">
+                <small>
+                    <i class="ti ti-info-circle"></i>
+                    Dieser Link ist nach dem Laden nicht mehr gültig.
+                </small>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function copyToClipboard(text, btn) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalHtml = btn.innerHTML;
+                btn.innerHTML = '<i class="ti ti-check"></i> Kopiert!';
+                btn.classList.add('btn-success');
+                btn.classList.remove('btn-outline-secondary', 'btn-outline-primary');
+                setTimeout(() => {
+                    btn.innerHTML = originalHtml;
+                    btn.classList.remove('btn-success');
+                    btn.classList.add('btn-outline-secondary');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

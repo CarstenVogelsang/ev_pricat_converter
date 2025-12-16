@@ -114,7 +114,7 @@
                                     </button>
                                     {% if current_user.rolle == 'admin' %}
                                     <form method="POST" class="d-inline"
-                                          onsubmit="return confirm('Hilfetext wirklich loeschen?');">
+                                          onsubmit="return confirm('Hilfetext wirklich löschen?');">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <input type="hidden" name="action" value="delete">
                                         <input type="hidden" name="id" value="{{ help.id }}">
@@ -143,10 +143,10 @@
             <div class="card-body">
                 <h6><i class="ti ti-info-circle text-info"></i> Hinweise</h6>
                 <ul class="mb-0 small">
-                    <li>Schluessel verwenden das Format <code>bereich.seite.element</code></li>
+                    <li>Schlüssel verwenden das Format <code>bereich.seite.element</code></li>
                     <li>Hilfetexte erscheinen als (i)-Icon in Card-Headern</li>
                     <li>Inhalt kann mit Markdown formatiert werden</li>
-                    <li>Nur Administratoren koennen Hilfetexte loeschen</li>
+                    <li>Nur Administratoren können Hilfetexte löschen</li>
                 </ul>
             </div>
         </div>

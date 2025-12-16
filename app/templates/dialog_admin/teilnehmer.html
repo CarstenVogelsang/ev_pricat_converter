@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+
+{% block title %}Teilnehmer - {{ fragebogen.titel }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.index') }}">Fragebögen</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.detail', id=fragebogen.id) }}">{{ fragebogen.titel }}</a></li>
+            <li class="breadcrumb-item active">Teilnehmer</li>
+        </ol>
+    </nav>
+
+    <h1 class="mb-4">
+        <i class="ti ti-users"></i> Teilnehmer: {{ fragebogen.titel }}
+    </h1>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">Aktuelle Teilnehmer ({{ fragebogen.teilnahmen|length }})</h5>
+                    {% if fragebogen.is_aktiv and fragebogen.teilnahmen %}
+                    <form method="post" action="{{ url_for('dialog_admin.send_einladungen', id=fragebogen.id) }}" class="d-inline">
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="ti ti-mail"></i> Alle einladen
+                        </button>
+                    </form>
+                    {% endif %}
+                </div>
+
+                {% if fragebogen.teilnahmen %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Kunde</th>
+                                <th>Ansprechpartner</th>
+                                <th class="text-center">Status</th>
+                                <th class="text-center">Einladung</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for teilnahme in fragebogen.teilnahmen %}
+                            <tr>
+                                <td>{{ teilnahme.kunde.firmierung }}</td>
+                                <td>
+                                    {% if teilnahme.kunde.user %}
+                                    {{ teilnahme.kunde.user.full_name }}<br>
+                                    <small class="text-muted">{{ teilnahme.kunde.user.email }}</small>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if teilnahme.is_abgeschlossen %}
+                                    <span class="badge bg-success"><i class="ti ti-check"></i> Abgeschlossen</span>
+                                    {% elif teilnahme.is_gestartet %}
+                                    <span class="badge bg-warning">In Bearbeitung</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Eingeladen</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    {% if teilnahme.einladung_gesendet_am %}
+                                    <span class="text-success" title="{{ teilnahme.einladung_gesendet_am.strftime('%d.%m.%Y %H:%M') }}">
+                                        <i class="ti ti-mail-check"></i>
+                                    </span>
+                                    {% else %}
+                                    <span class="text-muted"><i class="ti ti-mail-off"></i></span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">
+                                    {% if teilnahme.is_eingeladen and not teilnahme.einladung_gesendet_am %}
+                                    <form method="post" action="{{ url_for('dialog_admin.remove_teilnehmer', id=fragebogen.id, tid=teilnahme.id) }}" class="d-inline">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Teilnehmer entfernen?')">
+                                            <i class="ti ti-trash"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="card-body text-center text-muted py-4">
+                    <i class="ti ti-users-minus" style="font-size: 2rem;"></i>
+                    <p class="mb-0 mt-2">Noch keine Teilnehmer hinzugefügt</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="ti ti-user-plus"></i> Teilnehmer hinzufügen</h5>
+                </div>
+                <div class="card-body">
+                    {% if verfuegbare_kunden %}
+                    <form method="post" action="{{ url_for('dialog_admin.add_teilnehmer', id=fragebogen.id) }}">
+                        <div class="mb-3">
+                            <label for="kunde_id" class="form-label">Kunde auswählen</label>
+                            <select class="form-select" id="kunde_id" name="kunde_id" required>
+                                <option value="">-- Kunde wählen --</option>
+                                {% for kunde in verfuegbare_kunden %}
+                                <option value="{{ kunde.id }}">
+                                    {{ kunde.firmierung }}
+                                    {% if kunde.user %}({{ kunde.user.email }}){% endif %}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Nur Kunden mit User-Account</small>
+                        </div>
+                        <button type="submit" class="btn btn-primary w-100">
+                            <i class="ti ti-plus"></i> Hinzufügen
+                        </button>
+                    </form>
+                    {% else %}
+                    <div class="text-center text-muted py-3">
+                        <i class="ti ti-user-off" style="font-size: 2rem;"></i>
+                        <p class="mb-0 mt-2">Keine weiteren Kunden verfügbar</p>
+                        <small>Alle Kunden mit User-Account wurden bereits hinzugefügt oder haben keinen User-Account.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="ti ti-info-circle"></i> Info</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        <strong>Voraussetzung:</strong> Ein Kunde kann nur hinzugefügt werden,
+                        wenn er einen User-Account hat.
+                    </p>
+                    <p class="small text-muted mb-0">
+                        User-Accounts können auf der Kunden-Detailseite erstellt werden.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

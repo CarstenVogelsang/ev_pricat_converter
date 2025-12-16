@@ -5,7 +5,6 @@ from app.models.marke import Marke
 from app.models.config import Config
 from app.models.rolle import Rolle
 from app.models.user import User
-from app.models.sub_app import SubApp, SubAppAccess
 from app.models.kunde import Kunde, KundeCI
 from app.models.api_nutzung import KundeApiNutzung
 from app.models.branche import Branche
@@ -14,13 +13,36 @@ from app.models.kunde_branche import KundeBranche
 from app.models.kunde_verband import KundeVerband
 from app.models.help_text import HelpText
 
+# Branchenmodell V2: Rollen-System
+from app.models.branchenrolle import BranchenRolle
+from app.models.branche_branchenrolle import BrancheBranchenRolle
+from app.models.kunde_branchenrolle import KundeBranchenRolle
+
+# Audit-Log System & Module Management
+from app.models.modul import Modul, ModulZugriff, ModulTyp
+from app.models.audit_log import AuditLog
+
+# Kunden-Dialog Module (PRD-006)
+from app.models.password_token import PasswordToken
+from app.models.fragebogen import (
+    Fragebogen, FragebogenTeilnahme, FragebogenAntwort,
+    FragebogenStatus, TeilnahmeStatus
+)
+
 __all__ = [
     'Lieferant', 'Hersteller', 'Marke', 'Config',
     'Rolle', 'User',
-    'SubApp', 'SubAppAccess',
     'Kunde', 'KundeCI',
     'KundeApiNutzung',
     'Branche', 'Verband',
     'KundeBranche', 'KundeVerband',
     'HelpText',
+    # Branchenmodell V2
+    'BranchenRolle', 'BrancheBranchenRolle', 'KundeBranchenRolle',
+    # Audit-Log System & Module Management
+    'Modul', 'ModulZugriff', 'ModulTyp', 'AuditLog',
+    # Kunden-Dialog Module (PRD-006)
+    'PasswordToken',
+    'Fragebogen', 'FragebogenTeilnahme', 'FragebogenAntwort',
+    'FragebogenStatus', 'TeilnahmeStatus',
 ]

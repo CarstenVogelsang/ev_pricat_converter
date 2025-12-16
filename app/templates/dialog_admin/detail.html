@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+
+{% block title %}{{ fragebogen.titel }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.index') }}">Fragebögen</a></li>
+            <li class="breadcrumb-item active">{{ fragebogen.titel }}</li>
+        </ol>
+    </nav>
+
+    <div class="d-flex justify-content-between align-items-start mb-4">
+        <div>
+            <h1>{{ fragebogen.titel }}</h1>
+            {% if fragebogen.beschreibung %}
+            <p class="text-muted">{{ fragebogen.beschreibung }}</p>
+            {% endif %}
+        </div>
+        <div>
+            {% if fragebogen.is_entwurf %}
+            <span class="badge bg-secondary fs-6">Entwurf</span>
+            {% elif fragebogen.is_aktiv %}
+            <span class="badge bg-success fs-6">Aktiv</span>
+            {% else %}
+            <span class="badge bg-dark fs-6">Geschlossen</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0"><i class="ti ti-list-check"></i> Fragen ({{ fragebogen.anzahl_fragen }})</h5>
+                    {% if fragebogen.is_entwurf %}
+                    <a href="{{ url_for('dialog_admin.edit', id=fragebogen.id) }}" class="btn btn-sm btn-outline-primary">
+                        <i class="ti ti-edit"></i> Bearbeiten
+                    </a>
+                    {% endif %}
+                </div>
+                <div class="list-group list-group-flush">
+                    {% for frage in fragebogen.fragen %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <strong>{{ loop.index }}.</strong> {{ frage.frage }}
+                                {% if frage.pflicht %}<span class="text-danger">*</span>{% endif %}
+                            </div>
+                            <span class="badge bg-light text-dark">{{ frage.typ }}</span>
+                        </div>
+                        {% if frage.optionen %}
+                        <small class="text-muted">Optionen: {{ frage.optionen|join(', ') }}</small>
+                        {% elif frage.typ == 'skala' %}
+                        <small class="text-muted">Skala: {{ frage.min }} - {{ frage.max }}</small>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="ti ti-info-circle"></i> Details</h5>
+                </div>
+                <div class="card-body">
+                    <dl class="mb-0">
+                        <dt>Erstellt von</dt>
+                        <dd>{{ fragebogen.erstellt_von.full_name }}</dd>
+
+                        <dt>Erstellt am</dt>
+                        <dd>{{ fragebogen.erstellt_am.strftime('%d.%m.%Y %H:%M') }}</dd>
+
+                        {% if fragebogen.aktiviert_am %}
+                        <dt>Aktiviert am</dt>
+                        <dd>{{ fragebogen.aktiviert_am.strftime('%d.%m.%Y %H:%M') }}</dd>
+                        {% endif %}
+
+                        {% if fragebogen.geschlossen_am %}
+                        <dt>Geschlossen am</dt>
+                        <dd>{{ fragebogen.geschlossen_am.strftime('%d.%m.%Y %H:%M') }}</dd>
+                        {% endif %}
+
+                        <dt>Teilnehmer</dt>
+                        <dd>
+                            {{ fragebogen.anzahl_abgeschlossen }} / {{ fragebogen.anzahl_teilnehmer }} abgeschlossen
+                            <a href="{{ url_for('dialog_admin.teilnehmer', id=fragebogen.id) }}" class="ms-2">
+                                <i class="ti ti-external-link"></i>
+                            </a>
+                        </dd>
+                    </dl>
+                </div>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="ti ti-settings"></i> Aktionen</h5>
+                </div>
+                <div class="card-body">
+                    {% if fragebogen.is_entwurf %}
+                    <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="mb-2">
+                        <input type="hidden" name="action" value="aktivieren">
+                        <button type="submit" class="btn btn-success w-100"
+                                {% if fragebogen.anzahl_fragen == 0 %}disabled{% endif %}>
+                            <i class="ti ti-player-play"></i> Aktivieren
+                        </button>
+                    </form>
+                    {% if fragebogen.anzahl_fragen == 0 %}
+                    <small class="text-muted d-block mb-3">Mindestens eine Frage erforderlich</small>
+                    {% endif %}
+                    {% endif %}
+
+                    {% if fragebogen.is_aktiv %}
+                    <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="mb-2">
+                        <input type="hidden" name="action" value="schliessen">
+                        <button type="submit" class="btn btn-warning w-100"
+                                onclick="return confirm('Fragebogen wirklich schließen? Teilnehmer können dann keine Antworten mehr senden.')">
+                            <i class="ti ti-lock"></i> Schließen
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    <a href="{{ url_for('dialog_admin.teilnehmer', id=fragebogen.id) }}" class="btn btn-outline-primary w-100 mb-2">
+                        <i class="ti ti-users"></i> Teilnehmer verwalten
+                    </a>
+
+                    {% if fragebogen.anzahl_abgeschlossen > 0 %}
+                    <a href="{{ url_for('dialog_admin.auswertung', id=fragebogen.id) }}" class="btn btn-outline-info w-100">
+                        <i class="ti ti-chart-bar"></i> Auswertung
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

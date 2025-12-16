@@ -45,16 +45,28 @@
                    class="list-group-item list-group-item-action{% if 'content_generator' in request.endpoint %} active{% endif %}">
                     <i class="ti ti-writing"></i><span>Content Generator</span>
                 </a>
+                <a href="{{ url_for('dialog_admin.index') }}"
+                   class="list-group-item list-group-item-action{% if 'dialog_admin' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-messages"></i><span>Kunden-Dialog</span>
+                </a>
                 <div class="list-group-item text-muted small py-2">Stammdaten</div>
                 <a href="{{ url_for('admin.branchen') }}"
-                   class="list-group-item list-group-item-action{% if 'branchen' in request.endpoint %} active{% endif %}">
+                   class="list-group-item list-group-item-action{% if request.endpoint == 'admin.branchen' %} active{% endif %}">
                     <i class="ti ti-category"></i><span>Branchen</span>
+                </a>
+                <a href="{{ url_for('admin.branchenrollen') }}"
+                   class="list-group-item list-group-item-action{% if 'branchenrollen' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-tags"></i><span>BranchenRollen</span>
                 </a>
                 <a href="{{ url_for('admin.verbaende') }}"
                    class="list-group-item list-group-item-action{% if 'verbaende' in request.endpoint %} active{% endif %}">
                     <i class="ti ti-building-community"></i><span>Verbände</span>
                 </a>
                 <div class="list-group-item text-muted small py-2">Einstellungen</div>
+                <a href="{{ url_for('admin.module') }}"
+                   class="list-group-item list-group-item-action{% if request.endpoint == 'admin.module' %} active{% endif %}">
+                    <i class="ti ti-apps"></i><span>Modulverwaltung</span>
+                </a>
                 <a href="{{ url_for('admin.settings') }}"
                    class="list-group-item list-group-item-action{% if 'settings' in request.endpoint %} active{% endif %}">
                     <i class="ti ti-adjustments"></i><span>Systemeinstellungen</span>
@@ -66,6 +78,10 @@
                 <a href="{{ url_for('admin.hilfetexte') }}"
                    class="list-group-item list-group-item-action{% if 'hilfetexte' in request.endpoint %} active{% endif %}">
                     <i class="ti ti-help"></i><span>Hilfetexte</span>
+                </a>
+                <a href="{{ url_for('admin.logs') }}"
+                   class="list-group-item list-group-item-action{% if 'logs' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-list-search"></i><span>Audit-Log</span>
                 </a>
                 <a href="{{ url_for('dbadmin.index') }}"
                    class="list-group-item list-group-item-action">

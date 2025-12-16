@@ -1,0 +1,525 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Modulverwaltung - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<style>
+.drag-handle {
+    cursor: grab;
+    color: #6c757d;
+}
+.drag-handle:hover {
+    color: #495057;
+}
+.drag-handle:active {
+    cursor: grabbing;
+}
+tr.sortable-ghost {
+    opacity: 0.4;
+    background-color: #f8f9fa;
+}
+tr.sortable-chosen {
+    background-color: #e9ecef;
+}
+.module-icon {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+}
+.badge-typ-basis {
+    background-color: #dc3545;
+    color: white;
+    font-size: 0.7rem;
+}
+.badge-typ-kundenprojekt {
+    background-color: #198754;
+    color: white;
+    font-size: 0.7rem;
+}
+.badge-typ-sales_intern {
+    background-color: #fd7e14;
+    color: white;
+    font-size: 0.7rem;
+}
+.badge-typ-consulting_intern {
+    background-color: #6f42c1;
+    color: white;
+    font-size: 0.7rem;
+}
+.badge-typ-premium {
+    background-color: #ffc107;
+    color: #212529;
+    font-size: 0.7rem;
+}
+.badge-dashboard {
+    background-color: #0d6efd;
+    color: white;
+    font-size: 0.65rem;
+}
+</style>
+
+<h2 class="mb-4"><i class="ti ti-apps text-primary"></i> Modulverwaltung</h2>
+
+<p class="text-muted mb-4">
+    Verwalten Sie die Module der ev247-Plattform. Aktivieren/deaktivieren Sie Module und steuern Sie den Rollenzugriff.
+    <strong>Basismodule</strong> (rot markiert) sind immer aktiv und erscheinen nicht auf dem Dashboard.
+</p>
+
+<div class="row">
+    <!-- Module List -->
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="ti ti-list"></i> Module ({{ module|length }})</h5>
+                <small class="text-muted"><i class="ti ti-grip-vertical"></i> Ziehen zum Sortieren</small>
+            </div>
+            <div class="card-body p-0">
+                {% if module %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="40"></th>
+                                <th width="50">Icon</th>
+                                <th>Modul</th>
+                                <th>Code</th>
+                                <th>Typ</th>
+                                <th>Rollenzugriff</th>
+                                <th width="80" class="text-center">Status</th>
+                                <th width="60" class="text-center">Aktion</th>
+                            </tr>
+                        </thead>
+                        <tbody id="module-list">
+                            {% for modul in module %}
+                            <tr data-id="{{ modul.id }}" class="{% if not modul.aktiv %}table-secondary{% endif %}">
+                                <td class="align-middle">
+                                    <span class="drag-handle"><i class="ti ti-grip-vertical"></i></span>
+                                </td>
+                                <td class="align-middle">
+                                    <div class="module-icon" style="background-color: {{ modul.color_hex }}20;">
+                                        <i class="{{ modul.icon }}" style="color: {{ modul.color_hex }};"></i>
+                                    </div>
+                                </td>
+                                <td class="align-middle">
+                                    <strong>{{ modul.name }}</strong>
+                                    {% if modul.beschreibung %}
+                                    <br><small class="text-muted">{{ modul.beschreibung }}</small>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle">
+                                    <code>{{ modul.code }}</code>
+                                </td>
+                                <td class="align-middle">
+                                    <span class="badge badge-typ-{{ modul.typ }}">
+                                        {% if modul.typ == 'basis' %}Basis
+                                        {% elif modul.typ == 'kundenprojekt' %}Kundenprojekt
+                                        {% elif modul.typ == 'sales_intern' %}Sales (intern)
+                                        {% elif modul.typ == 'consulting_intern' %}Consulting (intern)
+                                        {% elif modul.typ == 'premium' %}Premium
+                                        {% else %}{{ modul.typ }}{% endif %}
+                                    </span>
+                                    {% if modul.zeige_dashboard %}
+                                    <span class="badge badge-dashboard ms-1">Dashboard</span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle">
+                                    {% if not modul.ist_basis %}
+                                    <div class="dropdown">
+                                        <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button"
+                                                data-bs-toggle="dropdown" aria-expanded="false">
+                                            {% set zugriff_count = modul.zugriffe.count() %}
+                                            {{ zugriff_count }} Rolle{% if zugriff_count != 1 %}n{% endif %}
+                                        </button>
+                                        <div class="dropdown-menu p-3" style="min-width: 280px;">
+                                            <h6 class="dropdown-header">Rollenzugriff für "{{ modul.name }}"</h6>
+                                            {% if modul.ist_intern %}
+                                            <div class="alert alert-warning py-1 px-2 mb-2" style="font-size: 0.75rem;">
+                                                <i class="ti ti-alert-triangle"></i> Interne Module können nur internen Rollen zugewiesen werden.
+                                            </div>
+                                            {% endif %}
+                                            <form class="role-access-form" data-modul-id="{{ modul.id }}" data-modul-ist-intern="{{ modul.ist_intern|lower }}">
+                                                {% for rolle in alle_rollen %}
+                                                {% set ist_externe_rolle = rolle.name.lower() in ['kunde'] %}
+                                                {% set ist_deaktiviert = modul.ist_intern and ist_externe_rolle %}
+                                                <div class="form-check">
+                                                    <input class="form-check-input" type="checkbox"
+                                                           value="{{ rolle.id }}"
+                                                           id="rolle_{{ modul.id }}_{{ rolle.id }}"
+                                                           data-ist-extern="{{ ist_externe_rolle|lower }}"
+                                                           {% if rolle in modul.zugriffe|map(attribute='rolle')|list %}checked{% endif %}
+                                                           {% if ist_deaktiviert %}disabled{% endif %}>
+                                                    <label class="form-check-label {% if ist_deaktiviert %}text-muted{% endif %}" for="rolle_{{ modul.id }}_{{ rolle.id }}">
+                                                        {{ rolle.name }}
+                                                        {% if ist_deaktiviert %}
+                                                        <i class="ti ti-lock" title="Nicht verfügbar für interne Module"></i>
+                                                        {% endif %}
+                                                    </label>
+                                                </div>
+                                                {% endfor %}
+                                                <hr>
+                                                <button type="submit" class="btn btn-sm btn-primary w-100">
+                                                    <i class="ti ti-check"></i> Speichern
+                                                </button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle text-center">
+                                    {% if modul.ist_basis %}
+                                    <span class="badge bg-success">Immer aktiv</span>
+                                    {% else %}
+                                    <div class="form-check form-switch d-flex justify-content-center mb-0">
+                                        <input class="form-check-input toggle-modul" type="checkbox"
+                                               data-modul-id="{{ modul.id }}"
+                                               {% if modul.aktiv %}checked{% endif %}
+                                               style="width: 2.5em; height: 1.25em;">
+                                    </div>
+                                    {% endif %}
+                                </td>
+                                <td class="align-middle text-center">
+                                    <button type="button" class="btn btn-sm btn-outline-primary btn-edit-modul"
+                                            data-modul-id="{{ modul.id }}"
+                                            data-modul-name="{{ modul.name }}"
+                                            data-modul-beschreibung="{{ modul.beschreibung or '' }}"
+                                            data-modul-icon="{{ modul.icon }}"
+                                            data-modul-typ="{{ modul.typ }}"
+                                            data-modul-color="{{ modul.color_hex }}"
+                                            title="Modul bearbeiten">
+                                        <i class="ti ti-pencil"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="ti ti-apps" style="font-size: 3rem;"></i>
+                    <p class="mt-2">Keine Module vorhanden. Führen Sie <code>flask seed</code> aus.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h6><i class="ti ti-info-circle"></i> Legende</h6>
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Modultypen:</strong></p>
+                        <p class="mb-1"><span class="badge badge-typ-basis">Basis</span> Systemmodule – immer aktiv, nicht deaktivierbar</p>
+                        <p class="mb-1"><span class="badge badge-typ-kundenprojekt">Kundenprojekt</span> Kundenspezifische Module</p>
+                        <p class="mb-1"><span class="badge badge-typ-sales_intern">Sales (intern)</span> Nur für Sales-Team sichtbar</p>
+                        <p class="mb-1"><span class="badge badge-typ-consulting_intern">Consulting (intern)</span> Nur für Consulting sichtbar</p>
+                        <p class="mb-1"><span class="badge badge-typ-premium">Premium</span> Premium-Module für erweiterte Funktionen</p>
+                        <p class="mb-0"><span class="badge badge-dashboard">Dashboard</span> Erscheint auf der Startseite</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Rollenzugriff:</strong> Definiert welche Benutzerrollen Zugriff auf das Modul haben.</p>
+                        <p class="mb-1"><i class="ti ti-lock"></i> <strong>Einschränkung:</strong> Interne Module (Sales, Consulting) können nicht externen Rollen wie "Kunde" zugewiesen werden.</p>
+                        <p class="mb-1"><strong>Status:</strong> Deaktivierte Module sind für alle Benutzer unsichtbar.</p>
+                        <p class="mb-0"><strong>Aktion:</strong> Mit dem <i class="ti ti-pencil"></i>-Button können Icon, Beschreibung, Typ und Farbe bearbeitet werden.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Module Modal -->
+<div class="modal fade" id="editModulModal" tabindex="-1" aria-labelledby="editModulModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editModulModalLabel"><i class="ti ti-pencil"></i> Modul bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <form id="editModulForm">
+                <div class="modal-body">
+                    <input type="hidden" id="edit-modul-id" name="id">
+
+                    <div class="mb-3">
+                        <label for="edit-modul-name" class="form-label">Name</label>
+                        <input type="text" class="form-control" id="edit-modul-name" readonly disabled>
+                        <div class="form-text">Der Name kann nicht geändert werden.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit-modul-beschreibung" class="form-label">Kurzbeschreibung</label>
+                        <textarea class="form-control" id="edit-modul-beschreibung" name="beschreibung" rows="2"
+                                  placeholder="Optionale Beschreibung für das Modul..."></textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="edit-modul-icon" class="form-label">Icon</label>
+                            <div class="input-group">
+                                <span class="input-group-text" id="icon-preview"><i class="ti ti-apps"></i></span>
+                                <input type="text" class="form-control" id="edit-modul-icon" name="icon"
+                                       placeholder="ti-apps">
+                            </div>
+                            <div class="form-text">
+                                <a href="https://tabler.io/icons" target="_blank" rel="noopener">Tabler Icons</a> verwenden (z.B. ti-home)
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="edit-modul-color" class="form-label">Farbe</label>
+                            <input type="color" class="form-control form-control-color w-100"
+                                   id="edit-modul-color" name="color_hex" value="#0d6efd">
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="edit-modul-typ" class="form-label">Modultyp</label>
+                        <select class="form-select" id="edit-modul-typ" name="typ">
+                            <option value="basis">Basis (System)</option>
+                            <option value="kundenprojekt">Kundenprojekt</option>
+                            <option value="sales_intern">Sales (intern)</option>
+                            <option value="consulting_intern">Consulting (intern)</option>
+                            <option value="premium">Premium</option>
+                        </select>
+                        <div class="form-text">
+                            <strong>Interne Typen</strong> (Sales, Consulting) können nicht für externe Rollen freigegeben werden.
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-check"></i> Speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Sortable for reordering
+    const moduleList = document.getElementById('module-list');
+    if (moduleList) {
+        new Sortable(moduleList, {
+            handle: '.drag-handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            onEnd: function(evt) {
+                // Get new order
+                const rows = moduleList.querySelectorAll('tr[data-id]');
+                const order = Array.from(rows).map(row => row.dataset.id);
+
+                // Send to server
+                fetch('{{ url_for("admin.module_reorder") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ order: order })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showToast('Sortierung gespeichert', 'success');
+                    } else {
+                        showToast('Fehler: ' + data.message, 'danger');
+                    }
+                })
+                .catch(error => {
+                    showToast('Fehler beim Speichern', 'danger');
+                });
+            }
+        });
+    }
+
+    // Toggle module status
+    document.querySelectorAll('.toggle-modul').forEach(toggle => {
+        toggle.addEventListener('change', function() {
+            const modulId = this.dataset.modulId;
+            const row = this.closest('tr');
+
+            fetch(`/admin/module/${modulId}/toggle`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    row.classList.toggle('table-secondary', !data.aktiv);
+                    showToast(`Modul ${data.aktiv ? 'aktiviert' : 'deaktiviert'}`, 'success');
+                } else {
+                    // Revert toggle
+                    this.checked = !this.checked;
+                    showToast('Fehler: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                this.checked = !this.checked;
+                showToast('Fehler beim Speichern', 'danger');
+            });
+        });
+    });
+
+    // Role access forms
+    document.querySelectorAll('.role-access-form').forEach(form => {
+        form.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const modulId = this.dataset.modulId;
+            const checkboxes = this.querySelectorAll('input[type="checkbox"]:checked');
+            const rollen = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+            fetch(`/admin/module/${modulId}/access`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ rollen: rollen })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Zugriffe aktualisiert', 'success');
+                    // Update button text
+                    const btn = document.querySelector(`tr[data-id="${modulId}"] .dropdown-toggle`);
+                    if (btn) {
+                        const count = rollen.length;
+                        btn.textContent = count + ' Rolle' + (count !== 1 ? 'n' : '');
+                    }
+                } else {
+                    showToast('Fehler: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showToast('Fehler beim Speichern', 'danger');
+            });
+        });
+    });
+
+    // Edit Module Modal
+    const editModal = document.getElementById('editModulModal');
+    const editForm = document.getElementById('editModulForm');
+    const iconInput = document.getElementById('edit-modul-icon');
+    const iconPreview = document.getElementById('icon-preview');
+
+    // Open edit modal
+    document.querySelectorAll('.btn-edit-modul').forEach(btn => {
+        btn.addEventListener('click', function() {
+            const modulId = this.dataset.modulId;
+            const modulName = this.dataset.modulName;
+            const modulBeschreibung = this.dataset.modulBeschreibung;
+            const modulIcon = this.dataset.modulIcon;
+            const modulTyp = this.dataset.modulTyp;
+            const modulColor = this.dataset.modulColor;
+
+            // Populate form
+            document.getElementById('edit-modul-id').value = modulId;
+            document.getElementById('edit-modul-name').value = modulName;
+            document.getElementById('edit-modul-beschreibung').value = modulBeschreibung;
+            document.getElementById('edit-modul-icon').value = modulIcon;
+            document.getElementById('edit-modul-typ').value = modulTyp;
+            document.getElementById('edit-modul-color').value = modulColor || '#0d6efd';
+
+            // Update icon preview
+            updateIconPreview(modulIcon);
+
+            // Show modal
+            const modal = new bootstrap.Modal(editModal);
+            modal.show();
+        });
+    });
+
+    // Live icon preview update
+    if (iconInput) {
+        iconInput.addEventListener('input', function() {
+            updateIconPreview(this.value);
+        });
+    }
+
+    function updateIconPreview(iconClass) {
+        if (iconPreview) {
+            iconPreview.innerHTML = `<i class="${iconClass}"></i>`;
+        }
+    }
+
+    // Submit edit form
+    if (editForm) {
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const modulId = document.getElementById('edit-modul-id').value;
+            const formData = {
+                beschreibung: document.getElementById('edit-modul-beschreibung').value,
+                icon: document.getElementById('edit-modul-icon').value,
+                typ: document.getElementById('edit-modul-typ').value,
+                color_hex: document.getElementById('edit-modul-color').value
+            };
+
+            fetch(`/admin/module/${modulId}/edit`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify(formData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showToast('Modul aktualisiert', 'success');
+                    // Close modal and refresh page to show changes
+                    bootstrap.Modal.getInstance(editModal).hide();
+                    setTimeout(() => location.reload(), 500);
+                } else {
+                    showToast('Fehler: ' + data.error, 'danger');
+                }
+            })
+            .catch(error => {
+                showToast('Fehler beim Speichern', 'danger');
+            });
+        });
+    }
+
+    // Toast helper function
+    function showToast(message, type) {
+        const toastContainer = document.querySelector('.toast-container') || createToastContainer();
+        const toast = document.createElement('div');
+        toast.className = `toast align-items-center text-bg-${type} border-0`;
+        toast.setAttribute('role', 'alert');
+        toast.innerHTML = `
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        `;
+        toastContainer.appendChild(toast);
+        const bsToast = new bootstrap.Toast(toast, { delay: 3000 });
+        bsToast.show();
+        toast.addEventListener('hidden.bs.toast', () => toast.remove());
+    }
+
+    function createToastContainer() {
+        const container = document.createElement('div');
+        container.className = 'toast-container position-fixed bottom-0 end-0 p-3';
+        document.body.appendChild(container);
+        return container;
+    }
+});
+</script>
+{% endblock %}

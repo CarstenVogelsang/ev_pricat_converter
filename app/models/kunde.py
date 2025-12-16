@@ -30,6 +30,14 @@ class Kunde(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
+    # Ansprechpartner (User) für Kunden-Portal-Zugang
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, unique=True)
+    user = db.relationship('User', backref=db.backref('kunde', uselist=False))
+
+    # Hauptbranche - muss vor Unterbranche-Zuordnung gesetzt sein
+    hauptbranche_id = db.Column(db.Integer, db.ForeignKey('branche.id'), nullable=True)
+    hauptbranche = db.relationship('Branche', foreign_keys=[hauptbranche_id])
+
     # Relationship to KundeCI (1:1)
     ci = db.relationship('KundeCI', backref='kunde', uselist=False,
                          cascade='all, delete-orphan')
@@ -39,6 +47,10 @@ class Kunde(db.Model):
                                cascade='all, delete-orphan')
     verbaende = db.relationship('KundeVerband', back_populates='kunde',
                                 cascade='all, delete-orphan')
+
+    # Relationship zu BranchenRollen (N:M ueber KundeBranchenRolle)
+    branchenrollen = db.relationship('KundeBranchenRolle', back_populates='kunde',
+                                     cascade='all, delete-orphan')
 
     def __repr__(self):
         return f'<Kunde {self.firmierung}>'
@@ -57,6 +69,20 @@ class Kunde(db.Model):
     def alle_verbaende(self):
         """Get all assigned associations."""
         return [kv.verband for kv in self.verbaende]
+
+    @property
+    def rollen_pro_branche(self):
+        """Dict: branche_id -> Liste von BranchenRolle-Objekten.
+
+        Gibt für jede zugeordnete Branche die Liste der Rollen zurück,
+        die der Kunde in dieser Branche hat.
+        """
+        result = {}
+        for kbr in self.branchenrollen:
+            if kbr.branche_id not in result:
+                result[kbr.branche_id] = []
+            result[kbr.branche_id].append(kbr.branchenrolle)
+        return result
 
     @property
     def adresse_formatiert(self):

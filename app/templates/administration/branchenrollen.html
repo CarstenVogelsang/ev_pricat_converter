@@ -1,0 +1,298 @@
+{% extends "administration/base.html" %}
+
+{% block title %}BranchenRollen - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<style>
+.drag-handle {
+    cursor: grab;
+    color: #6c757d;
+}
+.drag-handle:hover {
+    color: #495057;
+}
+.drag-handle:active {
+    cursor: grabbing;
+}
+tr.sortable-ghost {
+    opacity: 0.4;
+    background-color: #f8f9fa;
+}
+tr.sortable-chosen {
+    background-color: #e9ecef;
+}
+.code-badge {
+    font-family: monospace;
+    font-size: 0.75rem;
+}
+</style>
+
+<h2 class="mb-4"><i class="ti ti-tags text-primary"></i> BranchenRollen verwalten</h2>
+
+<p class="text-muted mb-4">
+    BranchenRollen definieren, welche Rolle ein Kunde in einer Branche haben kann
+    (z.B. Hersteller, Einzelhändler, Großhändler).
+</p>
+
+<div class="row">
+    <!-- Add New BranchenRolle -->
+    <div class="col-md-5 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0"><i class="ti ti-plus"></i> Neue BranchenRolle</h5>
+            </div>
+            <div class="card-body">
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="create">
+
+                    <div class="mb-3">
+                        <label for="code" class="form-label">Code * <small class="text-muted">(wird automatisch in Großbuchstaben umgewandelt)</small></label>
+                        <input type="text" class="form-control" id="code" name="code" required
+                               placeholder="z.B. EINZELHANDEL_ONLINE" style="text-transform: uppercase;">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="name" name="name" required
+                               placeholder="z.B. Einzelhandel (online)">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="icon" class="form-label">Icon (Tabler Icon)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-tag" id="icon-preview"></i></span>
+                            <input type="text" class="form-control" id="icon" name="icon" value="tag"
+                                   placeholder="z.B. shopping-cart, building-factory">
+                        </div>
+                        <div class="form-text">
+                            <a href="https://tabler.io/icons" target="_blank">Tabler Icons</a> - ohne "ti-" Prefix
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="beschreibung" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="beschreibung" name="beschreibung" rows="2"
+                                  placeholder="Kurze Beschreibung der Rolle"></textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-plus"></i> Anlegen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Existing BranchenRollen -->
+    <div class="col-md-7">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="ti ti-list"></i> Vorhandene Rollen ({{ rollen|length }})</h5>
+                <small class="text-muted"><i class="ti ti-grip-vertical"></i> Ziehen zum Sortieren</small>
+            </div>
+            <div class="card-body p-0">
+                {% if rollen %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th width="40"></th>
+                                <th width="50">Icon</th>
+                                <th>Name</th>
+                                <th>Code</th>
+                                <th width="70">Status</th>
+                                <th width="80">Branchen</th>
+                                <th width="140">Aktionen</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rollen-tbody">
+                            {% for rolle in rollen %}
+                            <tr data-id="{{ rolle.id }}">
+                                <td class="text-center">
+                                    <i class="ti ti-grip-vertical fs-5 drag-handle"></i>
+                                </td>
+                                <td class="text-center">
+                                    <i class="ti ti-{{ rolle.icon or 'tag' }} fs-4"></i>
+                                </td>
+                                <td>
+                                    {{ rolle.name }}
+                                    {% if rolle.beschreibung %}
+                                    <br><small class="text-muted">{{ rolle.beschreibung[:50] }}{% if rolle.beschreibung|length > 50 %}...{% endif %}</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark code-badge">{{ rolle.code }}</span>
+                                </td>
+                                <td>
+                                    {% if rolle.aktiv %}
+                                    <span class="badge bg-success">Aktiv</span>
+                                    {% else %}
+                                    <span class="badge bg-secondary">Inaktiv</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-info">{{ rolle.zulaessig_in_branchen|length }}</span>
+                                </td>
+                                <td>
+                                    <button type="button" class="btn btn-sm btn-outline-primary"
+                                            data-bs-toggle="modal" data-bs-target="#editModal{{ rolle.id }}">
+                                        <i class="ti ti-edit"></i>
+                                    </button>
+                                    <form method="POST" class="d-inline"
+                                          onsubmit="return confirm('BranchenRolle wirklich löschen?');">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <input type="hidden" name="action" value="delete">
+                                        <input type="hidden" name="id" value="{{ rolle.id }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                {% if rolle.zulaessig_in_branchen or rolle.kunden_mit_rolle %}disabled title="Wird verwendet"{% endif %}>
+                                            <i class="ti ti-trash"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    Noch keine BranchenRollen vorhanden.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modals -->
+{% for rolle in rollen %}
+<div class="modal fade" id="editModal{{ rolle.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" value="{{ rolle.id }}">
+
+                <div class="modal-header">
+                    <h5 class="modal-title">BranchenRolle bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Code *</label>
+                        <input type="text" class="form-control" name="code" value="{{ rolle.code }}" required
+                               style="text-transform: uppercase;">
+                        <div class="form-text text-warning">
+                            <i class="ti ti-alert-triangle"></i> Vorsicht: Änderung des Codes kann Auswirkungen auf bestehende Zuordnungen haben.
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" name="name" value="{{ rolle.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icon</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-{{ rolle.icon or 'tag' }}"></i></span>
+                            <input type="text" class="form-control" name="icon" value="{{ rolle.icon or '' }}">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Beschreibung</label>
+                        <textarea class="form-control" name="beschreibung" rows="2">{{ rolle.beschreibung or '' }}</textarea>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv{{ rolle.id }}"
+                               {{ 'checked' if rolle.aktiv }}>
+                        <label class="form-check-label" for="aktiv{{ rolle.id }}">Aktiv</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% endblock %}
+
+{% block scripts %}
+{{ super() }}
+<!-- SortableJS for drag & drop sorting -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+// Live Icon Preview
+document.getElementById('icon').addEventListener('input', function() {
+    const preview = document.getElementById('icon-preview');
+    preview.className = 'ti ti-' + this.value;
+});
+
+// Drag & Drop Sorting
+document.addEventListener('DOMContentLoaded', function() {
+    const tbody = document.getElementById('rollen-tbody');
+    if (tbody) {
+        new Sortable(tbody, {
+            animation: 150,
+            handle: '.drag-handle',
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            onEnd: function() {
+                const rows = tbody.querySelectorAll('tr[data-id]');
+                const order = Array.from(rows).map(row => row.dataset.id);
+
+                fetch('{{ url_for("admin.branchenrollen_reorder") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': '{{ csrf_token() }}'
+                    },
+                    body: JSON.stringify({ order: order })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Show toast notification
+                        showToast('success', data.message);
+                    } else {
+                        showToast('danger', data.message || 'Fehler beim Speichern');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showToast('danger', 'Fehler beim Speichern der Sortierung');
+                });
+            }
+        });
+    }
+});
+
+// Toast helper function
+function showToast(type, message) {
+    const toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) return;
+
+    const toastId = 'toast-' + Date.now();
+    const toastHtml = `
+        <div id="${toastId}" class="toast text-bg-${type}" role="alert" aria-live="assertive" aria-atomic="true">
+            <div class="d-flex">
+                <div class="toast-body">${message}</div>
+                <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+            </div>
+        </div>
+    `;
+    toastContainer.insertAdjacentHTML('beforeend', toastHtml);
+
+    const toastEl = document.getElementById(toastId);
+    const toast = new bootstrap.Toast(toastEl, { delay: 3000 });
+    toast.show();
+
+    toastEl.addEventListener('hidden.bs.toast', function() {
+        toastEl.remove();
+    });
+}
+</script>
+{% endblock %}

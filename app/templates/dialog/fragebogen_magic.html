@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ fragebogen.titel }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='tabler-icons/tabler-icons.min.css') }}">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .fragebogen-card {
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .frage-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        .skala-container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .skala-container .form-check {
+            flex: 0 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="fragebogen-card">
+            <div class="text-center mb-4">
+                <h2>{{ fragebogen.titel }}</h2>
+                {% if fragebogen.beschreibung %}
+                <p class="text-muted">{{ fragebogen.beschreibung }}</p>
+                {% endif %}
+                <div class="progress" style="height: 8px;">
+                    <div class="progress-bar" role="progressbar" id="progress-bar" style="width: 0%"></div>
+                </div>
+                <small class="text-muted" id="progress-text">0 von {{ fragebogen.anzahl_fragen }} beantwortet</small>
+            </div>
+
+            <form id="fragebogen-form">
+                {% for frage in fragebogen.fragen %}
+                <div class="frage-container" data-frage-id="{{ frage.id }}">
+                    <label class="form-label fw-bold">
+                        {{ loop.index }}. {{ frage.frage }}
+                        {% if frage.pflicht %}<span class="text-danger">*</span>{% endif %}
+                    </label>
+
+                    {% if frage.typ == 'single_choice' %}
+                    {% for option in frage.optionen %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio"
+                               name="{{ frage.id }}" value="{{ option }}"
+                               id="{{ frage.id }}_{{ loop.index }}"
+                               {% if antworten.get(frage.id, {}).get('value') == option %}checked{% endif %}
+                               onchange="saveAnswer('{{ frage.id }}', {value: this.value})">
+                        <label class="form-check-label" for="{{ frage.id }}_{{ loop.index }}">
+                            {{ option }}
+                        </label>
+                    </div>
+                    {% endfor %}
+
+                    {% elif frage.typ == 'multiple_choice' %}
+                    {% for option in frage.optionen %}
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox"
+                               name="{{ frage.id }}" value="{{ option }}"
+                               id="{{ frage.id }}_{{ loop.index }}"
+                               {% if option in (antworten.get(frage.id, {}).get('values') or []) %}checked{% endif %}
+                               onchange="saveMultipleChoice('{{ frage.id }}')">
+                        <label class="form-check-label" for="{{ frage.id }}_{{ loop.index }}">
+                            {{ option }}
+                        </label>
+                    </div>
+                    {% endfor %}
+
+                    {% elif frage.typ == 'skala' %}
+                    <div class="skala-container align-items-center">
+                        {% if frage.labels and frage.labels[frage.min|string] %}
+                        <small class="text-muted">{{ frage.labels[frage.min|string] }}</small>
+                        {% endif %}
+                        {% for i in range(frage.min, frage.max + 1) %}
+                        <div class="form-check form-check-inline">
+                            <input class="form-check-input" type="radio"
+                                   name="{{ frage.id }}" value="{{ i }}"
+                                   id="{{ frage.id }}_{{ i }}"
+                                   {% if antworten.get(frage.id, {}).get('value')|string == i|string %}checked{% endif %}
+                                   onchange="saveAnswer('{{ frage.id }}', {value: parseInt(this.value)})">
+                            <label class="form-check-label" for="{{ frage.id }}_{{ i }}">{{ i }}</label>
+                        </div>
+                        {% endfor %}
+                        {% if frage.labels and frage.labels[frage.max|string] %}
+                        <small class="text-muted">{{ frage.labels[frage.max|string] }}</small>
+                        {% endif %}
+                    </div>
+
+                    {% elif frage.typ == 'text' %}
+                    {% if frage.multiline %}
+                    <textarea class="form-control" name="{{ frage.id }}" rows="4"
+                              onblur="saveAnswer('{{ frage.id }}', {value: this.value})"
+                              >{{ antworten.get(frage.id, {}).get('value', '') }}</textarea>
+                    {% else %}
+                    <input type="text" class="form-control" name="{{ frage.id }}"
+                           value="{{ antworten.get(frage.id, {}).get('value', '') }}"
+                           onblur="saveAnswer('{{ frage.id }}', {value: this.value})">
+                    {% endif %}
+
+                    {% elif frage.typ == 'ja_nein' %}
+                    <div class="btn-group" role="group">
+                        <input type="radio" class="btn-check" name="{{ frage.id }}" value="true"
+                               id="{{ frage.id }}_ja"
+                               {% if antworten.get(frage.id, {}).get('value') == true %}checked{% endif %}
+                               onchange="saveAnswer('{{ frage.id }}', {value: true})">
+                        <label class="btn btn-outline-success" for="{{ frage.id }}_ja">
+                            <i class="ti ti-check"></i> Ja
+                        </label>
+
+                        <input type="radio" class="btn-check" name="{{ frage.id }}" value="false"
+                               id="{{ frage.id }}_nein"
+                               {% if antworten.get(frage.id, {}).get('value') == false %}checked{% endif %}
+                               onchange="saveAnswer('{{ frage.id }}', {value: false})">
+                        <label class="btn btn-outline-danger" for="{{ frage.id }}_nein">
+                            <i class="ti ti-x"></i> Nein
+                        </label>
+                    </div>
+                    {% endif %}
+
+                    <div class="save-status small text-muted mt-2" style="display: none;"></div>
+                </div>
+                {% endfor %}
+
+                <div class="text-center mt-4">
+                    <button type="button" class="btn btn-success btn-lg px-5" onclick="submitFragebogen()">
+                        <i class="ti ti-send"></i> Fragebogen abschließen
+                    </button>
+                </div>
+            </form>
+
+            <div class="text-center mt-4 text-muted">
+                <small>Ihre Antworten werden automatisch gespeichert.</small>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    const TEILNAHME_TOKEN = '{{ token }}';
+    const TOTAL_QUESTIONS = {{ fragebogen.anzahl_fragen }};
+    let answeredCount = {{ antworten|length }};
+
+    function updateProgress() {
+        const percent = Math.round((answeredCount / TOTAL_QUESTIONS) * 100);
+        document.getElementById('progress-bar').style.width = percent + '%';
+        document.getElementById('progress-text').textContent =
+            `${answeredCount} von ${TOTAL_QUESTIONS} beantwortet`;
+    }
+
+    updateProgress();
+
+    async function saveAnswer(frageId, antwort) {
+        const container = document.querySelector(`[data-frage-id="${frageId}"]`);
+        const status = container.querySelector('.save-status');
+        const wasEmpty = !container.classList.contains('answered');
+
+        status.style.display = 'block';
+        status.innerHTML = '<i class="ti ti-loader ti-spin"></i> Speichern...';
+
+        try {
+            const response = await fetch(`/dialog/t/${TEILNAHME_TOKEN}/antwort`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({frage_id: frageId, antwort: antwort})
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                status.innerHTML = '<i class="ti ti-check text-success"></i> Gespeichert';
+                if (wasEmpty && (antwort.value !== '' && antwort.value !== null)) {
+                    container.classList.add('answered');
+                    answeredCount++;
+                    updateProgress();
+                }
+            } else {
+                status.innerHTML = `<i class="ti ti-alert-circle text-danger"></i> ${data.error}`;
+            }
+        } catch (e) {
+            status.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Fehler';
+        }
+
+        setTimeout(() => { status.style.display = 'none'; }, 2000);
+    }
+
+    function saveMultipleChoice(frageId) {
+        const checkboxes = document.querySelectorAll(`input[name="${frageId}"]:checked`);
+        const values = Array.from(checkboxes).map(cb => cb.value);
+        saveAnswer(frageId, {values: values});
+    }
+
+    async function submitFragebogen() {
+        if (!confirm('Möchten Sie den Fragebogen abschließen?')) return;
+
+        try {
+            const response = await fetch(`/dialog/t/${TEILNAHME_TOKEN}/abschliessen`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                alert('Fehler: ' + data.error);
+            }
+        } catch (e) {
+            alert('Fehler beim Abschließen.');
+        }
+    }
+
+    // Mark already answered questions
+    document.querySelectorAll('.frage-container').forEach(container => {
+        const frageId = container.dataset.frageId;
+        const inputs = container.querySelectorAll('input:checked, textarea:not(:empty), input[type="text"]:not(:placeholder-shown)');
+        if (inputs.length > 0 || container.querySelector('textarea')?.value || container.querySelector('input[type="text"]')?.value) {
+            container.classList.add('answered');
+        }
+    });
+    </script>
+</body>
+</html>

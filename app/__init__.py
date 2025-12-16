@@ -62,6 +62,10 @@ def create_app(config_name=None):
         content_generator_bp, abrechnung_bp
     )
     from app.routes.auth import auth_bp
+    from app.routes.passwort import passwort_bp
+    from app.routes.dialog import dialog_bp
+    from app.routes.dialog_admin import dialog_admin_bp
+
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
     app.register_blueprint(auth_bp)
@@ -69,6 +73,10 @@ def create_app(config_name=None):
     app.register_blueprint(lieferanten_auswahl_bp)
     app.register_blueprint(content_generator_bp)
     app.register_blueprint(abrechnung_bp)
+    # PRD-006: Kunden-Dialog
+    app.register_blueprint(passwort_bp)
+    app.register_blueprint(dialog_bp)
+    app.register_blueprint(dialog_admin_bp)
 
     # Initialize Flask-Admin (under /db-admin, requires admin role)
     from app.admin import init_admin
@@ -115,20 +123,20 @@ def create_app(config_name=None):
     @app.context_processor
     def inject_module_colors():
         """Make module colors available in all templates."""
-        from app.models import SubApp
+        from app.models import Modul
 
         module_colors = {}
         try:
-            subapps = SubApp.query.all()
-            for subapp in subapps:
-                if subapp.route_endpoint:
+            modules = Modul.query.filter(Modul.route_endpoint.isnot(None)).all()
+            for modul in modules:
+                if modul.route_endpoint:
                     # Extract blueprint name from endpoint (e.g., "kunden.liste" -> "kunden")
-                    blueprint = subapp.route_endpoint.split('.')[0]
+                    blueprint = modul.route_endpoint.split('.')[0]
                     module_colors[blueprint] = {
-                        'color_hex': subapp.color_hex or '#0d6efd',
-                        'icon': subapp.icon,
-                        'name': subapp.name,
-                        'description': subapp.beschreibung
+                        'color_hex': modul.color_hex or '#0d6efd',
+                        'icon': modul.icon,
+                        'name': modul.name,
+                        'description': modul.beschreibung
                     }
         except Exception:
             # DB not initialized yet
@@ -159,7 +167,7 @@ def register_cli_commands(app):
     def seed_command():
         """Seed the database with initial data."""
         from app.models import (
-            Lieferant, Config as ConfigModel, Rolle, SubApp, SubAppAccess,
+            Lieferant, Config as ConfigModel, Rolle,
             Branche, Verband, HelpText
         )
 
@@ -178,63 +186,6 @@ def register_cli_commands(app):
                 click.echo(f'Created role: {name}')
             roles[name] = rolle
         db.session.flush()  # Get IDs
-
-        # Create SubApps
-        # Format: (slug, name, beschreibung, icon, color, color_hex, endpoint, aktiv, sort)
-        subapps_data = [
-            ('pricat', 'PRICAT Converter', 'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
-             'ti-route-square', 'primary', '#0d6efd', 'main.lieferanten', True, 10),
-            ('kunden-report', 'Lead & Kundenreport', 'Kunden verwalten und Website-Analyse',
-             'ti-users', 'success', '#198754', 'kunden.liste', True, 20),
-            ('lieferanten-auswahl', 'Meine Lieferanten', 'Relevante Lieferanten auswaehlen',
-             'ti-truck', 'info', '#0dcaf0', 'lieferanten_auswahl.index', True, 30),
-            ('content-generator', 'Content Generator', 'KI-generierte Texte fuer Online-Shops',
-             'ti-writing', 'warning', '#ffc107', 'content_generator.index', True, 40),
-        ]
-        subapps = {}
-        for slug, name, beschreibung, icon, color, color_hex, endpoint, aktiv, sort in subapps_data:
-            subapp = SubApp.query.filter_by(slug=slug).first()
-            if not subapp:
-                subapp = SubApp(
-                    slug=slug, name=name, beschreibung=beschreibung,
-                    icon=icon, color=color, color_hex=color_hex,
-                    route_endpoint=endpoint, aktiv=aktiv, sort_order=sort
-                )
-                db.session.add(subapp)
-                click.echo(f'Created SubApp: {name}')
-            else:
-                # Update existing SubApp
-                subapp.name = name
-                subapp.beschreibung = beschreibung
-                subapp.icon = icon
-                subapp.color = color
-                subapp.color_hex = color_hex
-                subapp.route_endpoint = endpoint
-                subapp.aktiv = aktiv
-                subapp.sort_order = sort
-                click.echo(f'Updated SubApp: {name}')
-            subapps[slug] = subapp
-        db.session.flush()
-
-        # Create SubAppAccess mappings
-        access_mappings = [
-            ('pricat', ['admin', 'mitarbeiter']),
-            ('kunden-report', ['admin', 'mitarbeiter']),
-            ('lieferanten-auswahl', ['admin', 'mitarbeiter', 'kunde']),
-            ('content-generator', ['admin', 'mitarbeiter', 'kunde']),
-        ]
-        for slug, role_names in access_mappings:
-            subapp = subapps.get(slug)
-            if subapp:
-                for role_name in role_names:
-                    rolle = roles.get(role_name)
-                    if rolle:
-                        existing = SubAppAccess.query.filter_by(
-                            sub_app_id=subapp.id, rolle_id=rolle.id
-                        ).first()
-                        if not existing:
-                            access = SubAppAccess(sub_app_id=subapp.id, rolle_id=rolle.id)
-                            db.session.add(access)
 
         # Create test supplier (LEGO)
         # Note: vedes_id is stored without leading zeros
@@ -281,8 +232,17 @@ def register_cli_commands(app):
             ('copyright_text', '© 2025 e-vendo AG', 'Copyright-Text im Footer'),
             ('copyright_url', 'https://www.e-vendo.de', 'Link zur Hauptwebsite'),
             # Firecrawl
-            ('firecrawl_api_key', '', 'Firecrawl API Key fuer Website-Analyse'),
+            ('firecrawl_api_key', '', 'Firecrawl API Key für Website-Analyse'),
             ('firecrawl_credit_kosten', '0.005', 'Kosten pro Firecrawl Credit in Euro'),
+            # PRD-006: Brevo E-Mail Service
+            ('brevo_api_key', '', 'Brevo API Key für E-Mail-Versand'),
+            ('brevo_sender_email', 'noreply@e-vendo.de', 'Absender E-Mail-Adresse'),
+            ('brevo_sender_name', 'e-vendo AG', 'Absender Name'),
+            ('portal_base_url', 'https://portal.e-vendo.de', 'Basis-URL für Portal-Links'),
+            # PRD-006: Brevo Rate Limiting (Free Plan: 300/day)
+            ('brevo_daily_limit', '300', 'Max. E-Mails pro Tag (Brevo Free Plan)'),
+            ('brevo_emails_sent_today', '0', 'Heute gesendete E-Mails (auto-reset)'),
+            ('brevo_last_reset_date', '', 'Letztes Quota-Reset-Datum (YYYY-MM-DD)'),
         ]
 
         for key, value, beschreibung in config_defaults:
@@ -296,25 +256,48 @@ def register_cli_commands(app):
                 db.session.add(config_entry)
                 click.echo(f'Created config: {key}')
 
-        # Create Branchen (Industries)
-        branchen_data = [
-            ('Einzelhandel Modellbahn', 'train', 10),
-            ('Einzelhandel Spielwaren', 'lego', 20),
-            ('Einzelhandel Fahrrad', 'bike', 30),
-            ('Einzelhandel GPK', 'glass', 40),
-            ('Einzelhandel Geschenkartikel', 'gift', 50),
-            ('Großhandel', 'building-warehouse', 60),
-            ('Online-Handel', 'shopping-cart', 70),
-            ('Fachmarkt', 'building-store', 80),
-            ('Babyausstattung', 'baby-carriage', 90),
-            ('Schreibwaren', 'pencil', 100),
+        # Create Hauptbranchen (Top-Level Categories)
+        hauptbranchen_data = [
+            ('HANDEL', 'shopping-cart', 10),
+            ('HANDWERK', 'tools', 20),
+            ('DIENSTLEISTUNG', 'briefcase', 30),
         ]
-        for name, icon, sortierung in branchen_data:
-            existing = Branche.query.filter_by(name=name).first()
+        hauptbranchen = {}
+        for name, icon, sortierung in hauptbranchen_data:
+            existing = Branche.query.filter_by(name=name, parent_id=None).first()
             if not existing:
                 branche = Branche(name=name, icon=icon, sortierung=sortierung, aktiv=True)
                 db.session.add(branche)
-                click.echo(f'Created Branche: {name}')
+                db.session.flush()  # Get ID for relationship
+                hauptbranchen[name] = branche
+                click.echo(f'Created Hauptbranche: {name}')
+            else:
+                hauptbranchen[name] = existing
+
+        # Create Unterbranchen (Sub-Categories) under HANDEL
+        handel = hauptbranchen.get('HANDEL')
+        if handel:
+            unterbranchen_handel = [
+                ('Einzelhandel Modellbahn', 'train', 10),
+                ('Einzelhandel Spielwaren', 'lego', 20),
+                ('Einzelhandel Fahrrad', 'bike', 30),
+                ('Einzelhandel GPK', 'glass', 40),
+                ('Einzelhandel Geschenkartikel', 'gift', 50),
+                ('Großhandel', 'building-warehouse', 60),
+                ('Online-Handel', 'world-www', 70),
+                ('Fachmarkt', 'building-store', 80),
+                ('Babyausstattung', 'baby-carriage', 90),
+                ('Schreibwaren', 'pencil', 100),
+            ]
+            for name, icon, sortierung in unterbranchen_handel:
+                existing = Branche.query.filter_by(name=name, parent_id=handel.id).first()
+                if not existing:
+                    branche = Branche(
+                        name=name, icon=icon, sortierung=sortierung,
+                        parent_id=handel.id, aktiv=True
+                    )
+                    db.session.add(branche)
+                    click.echo(f'Created Unterbranche: {name} (unter HANDEL)')
 
         # Create Verbände (Associations)
         verbaende_data = [
@@ -345,36 +328,36 @@ Die Stammdaten enthalten die wichtigsten Informationen zum Kunden:
 
 - **Firmierung**: Offizieller Firmenname
 - **e-vendo Kdnr.**: Kundennummer im e-vendo System
-- **Adresse**: Geschaeftsadresse des Kunden
-- **Website & Shop**: Links zur Webpraesenz
+- **Adresse**: Geschäftsadresse des Kunden
+- **Website & Shop**: Links zur Webpräsenz
 
-Diese Daten koennen ueber "Bearbeiten" geaendert werden.'''
+Diese Daten können über "Bearbeiten" geändert werden.'''
             ),
             (
                 'kunden.detail.branchen',
                 'Branchen zuordnen',
                 '''## Branchen zuordnen
 
-Ordnen Sie dem Kunden passende Branchen zu, um ihn besser kategorisieren zu koennen.
+Ordnen Sie dem Kunden passende Branchen zu, um ihn besser kategorisieren zu können.
 
 ### Bedienung
 
 - **Linksklick**: Branche zuordnen oder entfernen
-- **Rechtsklick**: Als **Primaerbranche** markieren (max. 3)
+- **Rechtsklick**: Als **Primärbranche** markieren (max. 3)
 
-### Primaerbranchen
+### Primärbranchen
 
-Primaerbranchen werden mit einem **P** markiert und erscheinen in der Kundenliste.
-Sie helfen bei der schnellen Identifikation der Hauptgeschaeftsfelder.'''
+Primärbranchen werden mit einem **P** markiert und erscheinen in der Kundenliste.
+Sie helfen bei der schnellen Identifikation der Hauptgeschäftsfelder.'''
             ),
             (
                 'kunden.detail.verbaende',
-                'Verbaende zuordnen',
+                'Verbände zuordnen',
                 '''## Verbandsmitgliedschaften
 
-Hier koennen Sie die Verbandszugehoerigkeiten des Kunden pflegen.
+Hier können Sie die Verbandszugehörigkeiten des Kunden pflegen.
 
-### Bekannte Verbaende
+### Bekannte Verbände
 
 - **VEDES**: Spielwarenverband
 - **idee+spiel**: Franchise-System
@@ -414,6 +397,80 @@ Die Analyse nutzt die Firecrawl API.
                 )
                 db.session.add(help_text)
                 click.echo(f'Created HelpText: {schluessel}')
+
+        # Create Module (unified module management - replaces SubApp)
+        from app.models import Modul, ModulZugriff, ModulTyp
+        # Format: (code, name, beschreibung, icon, color, color_hex, route_endpoint, sort_order, typ, zeige_dashboard)
+        # typ: basis, kundenprojekt, sales_intern, consulting_intern, premium
+        module_data = [
+            # Basis-Module (always active, not on dashboard) - puzzle icon
+            ('system', 'System & Administration', 'Systemeinstellungen und Benutzerverwaltung',
+             'ti-puzzle', 'secondary', '#6c757d', None, 0, ModulTyp.BASIS.value, False),
+            ('stammdaten', 'Stammdatenpflege', 'Lieferanten, Hersteller, Marken verwalten',
+             'ti-puzzle', 'secondary', '#6c757d', None, 1, ModulTyp.BASIS.value, False),
+            ('logging', 'Audit-Log', 'Systemereignisse protokollieren',
+             'ti-puzzle', 'secondary', '#6c757d', None, 2, ModulTyp.BASIS.value, False),
+            ('auth', 'Authentifizierung', 'Login und Benutzersitzungen',
+             'ti-puzzle', 'secondary', '#6c757d', None, 3, ModulTyp.BASIS.value, False),
+            # Dashboard modules with different types
+            ('pricat', 'PRICAT Converter', 'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
+             'ti-route-square', 'primary', '#0d6efd', 'main.lieferanten', 10, ModulTyp.CONSULTING_INTERN.value, True),
+            ('kunden', 'Lead & Kundenreport', 'Kunden verwalten und Website-Analyse',
+             'ti-users', 'success', '#198754', 'kunden.liste', 20, ModulTyp.SALES_INTERN.value, True),
+            ('lieferanten', 'Meine Lieferanten', 'Relevante Lieferanten auswählen',
+             'ti-truck', 'info', '#0dcaf0', 'lieferanten_auswahl.index', 30, ModulTyp.KUNDENPROJEKT.value, True),
+            ('content', 'Content Generator', 'KI-generierte Texte für Online-Shops',
+             'ti-writing', 'warning', '#ffc107', 'content_generator.index', 40, ModulTyp.PREMIUM.value, True),
+            # PRD-006: Kunden-Dialog Modul
+            ('dialog', 'Kunden-Dialog', 'Fragebögen erstellen und Kunden befragen',
+             'ti-messages', 'teal', '#20c997', 'dialog.index', 50, ModulTyp.KUNDENPROJEKT.value, True),
+        ]
+        for code, name, beschreibung, icon, color, color_hex, route_endpoint, sort_order, typ, zeige_dashboard in module_data:
+            existing = Modul.query.filter_by(code=code).first()
+            if not existing:
+                modul = Modul(
+                    code=code, name=name, beschreibung=beschreibung,
+                    icon=icon, color=color, color_hex=color_hex,
+                    route_endpoint=route_endpoint, sort_order=sort_order,
+                    typ=typ, zeige_dashboard=zeige_dashboard, aktiv=True
+                )
+                db.session.add(modul)
+                click.echo(f'Created Modul: {code} ({name}) [typ={typ}]')
+            else:
+                # Update existing Modul with new fields
+                existing.beschreibung = beschreibung
+                existing.icon = icon
+                existing.color = color
+                existing.color_hex = color_hex
+                existing.route_endpoint = route_endpoint
+                existing.sort_order = sort_order
+                existing.typ = typ
+                existing.zeige_dashboard = zeige_dashboard
+                click.echo(f'Updated Modul: {code} ({name}) [typ={typ}]')
+        db.session.flush()
+
+        # Create ModulZugriff mappings (role-based module access)
+        modul_access_mappings = [
+            ('pricat', ['admin', 'mitarbeiter']),
+            ('kunden', ['admin', 'mitarbeiter']),
+            ('lieferanten', ['admin', 'mitarbeiter', 'kunde']),
+            ('content', ['admin', 'mitarbeiter', 'kunde']),
+            # PRD-006: Kunden-Dialog
+            ('dialog', ['admin', 'mitarbeiter', 'kunde']),
+        ]
+        for code, role_names in modul_access_mappings:
+            modul = Modul.query.filter_by(code=code).first()
+            if modul:
+                for role_name in role_names:
+                    rolle = roles.get(role_name)
+                    if rolle:
+                        existing_access = ModulZugriff.query.filter_by(
+                            modul_id=modul.id, rolle_id=rolle.id
+                        ).first()
+                        if not existing_access:
+                            access = ModulZugriff(modul_id=modul.id, rolle_id=rolle.id)
+                            db.session.add(access)
+                            click.echo(f'Created ModulZugriff: {code} -> {role_name}')
 
         db.session.commit()
         click.echo('Database seeded successfully!')

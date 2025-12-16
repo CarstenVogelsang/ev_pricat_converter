@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Auswertung - {{ fragebogen.titel }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <nav aria-label="breadcrumb" class="mb-3">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.index') }}">Fragebögen</a></li>
+            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.detail', id=fragebogen.id) }}">{{ fragebogen.titel }}</a></li>
+            <li class="breadcrumb-item active">Auswertung</li>
+        </ol>
+    </nav>
+
+    <h1 class="mb-4">
+        <i class="ti ti-chart-bar"></i> Auswertung: {{ fragebogen.titel }}
+    </h1>
+
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h2 class="mb-0">{{ stats.teilnehmer_gesamt }}</h2>
+                    <small class="text-muted">Teilnehmer</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center bg-success text-white">
+                <div class="card-body">
+                    <h2 class="mb-0">{{ stats.teilnehmer_abgeschlossen }}</h2>
+                    <small>Abgeschlossen</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h2 class="mb-0">
+                        {% if stats.teilnehmer_gesamt > 0 %}
+                        {{ ((stats.teilnehmer_abgeschlossen / stats.teilnehmer_gesamt) * 100)|round|int }}%
+                        {% else %}0%{% endif %}
+                    </h2>
+                    <small class="text-muted">Rücklaufquote</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h2 class="mb-0">{{ stats.fragen|length }}</h2>
+                    <small class="text-muted">Fragen</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if stats.teilnehmer_abgeschlossen == 0 %}
+    <div class="alert alert-info">
+        <i class="ti ti-info-circle"></i>
+        Noch keine abgeschlossenen Teilnahmen vorhanden.
+    </div>
+    {% else %}
+
+    {% for frage in stats.fragen %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0">{{ loop.index }}. {{ frage.frage }}</h5>
+            <small class="text-muted">{{ frage.antworten_count }} Antworten</small>
+        </div>
+        <div class="card-body">
+            {% if frage.statistik.typ == 'verteilung' %}
+            {# Single Choice / Ja-Nein #}
+            {% for key, count in frage.statistik.werte.items() %}
+            <div class="mb-2">
+                <div class="d-flex justify-content-between mb-1">
+                    <span>
+                        {% if key == 'True' %}Ja{% elif key == 'False' %}Nein{% else %}{{ key }}{% endif %}
+                    </span>
+                    <span>{{ count }} ({{ ((count / frage.antworten_count) * 100)|round|int }}%)</span>
+                </div>
+                <div class="progress" style="height: 20px;">
+                    <div class="progress-bar" role="progressbar"
+                         style="width: {{ (count / frage.antworten_count) * 100 }}%">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% elif frage.statistik.typ == 'verteilung_mehrfach' %}
+            {# Multiple Choice #}
+            {% for key, count in frage.statistik.werte.items() %}
+            <div class="mb-2">
+                <div class="d-flex justify-content-between mb-1">
+                    <span>{{ key }}</span>
+                    <span>{{ count }}x genannt</span>
+                </div>
+                <div class="progress" style="height: 20px;">
+                    <div class="progress-bar bg-info" role="progressbar"
+                         style="width: {{ (count / frage.antworten_count) * 100 }}%">
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+
+            {% elif frage.statistik.typ == 'skala' %}
+            {# Skala #}
+            <div class="row">
+                <div class="col-md-4">
+                    <div class="text-center">
+                        <h3 class="mb-0">{{ '%.1f'|format(frage.statistik.durchschnitt) }}</h3>
+                        <small class="text-muted">Durchschnitt</small>
+                    </div>
+                </div>
+                <div class="col-md-8">
+                    {% for key, count in frage.statistik.verteilung.items() %}
+                    <div class="d-flex align-items-center mb-1">
+                        <span class="me-2" style="width: 30px;">{{ key }}</span>
+                        <div class="progress flex-grow-1" style="height: 15px;">
+                            <div class="progress-bar bg-warning" role="progressbar"
+                                 style="width: {{ (count / frage.antworten_count) * 100 }}%">
+                            </div>
+                        </div>
+                        <span class="ms-2" style="width: 40px;">{{ count }}x</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% elif frage.statistik.typ == 'text' %}
+            {# Freitext #}
+            <div class="list-group">
+                {% for antwort in frage.statistik.antworten %}
+                <div class="list-group-item">
+                    <i class="ti ti-quote text-muted"></i>
+                    {{ antwort }}
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    {% endif %}
+</div>
+{% endblock %}

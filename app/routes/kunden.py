@@ -9,7 +9,9 @@ from sqlalchemy import func
 
 from app import db
 from app.models import Kunde, KundeCI, KundeApiNutzung, User, Branche, Verband, KundeBranche, KundeVerband
-from app.services import FirecrawlService
+from app.models import BranchenRolle, KundeBranchenRolle, PasswordToken
+from app.services import FirecrawlService, get_password_service
+from app.services.logging_service import log_mittel
 from app.routes.auth import mitarbeiter_required
 
 kunden_bp = Blueprint('kunden', __name__, url_prefix='/kunden')
@@ -106,8 +108,22 @@ def detail(id):
     """View Kunde detail."""
     kunde = Kunde.query.get_or_404(id)
 
-    # Get all active Branchen and Verbände for display
-    alle_branchen = Branche.query.filter_by(aktiv=True).order_by(Branche.sortierung).all()
+    # Hauptbranchen für Hauptbranche-Dropdown
+    hauptbranchen = Branche.query.filter(
+        Branche.aktiv == True,
+        Branche.parent_id == None
+    ).order_by(Branche.sortierung).all()
+
+    # Branchenmodell V2: Nur Unterbranchen der Hauptbranche anzeigen
+    # Erst wenn Hauptbranche gesetzt ist, können Unterbranchen zugeordnet werden
+    if kunde.hauptbranche_id:
+        alle_unterbranchen = Branche.query.filter(
+            Branche.aktiv == True,
+            Branche.parent_id == kunde.hauptbranche_id
+        ).order_by(Branche.sortierung).all()
+    else:
+        alle_unterbranchen = []  # Keine Unterbranchen ohne Hauptbranche
+
     alle_verbaende = Verband.query.filter_by(aktiv=True).order_by(Verband.name).all()
 
     # Get IDs of assigned Branchen and Verbände for the template
@@ -115,14 +131,24 @@ def detail(id):
     kunde_primaer_ids = {kb.branche_id for kb in kunde.branchen if kb.ist_primaer}
     kunde_verbaende_ids = {kv.verband_id for kv in kunde.verbaende}
 
+    # Branchenmodell V2: Rollen pro Branche für den Kunden
+    # Dict: branche_id -> set(branchenrolle_id)
+    kunde_rollen_ids = {}
+    for kbr in kunde.branchenrollen:
+        if kbr.branche_id not in kunde_rollen_ids:
+            kunde_rollen_ids[kbr.branche_id] = set()
+        kunde_rollen_ids[kbr.branche_id].add(kbr.branchenrolle_id)
+
     return render_template(
         'kunden/detail.html',
         kunde=kunde,
-        alle_branchen=alle_branchen,
+        alle_branchen=alle_unterbranchen,  # Backward-compatible name
+        hauptbranchen=hauptbranchen,
         alle_verbaende=alle_verbaende,
         kunde_branchen_ids=kunde_branchen_ids,
         kunde_primaer_ids=kunde_primaer_ids,
-        kunde_verbaende_ids=kunde_verbaende_ids
+        kunde_verbaende_ids=kunde_verbaende_ids,
+        kunde_rollen_ids=kunde_rollen_ids
     )
 
 
@@ -174,7 +200,7 @@ def analyse(id):
     kunde = Kunde.query.get_or_404(id)
 
     if not kunde.website_url:
-        flash('Website-URL muss gesetzt sein fuer die Analyse.', 'warning')
+        flash('Website-URL muss gesetzt sein für die Analyse.', 'warning')
         return redirect(url_for('kunden.detail', id=id))
 
     firecrawl_service = FirecrawlService()
@@ -246,6 +272,113 @@ def projekt(id):
         totals=totals,
         per_user=per_user
     )
+
+
+# ===== Hauptbranche Endpoint =====
+
+@kunden_bp.route('/<int:id>/hauptbranche', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def set_hauptbranche(id):
+    """Set the Hauptbranche for a Kunde.
+
+    Expects JSON: { "hauptbranche_id": 123 } or { "hauptbranche_id": null }
+    """
+    kunde = Kunde.query.get_or_404(id)
+    data = request.get_json()
+
+    if data is None:
+        return jsonify({'success': False, 'error': 'JSON erforderlich'}), 400
+
+    hauptbranche_id = data.get('hauptbranche_id')
+
+    if hauptbranche_id is None:
+        # Hauptbranche entfernen
+        kunde.hauptbranche_id = None
+        db.session.commit()
+        return jsonify({
+            'success': True,
+            'message': 'Hauptbranche entfernt',
+            'hauptbranche_id': None
+        })
+
+    # Validieren: Muss Hauptbranche sein (parent_id=NULL)
+    branche = Branche.query.get(hauptbranche_id)
+    if not branche:
+        return jsonify({'success': False, 'error': 'Branche nicht gefunden'}), 404
+
+    if branche.parent_id is not None:
+        return jsonify({
+            'success': False,
+            'error': 'Nur Hauptbranchen (HANDEL, HANDWERK, etc.) erlaubt'
+        }), 400
+
+    # Bei Hauptbranche-Wechsel: Bestehende Unterbranche-Zuordnungen bereinigen?
+    # Für jetzt behalten wir sie - User kann manuell bereinigen
+    alte_hauptbranche_id = kunde.hauptbranche_id
+
+    kunde.hauptbranche_id = hauptbranche_id
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Hauptbranche auf "{branche.name}" gesetzt',
+        'hauptbranche_id': hauptbranche_id,
+        'hauptbranche_name': branche.name
+    })
+
+
+@kunden_bp.route('/<int:id>/hauptbranche', methods=['DELETE'])
+@login_required
+@mitarbeiter_required
+def delete_hauptbranche(id):
+    """Delete the Hauptbranche and cascade-delete all Unterbranche-Zuordnungen.
+
+    This is a destructive action that removes:
+    - The Hauptbranche assignment
+    - All KundeBranche entries for this Kunde
+    - All KundeBranchenRolle entries for this Kunde
+    """
+    kunde = Kunde.query.get_or_404(id)
+
+    if not kunde.hauptbranche_id:
+        return jsonify({
+            'success': False,
+            'error': 'Keine Hauptbranche vorhanden'
+        }), 400
+
+    alte_hauptbranche_name = kunde.hauptbranche.name if kunde.hauptbranche else "Unbekannt"
+
+    # Count affected entries for response
+    deleted_branches_count = KundeBranche.query.filter_by(kunde_id=id).count()
+    deleted_roles_count = KundeBranchenRolle.query.filter_by(kunde_id=id).count()
+
+    # Delete all KundeBranchenRolle entries for this Kunde
+    KundeBranchenRolle.query.filter_by(kunde_id=id).delete()
+
+    # Delete all KundeBranche entries for this Kunde
+    KundeBranche.query.filter_by(kunde_id=id).delete()
+
+    # Remove Hauptbranche
+    kunde.hauptbranche_id = None
+
+    # Log the event
+    log_mittel(
+        modul='kunden',
+        aktion='hauptbranche_geloescht',
+        details=f'Hauptbranche "{alte_hauptbranche_name}" und {deleted_branches_count} Unterbranchen-Zuordnungen entfernt für Kunde "{kunde.firmierung}"',
+        entity_type='Kunde',
+        entity_id=id
+    )
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'Hauptbranche "{alte_hauptbranche_name}" und {deleted_branches_count} Unterbranchen-Zuordnungen entfernt',
+        'deleted_branches': deleted_branches_count,
+        'deleted_roles': deleted_roles_count
+    })
 
 
 # ===== AJAX Endpoints for Branchen/Verbände =====
@@ -340,3 +473,275 @@ def toggle_verband(id, verband_id):
         db.session.add(kv)
         db.session.commit()
         return jsonify({'success': True, 'action': 'added'})
+
+
+# ===== Branchenmodell V2: Rollen-Endpunkte =====
+
+@kunden_bp.route('/<int:id>/branche/<int:branche_id>/rollen', methods=['GET'])
+@login_required
+@mitarbeiter_required
+def branche_rollen_get(id, branche_id):
+    """Get available and assigned roles for a Kunde-Branche combination."""
+    kunde = Kunde.query.get_or_404(id)
+    branche = Branche.query.get_or_404(branche_id)
+
+    # Zulässige Rollen für diese Branche
+    zulaessige_rollen = branche.zulaessige_branchenrollen
+
+    # Bereits zugewiesene Rollen für diesen Kunden in dieser Branche
+    zugewiesene_ids = {
+        kbr.branchenrolle_id
+        for kbr in kunde.branchenrollen
+        if kbr.branche_id == branche_id
+    }
+
+    return jsonify({
+        'success': True,
+        'branche': {
+            'id': branche.id,
+            'name': branche.name,
+            'icon': branche.icon
+        },
+        'rollen': [
+            {
+                'id': rolle.id,
+                'code': rolle.code,
+                'name': rolle.name,
+                'icon': rolle.icon,
+                'beschreibung': rolle.beschreibung,
+                'zugewiesen': rolle.id in zugewiesene_ids
+            }
+            for rolle in zulaessige_rollen
+        ]
+    })
+
+
+@kunden_bp.route('/<int:id>/branche/<int:branche_id>/rollen', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def branche_rollen_set(id, branche_id):
+    """Set roles for a Kunde-Branche combination.
+
+    Expects JSON: { "rollen_ids": [1, 2, 3] }
+    """
+    kunde = Kunde.query.get_or_404(id)
+    branche = Branche.query.get_or_404(branche_id)
+
+    data = request.get_json()
+    if not data or 'rollen_ids' not in data:
+        return jsonify({'success': False, 'error': 'rollen_ids erforderlich'}), 400
+
+    rollen_ids = set(data['rollen_ids'])
+
+    # Zulässige Rollen-IDs für diese Branche
+    zulaessige_ids = {r.id for r in branche.zulaessige_branchenrollen}
+
+    # Validierung: Nur zulässige Rollen akzeptieren
+    ungueltige = rollen_ids - zulaessige_ids
+    if ungueltige:
+        return jsonify({
+            'success': False,
+            'error': f'Ungültige Rollen-IDs: {list(ungueltige)}'
+        }), 400
+
+    # Bestehende Zuordnungen für diesen Kunden+Branche löschen
+    KundeBranchenRolle.query.filter_by(
+        kunde_id=id,
+        branche_id=branche_id
+    ).delete()
+
+    # Neue Zuordnungen anlegen
+    for rolle_id in rollen_ids:
+        kbr = KundeBranchenRolle(
+            kunde_id=id,
+            branche_id=branche_id,
+            branchenrolle_id=rolle_id
+        )
+        db.session.add(kbr)
+
+    db.session.commit()
+
+    return jsonify({
+        'success': True,
+        'message': f'{len(rollen_ids)} Rolle(n) zugewiesen',
+        'rollen_count': len(rollen_ids)
+    })
+
+
+# ===== PRD-006: User-Erstellung für Kunden =====
+
+@kunden_bp.route('/<int:id>/user/create', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def create_user(id):
+    """Create a user account for a Kunde.
+
+    Expects JSON:
+    {
+        "email": "kunde@example.com",
+        "vorname": "Max",
+        "nachname": "Mustermann"
+    }
+
+    Returns JSON with user info and password token.
+    """
+    kunde = Kunde.query.get_or_404(id)
+
+    if kunde.user_id:
+        return jsonify({
+            'success': False,
+            'error': 'Kunde hat bereits einen User-Account'
+        }), 400
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'JSON erforderlich'}), 400
+
+    email = data.get('email', '').strip()
+    vorname = data.get('vorname', '').strip()
+    nachname = data.get('nachname', '').strip()
+
+    if not email or not vorname or not nachname:
+        return jsonify({
+            'success': False,
+            'error': 'E-Mail, Vorname und Nachname erforderlich'
+        }), 400
+
+    service = get_password_service()
+    result = service.create_user_for_kunde(kunde, email, vorname, nachname)
+
+    if not result.success:
+        return jsonify({
+            'success': False,
+            'error': result.error
+        }), 400
+
+    # Log the event
+    log_mittel(
+        modul='kunden',
+        aktion='user_erstellt',
+        details=f'User-Account für Kunde "{kunde.firmierung}" erstellt: {email}',
+        entity_type='Kunde',
+        entity_id=id
+    )
+
+    return jsonify({
+        'success': True,
+        'user': result.user.to_dict(),
+        'token_id': result.password_token.id,
+        'message': f'User-Account für {email} erstellt'
+    })
+
+
+@kunden_bp.route('/<int:id>/user/send-credentials', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def send_credentials(id):
+    """Send credential emails to the Kunde's user.
+
+    Sends two separate emails:
+    1. Portal-URL and username
+    2. Password reveal link
+
+    The password token must still be valid (not revealed, not expired).
+    """
+    kunde = Kunde.query.get_or_404(id)
+
+    if not kunde.user_id:
+        return jsonify({
+            'success': False,
+            'error': 'Kunde hat keinen User-Account'
+        }), 400
+
+    user = kunde.user
+
+    # Find a valid password token
+    password_token = PasswordToken.query.filter_by(
+        user_id=user.id
+    ).order_by(PasswordToken.created_at.desc()).first()
+
+    if not password_token:
+        return jsonify({
+            'success': False,
+            'error': 'Kein Passwort-Token vorhanden. Bitte neuen User erstellen.'
+        }), 400
+
+    if not password_token.is_valid:
+        if password_token.is_revealed:
+            error = 'Passwort wurde bereits angezeigt. Bitte neuen Token erstellen.'
+        else:
+            error = 'Passwort-Token ist abgelaufen. Bitte neuen Token erstellen.'
+        return jsonify({
+            'success': False,
+            'error': error
+        }), 400
+
+    service = get_password_service()
+    result = service.send_credentials(user, password_token)
+
+    if not result.success:
+        return jsonify({
+            'success': False,
+            'error': result.error
+        }), 400
+
+    # Log the event
+    log_mittel(
+        modul='kunden',
+        aktion='zugangsdaten_gesendet',
+        details=f'Zugangsdaten an {user.email} gesendet für Kunde "{kunde.firmierung}"',
+        entity_type='Kunde',
+        entity_id=id
+    )
+
+    return jsonify({
+        'success': True,
+        'message': f'Zugangsdaten an {user.email} gesendet'
+    })
+
+
+@kunden_bp.route('/<int:id>/user/new-token', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def create_new_token(id):
+    """Create a new password token for the Kunde's user.
+
+    This generates a new random password and token for re-sending credentials.
+    """
+    kunde = Kunde.query.get_or_404(id)
+
+    if not kunde.user_id:
+        return jsonify({
+            'success': False,
+            'error': 'Kunde hat keinen User-Account'
+        }), 400
+
+    user = kunde.user
+    service = get_password_service()
+
+    # Generate new password
+    new_password = service.generate_secure_password()
+    user.set_password(new_password)
+
+    # Create new token
+    password_token = PasswordToken.create_for_user(
+        user_id=user.id,
+        password_plain=new_password
+    )
+    db.session.add(password_token)
+    db.session.commit()
+
+    # Log the event
+    log_mittel(
+        modul='kunden',
+        aktion='neues_passwort',
+        details=f'Neues Passwort für User {user.email} erstellt',
+        entity_type='Kunde',
+        entity_id=id
+    )
+
+    return jsonify({
+        'success': True,
+        'token_id': password_token.id,
+        'message': 'Neues Passwort erstellt. Zugangsdaten können jetzt gesendet werden.'
+    })

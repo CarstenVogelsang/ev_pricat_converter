@@ -9,8 +9,8 @@ from werkzeug.utils import secure_filename
 import flask
 
 from app import db
-from app.models import Config, Lieferant, User, Kunde, SubApp, KundeCI, Branche, Verband, HelpText
-from app.services import FTPService, BrandingService
+from app.models import Config, Lieferant, User, Kunde, KundeCI, Branche, Verband, HelpText, BranchenRolle, BrancheBranchenRolle, Modul, ModulZugriff, AuditLog, Rolle
+from app.services import FTPService, BrandingService, get_brevo_service
 from app.routes.auth import admin_required, mitarbeiter_required
 
 ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif', 'svg'}
@@ -89,8 +89,10 @@ def index():
     kunde_count = Kunde.query.count()
     lieferant_count = Lieferant.query.count()
 
-    # SubApps
-    subapps = SubApp.query.order_by(SubApp.sort_order).all()
+    # Modules (dashboard modules only)
+    dashboard_modules = Modul.query.filter(
+        Modul.zeige_dashboard == True
+    ).order_by(Modul.sort_order).all()
 
     # Environment info
     environment = os.environ.get('FLASK_CONFIG', 'development')
@@ -101,7 +103,7 @@ def index():
         user_count=user_count,
         kunde_count=kunde_count,
         lieferant_count=lieferant_count,
-        subapps=subapps,
+        modules=dashboard_modules,
         python_version=f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
         flask_version=flask.__version__,
         environment=environment
@@ -506,9 +508,16 @@ def _update_config(key: str, value: str):
 def settings():
     """System settings page for API keys and configuration."""
     if request.method == 'POST':
-        # API & Services
+        # API & Services - Firecrawl
         _update_config('firecrawl_api_key', request.form.get('firecrawl_api_key', ''))
         _update_config('firecrawl_credit_kosten', request.form.get('firecrawl_credit_kosten', '0.005'))
+
+        # API & Services - Brevo E-Mail
+        _update_config('brevo_api_key', request.form.get('brevo_api_key', ''))
+        _update_config('brevo_sender_email', request.form.get('brevo_sender_email', 'noreply@e-vendo.de'))
+        _update_config('brevo_sender_name', request.form.get('brevo_sender_name', 'e-vendo AG'))
+        _update_config('portal_base_url', request.form.get('portal_base_url', 'https://portal.e-vendo.de'))
+        _update_config('brevo_daily_limit', request.form.get('brevo_daily_limit', '300'))
 
         # FTP VEDES
         _update_config('vedes_ftp_host', request.form.get('vedes_ftp_host', ''))
@@ -542,6 +551,7 @@ def settings():
     # Load all configs for display
     config_keys = [
         'firecrawl_api_key', 'firecrawl_credit_kosten',
+        'brevo_api_key', 'brevo_sender_email', 'brevo_sender_name', 'portal_base_url', 'brevo_daily_limit',
         'vedes_ftp_host', 'vedes_ftp_port', 'vedes_ftp_user', 'vedes_ftp_pass', 'vedes_ftp_basepath', 'vedes_ftp_encoding',
         'elena_ftp_host', 'elena_ftp_port', 'elena_ftp_user', 'elena_ftp_pass',
         's3_enabled', 's3_endpoint', 's3_access_key', 's3_secret_key', 's3_bucket',
@@ -554,11 +564,16 @@ def settings():
     all_configs = {c.key: c.value for c in all_configs_list}
     config_count = len(all_configs_list)
 
+    # Get Brevo quota info for display
+    brevo_service = get_brevo_service()
+    brevo_quota = brevo_service.get_quota_info()
+
     return render_template(
         'administration/settings.html',
         configs=configs,
         all_configs=all_configs,
-        config_count=config_count
+        config_count=config_count,
+        brevo_quota=brevo_quota
     )
 
 
@@ -570,9 +585,18 @@ def settings():
 @login_required
 @admin_required
 def branchen():
-    """Manage Branchen (Industries)."""
+    """Manage Branchen (Industries) - Master-Detail UI.
+
+    Master-Detail Ansicht:
+    - Links: Hauptbranchen (parent_id=NULL)
+    - Rechts: Unterbranchen der ausgewaehlten Hauptbranche
+    """
+    # Aktive Hauptbranche aus Query-Parameter
+    aktive_hauptbranche_id = request.args.get('hauptbranche', type=int)
+
     if request.method == 'POST':
         action = request.form.get('action')
+        branche_typ = request.form.get('branche_typ', 'unterbranche')  # 'hauptbranche' oder 'unterbranche'
 
         if action == 'create':
             name = request.form.get('name', '').strip()
@@ -580,14 +604,35 @@ def branchen():
             sortierung = request.form.get('sortierung', 0, type=int)
 
             if name:
-                existing = Branche.query.filter_by(name=name).first()
-                if existing:
-                    flash(f'Branche "{name}" existiert bereits', 'warning')
+                if branche_typ == 'hauptbranche':
+                    # Hauptbranche: parent_id = NULL
+                    existing = Branche.query.filter_by(name=name, parent_id=None).first()
+                    if existing:
+                        flash(f'Hauptbranche "{name}" existiert bereits', 'warning')
+                    else:
+                        slug = name.lower().replace(' ', '-').replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')
+                        branche = Branche(name=name, icon=icon, sortierung=sortierung, aktiv=True, parent_id=None, slug=slug)
+                        db.session.add(branche)
+                        db.session.commit()
+                        flash(f'Hauptbranche "{name}" angelegt', 'success')
+                        aktive_hauptbranche_id = branche.id
                 else:
-                    branche = Branche(name=name, icon=icon, sortierung=sortierung, aktiv=True)
-                    db.session.add(branche)
-                    db.session.commit()
-                    flash(f'Branche "{name}" angelegt', 'success')
+                    # Unterbranche: parent_id = aktive Hauptbranche
+                    parent_id = request.form.get('parent_id', type=int) or aktive_hauptbranche_id
+                    if not parent_id:
+                        flash('Bitte erst eine Hauptbranche auswählen', 'warning')
+                    else:
+                        existing = Branche.query.filter_by(name=name, parent_id=parent_id).first()
+                        if existing:
+                            flash(f'Unterbranche "{name}" existiert bereits in dieser Hauptbranche', 'warning')
+                        else:
+                            parent = Branche.query.get(parent_id)
+                            parent_slug = parent.slug or parent.name.lower()
+                            slug = f"{parent_slug}-{name.lower().replace(' ', '-').replace('ä', 'ae').replace('ö', 'oe').replace('ü', 'ue').replace('ß', 'ss')}"
+                            branche = Branche(name=name, icon=icon, sortierung=sortierung, aktiv=True, parent_id=parent_id, slug=slug)
+                            db.session.add(branche)
+                            db.session.commit()
+                            flash(f'Unterbranche "{name}" angelegt', 'success')
 
         elif action == 'update':
             branche_id = request.form.get('id', type=int)
@@ -597,26 +642,75 @@ def branchen():
                 branche.icon = request.form.get('icon', branche.icon).strip()
                 branche.sortierung = request.form.get('sortierung', branche.sortierung, type=int)
                 branche.aktiv = request.form.get('aktiv') == 'on'
+
+                # Zulässige Rollen aktualisieren (nur für Unterbranchen)
+                if not branche.ist_hauptbranche:
+                    selected_rollen = request.form.getlist('rollen', type=int)
+                    # Alte Zuordnungen löschen
+                    BrancheBranchenRolle.query.filter_by(branche_id=branche.id).delete()
+                    # Neue Zuordnungen anlegen
+                    for rolle_id in selected_rollen:
+                        bbr = BrancheBranchenRolle(branche_id=branche.id, branchenrolle_id=rolle_id)
+                        db.session.add(bbr)
+
                 db.session.commit()
                 flash(f'Branche "{branche.name}" aktualisiert', 'success')
+
+                # Bei Unterbranche: Hauptbranche beibehalten
+                if branche.parent_id:
+                    aktive_hauptbranche_id = branche.parent_id
 
         elif action == 'delete':
             branche_id = request.form.get('id', type=int)
             branche = Branche.query.get(branche_id)
             if branche:
-                # Check if used
+                # Check if used by customers
                 if branche.kunden:
                     flash(f'Branche "{branche.name}" wird von {len(branche.kunden)} Kunden verwendet und kann nicht gelöscht werden', 'warning')
+                # Check if Hauptbranche with Unterbranchen
+                elif branche.ist_hauptbranche and branche.unterbranchen.count() > 0:
+                    flash(f'Hauptbranche "{branche.name}" hat noch {branche.unterbranchen.count()} Unterbranchen und kann nicht gelöscht werden', 'warning')
                 else:
                     name = branche.name
+                    parent_id = branche.parent_id
                     db.session.delete(branche)
                     db.session.commit()
                     flash(f'Branche "{name}" gelöscht', 'success')
+                    # Bei Unterbranche: Hauptbranche beibehalten
+                    if parent_id:
+                        aktive_hauptbranche_id = parent_id
 
+        # Redirect mit Hauptbranche-Parameter
+        if aktive_hauptbranche_id:
+            return redirect(url_for('admin.branchen', hauptbranche=aktive_hauptbranche_id))
         return redirect(url_for('admin.branchen'))
 
-    branchen_list = Branche.query.order_by(Branche.sortierung, Branche.name).all()
-    return render_template('administration/branchen.html', branchen=branchen_list)
+    # GET: Daten laden
+    hauptbranchen = Branche.query.filter_by(parent_id=None).order_by(Branche.sortierung, Branche.name).all()
+
+    # Erste Hauptbranche als Default auswählen
+    if not aktive_hauptbranche_id and hauptbranchen:
+        aktive_hauptbranche_id = hauptbranchen[0].id
+
+    # Unterbranchen der aktiven Hauptbranche laden
+    unterbranchen = []
+    aktive_hauptbranche = None
+    if aktive_hauptbranche_id:
+        aktive_hauptbranche = Branche.query.get(aktive_hauptbranche_id)
+        if aktive_hauptbranche:
+            unterbranchen = Branche.query.filter_by(parent_id=aktive_hauptbranche_id).order_by(Branche.sortierung, Branche.name).all()
+
+    # Alle aktiven BranchenRollen für Multi-Select
+    alle_rollen = BranchenRolle.query.filter_by(aktiv=True).order_by(BranchenRolle.sortierung).all()
+
+    return render_template(
+        'administration/branchen.html',
+        hauptbranchen=hauptbranchen,
+        unterbranchen=unterbranchen,
+        aktive_hauptbranche=aktive_hauptbranche,
+        aktive_hauptbranche_id=aktive_hauptbranche_id,
+        alle_rollen=alle_rollen
+    )
 
 
 @admin_bp.route('/branchen/reorder', methods=['POST'])
@@ -636,6 +730,412 @@ def branchen_reorder():
             branche = Branche.query.get(int(branche_id))
             if branche:
                 branche.sortierung = (index + 1) * 10  # 10, 20, 30, ...
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Sortierung gespeichert'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/branchen/import', methods=['POST'])
+@login_required
+@admin_required
+def branchen_import():
+    """Import Hauptbranche with Unterbranchen and Rollen from JSON file.
+
+    Expected JSON format (from unternehmensdaten.org):
+    {
+        "meta": {
+            "source": "unternehmensdaten.org",
+            "version": "1.0",
+            "export_date": "2025-12-12T10:30:00Z",
+            "type": "branchenkatalog"
+        },
+        "hauptbranche": {
+            "uuid": "...",
+            "name": "HANDWERK",
+            "slug": "handwerk",
+            "icon": "fas fa-tools"
+        },
+        "unterbranchen": [
+            {
+                "uuid": "...",
+                "name": "Elektroinstallation",
+                "slug": "elektroinstallation",
+                "icon": "fas fa-bolt",
+                "sortierung": 1,
+                "rollen": ["hersteller", "grosshaendler"]
+            }
+        ],
+        "rollen_katalog": [  // optional
+            {
+                "uuid": "...",
+                "code": "hersteller",
+                "name": "Hersteller",
+                "icon": "fas fa-industry",
+                "beschreibung": "..."
+            }
+        ]
+    }
+    """
+    if 'import_file' not in request.files:
+        flash('Keine Datei ausgewählt', 'danger')
+        return redirect(url_for('admin.branchen'))
+
+    file = request.files['import_file']
+    if file.filename == '':
+        flash('Keine Datei ausgewählt', 'danger')
+        return redirect(url_for('admin.branchen'))
+
+    if not file.filename.endswith('.json'):
+        flash('Nur JSON-Dateien erlaubt', 'danger')
+        return redirect(url_for('admin.branchen'))
+
+    try:
+        # Read and parse JSON
+        content = file.read().decode('utf-8')
+        data = json.loads(content)
+
+        # Validate required fields
+        if 'hauptbranche' not in data:
+            flash('Ungültiges Format: "hauptbranche" fehlt', 'danger')
+            return redirect(url_for('admin.branchen'))
+
+        hb_data = data['hauptbranche']
+        if 'name' not in hb_data:
+            flash('Ungültiges Format: "hauptbranche.name" fehlt', 'danger')
+            return redirect(url_for('admin.branchen'))
+
+        stats = {
+            'rollen_created': 0,
+            'rollen_updated': 0,
+            'hauptbranche_created': False,
+            'hauptbranche_updated': False,
+            'unterbranchen_created': 0,
+            'unterbranchen_updated': 0,
+            'rollen_zuordnungen': 0
+        }
+
+        # 1. Optional: Process rollen_katalog first (so we can reference them later)
+        rollen_code_map = {}  # code -> BranchenRolle
+        if 'rollen_katalog' in data:
+            for rolle_data in data['rollen_katalog']:
+                code = rolle_data.get('code', '').strip().upper()
+                if not code:
+                    continue
+
+                # Try to find by UUID first, then by code
+                rolle = None
+                if rolle_data.get('uuid'):
+                    rolle = BranchenRolle.query.filter_by(uuid=rolle_data['uuid']).first()
+                if not rolle:
+                    rolle = BranchenRolle.query.filter_by(code=code).first()
+
+                if rolle:
+                    # Update existing
+                    rolle.name = rolle_data.get('name', rolle.name)
+                    rolle.icon = _clean_icon(rolle_data.get('icon', rolle.icon))
+                    rolle.beschreibung = rolle_data.get('beschreibung', rolle.beschreibung)
+                    if rolle_data.get('uuid') and not rolle.uuid:
+                        rolle.uuid = rolle_data['uuid']
+                    stats['rollen_updated'] += 1
+                else:
+                    # Create new
+                    rolle = BranchenRolle(
+                        uuid=rolle_data.get('uuid'),
+                        code=code,
+                        name=rolle_data.get('name', code),
+                        icon=_clean_icon(rolle_data.get('icon', 'tag')),
+                        beschreibung=rolle_data.get('beschreibung', ''),
+                        aktiv=True,
+                        sortierung=rolle_data.get('sortierung', 0)
+                    )
+                    db.session.add(rolle)
+                    stats['rollen_created'] += 1
+
+                rollen_code_map[code] = rolle
+
+        # Commit rollen first so they have IDs
+        db.session.flush()
+
+        # Build full code map including existing roles
+        all_rollen = BranchenRolle.query.all()
+        for r in all_rollen:
+            rollen_code_map[r.code] = r
+
+        # 2. Process Hauptbranche (upsert by UUID or name)
+        hauptbranche = None
+        if hb_data.get('uuid'):
+            hauptbranche = Branche.query.filter_by(uuid=hb_data['uuid'], parent_id=None).first()
+        if not hauptbranche:
+            hauptbranche = Branche.query.filter_by(name=hb_data['name'], parent_id=None).first()
+
+        if hauptbranche:
+            # Update existing
+            hauptbranche.name = hb_data['name']
+            hauptbranche.slug = hb_data.get('slug') or _generate_slug(hb_data['name'])
+            hauptbranche.icon = _clean_icon(hb_data.get('icon', hauptbranche.icon))
+            if hb_data.get('uuid') and not hauptbranche.uuid:
+                hauptbranche.uuid = hb_data['uuid']
+            stats['hauptbranche_updated'] = True
+        else:
+            # Create new
+            hauptbranche = Branche(
+                uuid=hb_data.get('uuid'),
+                name=hb_data['name'],
+                slug=hb_data.get('slug') or _generate_slug(hb_data['name']),
+                icon=_clean_icon(hb_data.get('icon', 'folder')),
+                parent_id=None,
+                aktiv=True,
+                sortierung=hb_data.get('sortierung', 0)
+            )
+            db.session.add(hauptbranche)
+            stats['hauptbranche_created'] = True
+
+        # Flush to get hauptbranche.id
+        db.session.flush()
+
+        # 3. Process Unterbranchen
+        if 'unterbranchen' in data:
+            for idx, ub_data in enumerate(data['unterbranchen']):
+                if not ub_data.get('name'):
+                    continue
+
+                # Try to find by UUID first, then by name+parent
+                unterbranche = None
+                if ub_data.get('uuid'):
+                    unterbranche = Branche.query.filter_by(uuid=ub_data['uuid']).first()
+                if not unterbranche:
+                    unterbranche = Branche.query.filter_by(
+                        name=ub_data['name'],
+                        parent_id=hauptbranche.id
+                    ).first()
+
+                if unterbranche:
+                    # Update existing
+                    unterbranche.name = ub_data['name']
+                    unterbranche.slug = ub_data.get('slug') or _generate_slug(ub_data['name'], hauptbranche.slug)
+                    unterbranche.icon = _clean_icon(ub_data.get('icon', unterbranche.icon))
+                    unterbranche.sortierung = ub_data.get('sortierung', (idx + 1) * 10)
+                    if ub_data.get('uuid') and not unterbranche.uuid:
+                        unterbranche.uuid = ub_data['uuid']
+                    stats['unterbranchen_updated'] += 1
+                else:
+                    # Create new
+                    unterbranche = Branche(
+                        uuid=ub_data.get('uuid'),
+                        name=ub_data['name'],
+                        slug=ub_data.get('slug') or _generate_slug(ub_data['name'], hauptbranche.slug),
+                        icon=_clean_icon(ub_data.get('icon', 'category')),
+                        parent_id=hauptbranche.id,
+                        aktiv=True,
+                        sortierung=ub_data.get('sortierung', (idx + 1) * 10)
+                    )
+                    db.session.add(unterbranche)
+                    stats['unterbranchen_created'] += 1
+
+                # Flush to get unterbranche.id
+                db.session.flush()
+
+                # 4. Process Rollen-Zuordnungen for this Unterbranche
+                if 'rollen' in ub_data and isinstance(ub_data['rollen'], list):
+                    # Clear existing assignments
+                    BrancheBranchenRolle.query.filter_by(branche_id=unterbranche.id).delete()
+
+                    for rolle_code in ub_data['rollen']:
+                        code_upper = rolle_code.strip().upper()
+                        if code_upper in rollen_code_map:
+                            rolle = rollen_code_map[code_upper]
+                            # Create assignment
+                            bbr = BrancheBranchenRolle(
+                                branche_id=unterbranche.id,
+                                branchenrolle_id=rolle.id
+                            )
+                            db.session.add(bbr)
+                            stats['rollen_zuordnungen'] += 1
+                        else:
+                            current_app.logger.warning(
+                                f"Import: Unbekannte Rolle '{rolle_code}' für Branche '{unterbranche.name}'"
+                            )
+
+        db.session.commit()
+
+        # Build success message
+        messages = []
+        if stats['hauptbranche_created']:
+            messages.append(f"Hauptbranche '{hauptbranche.name}' angelegt")
+        elif stats['hauptbranche_updated']:
+            messages.append(f"Hauptbranche '{hauptbranche.name}' aktualisiert")
+
+        if stats['unterbranchen_created'] > 0:
+            messages.append(f"{stats['unterbranchen_created']} Unterbranchen angelegt")
+        if stats['unterbranchen_updated'] > 0:
+            messages.append(f"{stats['unterbranchen_updated']} Unterbranchen aktualisiert")
+        if stats['rollen_zuordnungen'] > 0:
+            messages.append(f"{stats['rollen_zuordnungen']} Rollen-Zuordnungen")
+        if stats['rollen_created'] > 0:
+            messages.append(f"{stats['rollen_created']} neue Rollen")
+
+        flash('Import erfolgreich: ' + ', '.join(messages), 'success')
+        return redirect(url_for('admin.branchen', hauptbranche=hauptbranche.id))
+
+    except json.JSONDecodeError as e:
+        flash(f'JSON-Fehler: {str(e)}', 'danger')
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Branchen-Import Fehler: {e}")
+        flash(f'Import-Fehler: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.branchen'))
+
+
+def _clean_icon(icon_str):
+    """Remove 'fas fa-' or 'ti ti-' prefix from icon string."""
+    if not icon_str:
+        return 'category'
+    icon_str = icon_str.strip()
+    # Remove FontAwesome prefixes
+    for prefix in ['fas fa-', 'far fa-', 'fab fa-', 'fa-']:
+        if icon_str.startswith(prefix):
+            return icon_str[len(prefix):]
+    # Remove Tabler prefixes
+    if icon_str.startswith('ti ti-'):
+        return icon_str[6:]
+    if icon_str.startswith('ti-'):
+        return icon_str[3:]
+    return icon_str
+
+
+def _generate_slug(name, parent_slug=None):
+    """Generate a URL-safe slug from a name."""
+    slug = name.lower().strip()
+    # German umlauts
+    replacements = [
+        ('ä', 'ae'), ('ö', 'oe'), ('ü', 'ue'), ('ß', 'ss'),
+        (' ', '-'), ('/', '-'), ('&', '-und-')
+    ]
+    for old, new in replacements:
+        slug = slug.replace(old, new)
+    # Remove other special chars
+    slug = ''.join(c for c in slug if c.isalnum() or c == '-')
+    # Remove multiple dashes
+    while '--' in slug:
+        slug = slug.replace('--', '-')
+    slug = slug.strip('-')
+
+    if parent_slug:
+        return f"{parent_slug}-{slug}"
+    return slug
+
+
+# ============================================================================
+# BranchenRollen Management (Rollen-Katalog)
+# ============================================================================
+
+@admin_bp.route('/branchenrollen', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def branchenrollen():
+    """Manage BranchenRollen (Industry Roles).
+
+    Rollen wie HERSTELLER, EINZELHANDEL_ONLINE, etc. die Kunden
+    pro Branche zugewiesen werden können.
+    """
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'create':
+            code = request.form.get('code', '').strip().upper()
+            name = request.form.get('name', '').strip()
+            icon = request.form.get('icon', 'tag').strip()
+            beschreibung = request.form.get('beschreibung', '').strip()
+            sortierung = request.form.get('sortierung', 0, type=int)
+
+            if code and name:
+                existing = BranchenRolle.query.filter_by(code=code).first()
+                if existing:
+                    flash(f'BranchenRolle mit Code "{code}" existiert bereits', 'warning')
+                else:
+                    rolle = BranchenRolle(
+                        code=code,
+                        name=name,
+                        icon=icon,
+                        beschreibung=beschreibung,
+                        sortierung=sortierung,
+                        aktiv=True
+                    )
+                    db.session.add(rolle)
+                    db.session.commit()
+                    flash(f'BranchenRolle "{name}" angelegt', 'success')
+            else:
+                flash('Code und Name sind erforderlich', 'warning')
+
+        elif action == 'update':
+            rolle_id = request.form.get('id', type=int)
+            rolle = BranchenRolle.query.get(rolle_id)
+            if rolle:
+                # Code darf nicht geändert werden wenn bereits verwendet
+                new_code = request.form.get('code', rolle.code).strip().upper()
+                if new_code != rolle.code:
+                    existing = BranchenRolle.query.filter_by(code=new_code).first()
+                    if existing:
+                        flash(f'Code "{new_code}" wird bereits verwendet', 'warning')
+                        return redirect(url_for('admin.branchenrollen'))
+                    rolle.code = new_code
+
+                rolle.name = request.form.get('name', rolle.name).strip()
+                rolle.icon = request.form.get('icon', rolle.icon).strip()
+                rolle.beschreibung = request.form.get('beschreibung', rolle.beschreibung).strip()
+                rolle.sortierung = request.form.get('sortierung', rolle.sortierung, type=int)
+                rolle.aktiv = request.form.get('aktiv') == 'on'
+                db.session.commit()
+                flash(f'BranchenRolle "{rolle.name}" aktualisiert', 'success')
+
+        elif action == 'delete':
+            rolle_id = request.form.get('id', type=int)
+            rolle = BranchenRolle.query.get(rolle_id)
+            if rolle:
+                # Prüfen ob verwendet (in Zulässigkeitsmatrix oder Kundenzuordnungen)
+                zulaessig_count = len(rolle.zulaessig_in_branchen)
+                kunden_count = len(rolle.kunden_mit_rolle)
+
+                if zulaessig_count > 0 or kunden_count > 0:
+                    flash(
+                        f'BranchenRolle "{rolle.name}" wird verwendet '
+                        f'({zulaessig_count} Branchen, {kunden_count} Kundenzuordnungen) '
+                        'und kann nicht gelöscht werden',
+                        'warning'
+                    )
+                else:
+                    name = rolle.name
+                    db.session.delete(rolle)
+                    db.session.commit()
+                    flash(f'BranchenRolle "{name}" gelöscht', 'success')
+
+        return redirect(url_for('admin.branchenrollen'))
+
+    rollen_list = BranchenRolle.query.order_by(BranchenRolle.sortierung, BranchenRolle.name).all()
+    return render_template('administration/branchenrollen.html', rollen=rollen_list)
+
+
+@admin_bp.route('/branchenrollen/reorder', methods=['POST'])
+@login_required
+@admin_required
+def branchenrollen_reorder():
+    """Update sort order for BranchenRollen via AJAX."""
+    data = request.get_json()
+
+    if not data or 'order' not in data:
+        return jsonify({'success': False, 'message': 'Keine Sortierreihenfolge übergeben'}), 400
+
+    order = data['order']  # Liste von IDs in neuer Reihenfolge
+
+    try:
+        for index, rolle_id in enumerate(order):
+            rolle = BranchenRolle.query.get(int(rolle_id))
+            if rolle:
+                rolle.sortierung = (index + 1) * 10  # 10, 20, 30, ...
 
         db.session.commit()
         return jsonify({'success': True, 'message': 'Sortierung gespeichert'})
@@ -858,3 +1358,356 @@ def hilfetexte():
 
     hilfetexte_list = HelpText.query.order_by(HelpText.schluessel).all()
     return render_template('administration/hilfetexte.html', hilfetexte=hilfetexte_list)
+
+
+# ============================================================================
+# Audit-Log
+# ============================================================================
+
+@admin_bp.route('/logs')
+@login_required
+@admin_required
+def logs():
+    """View audit logs with filtering and pagination."""
+    # Get filter parameters
+    page = request.args.get('page', 1, type=int)
+    per_page = 50
+
+    # Filters
+    modul_filter = request.args.get('modul', '')
+    user_filter = request.args.get('user', type=int)
+    wichtigkeit_filter = request.args.getlist('wichtigkeit')  # Can be multiple
+    datum_von = request.args.get('datum_von', '')
+    datum_bis = request.args.get('datum_bis', '')
+
+    # Build query
+    query = AuditLog.query
+
+    if modul_filter:
+        modul_obj = Modul.query.filter_by(code=modul_filter).first()
+        if modul_obj:
+            query = query.filter(AuditLog.modul_id == modul_obj.id)
+
+    if user_filter:
+        query = query.filter(AuditLog.user_id == user_filter)
+
+    if wichtigkeit_filter:
+        query = query.filter(AuditLog.wichtigkeit.in_(wichtigkeit_filter))
+
+    if datum_von:
+        try:
+            von_date = datetime.strptime(datum_von, '%Y-%m-%d')
+            query = query.filter(AuditLog.timestamp >= von_date)
+        except ValueError:
+            pass
+
+    if datum_bis:
+        try:
+            bis_date = datetime.strptime(datum_bis, '%Y-%m-%d')
+            # Add one day to include the entire day
+            from datetime import timedelta
+            bis_date = bis_date + timedelta(days=1)
+            query = query.filter(AuditLog.timestamp < bis_date)
+        except ValueError:
+            pass
+
+    # Order by timestamp descending (newest first)
+    query = query.order_by(AuditLog.timestamp.desc())
+
+    # Paginate
+    pagination = query.paginate(page=page, per_page=per_page, error_out=False)
+    logs_list = pagination.items
+
+    # Get all modules and users for filter dropdowns
+    alle_module = Modul.query.order_by(Modul.name).all()
+    alle_user = User.query.order_by(User.nachname, User.vorname).all()
+
+    return render_template(
+        'administration/logs.html',
+        logs=logs_list,
+        pagination=pagination,
+        alle_module=alle_module,
+        alle_user=alle_user,
+        # Current filter values for form
+        filter_modul=modul_filter,
+        filter_user=user_filter,
+        filter_wichtigkeit=wichtigkeit_filter,
+        filter_datum_von=datum_von,
+        filter_datum_bis=datum_bis
+    )
+
+
+@admin_bp.route('/logs/export')
+@login_required
+@admin_required
+def logs_export():
+    """Export audit logs as JSON or CSV."""
+    export_format = request.args.get('format', 'json')
+
+    # Apply same filters as logs view
+    modul_filter = request.args.get('modul', '')
+    user_filter = request.args.get('user', type=int)
+    wichtigkeit_filter = request.args.getlist('wichtigkeit')
+    datum_von = request.args.get('datum_von', '')
+    datum_bis = request.args.get('datum_bis', '')
+
+    query = AuditLog.query
+
+    if modul_filter:
+        modul_obj = Modul.query.filter_by(code=modul_filter).first()
+        if modul_obj:
+            query = query.filter(AuditLog.modul_id == modul_obj.id)
+
+    if user_filter:
+        query = query.filter(AuditLog.user_id == user_filter)
+
+    if wichtigkeit_filter:
+        query = query.filter(AuditLog.wichtigkeit.in_(wichtigkeit_filter))
+
+    if datum_von:
+        try:
+            von_date = datetime.strptime(datum_von, '%Y-%m-%d')
+            query = query.filter(AuditLog.timestamp >= von_date)
+        except ValueError:
+            pass
+
+    if datum_bis:
+        try:
+            bis_date = datetime.strptime(datum_bis, '%Y-%m-%d')
+            from datetime import timedelta
+            bis_date = bis_date + timedelta(days=1)
+            query = query.filter(AuditLog.timestamp < bis_date)
+        except ValueError:
+            pass
+
+    logs_list = query.order_by(AuditLog.timestamp.desc()).limit(10000).all()
+
+    if export_format == 'csv':
+        import csv
+        import io
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Zeitstempel', 'User', 'Modul', 'Aktion', 'Details', 'Wichtigkeit', 'Entity', 'IP'])
+
+        for log in logs_list:
+            writer.writerow([
+                log.timestamp.strftime('%Y-%m-%d %H:%M:%S'),
+                log.user_display,
+                log.modul.name if log.modul else '',
+                log.aktion,
+                log.details or '',
+                log.wichtigkeit,
+                f'{log.entity_type} #{log.entity_id}' if log.entity_type else '',
+                log.ip_adresse or ''
+            ])
+
+        response = make_response(output.getvalue())
+        response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=audit_log_{datetime.now().strftime("%Y%m%d_%H%M%S")}.csv'
+        return response
+
+    else:
+        # JSON export
+        data = []
+        for log in logs_list:
+            data.append({
+                'id': log.id,
+                'timestamp': log.timestamp.isoformat(),
+                'user_id': log.user_id,
+                'user_display': log.user_display,
+                'modul': log.modul.code if log.modul else None,
+                'modul_name': log.modul.name if log.modul else None,
+                'aktion': log.aktion,
+                'details': log.details,
+                'wichtigkeit': log.wichtigkeit,
+                'entity_type': log.entity_type,
+                'entity_id': log.entity_id,
+                'ip_adresse': log.ip_adresse
+            })
+
+        response = make_response(json.dumps(data, ensure_ascii=False, indent=2))
+        response.headers['Content-Type'] = 'application/json; charset=utf-8'
+        response.headers['Content-Disposition'] = f'attachment; filename=audit_log_{datetime.now().strftime("%Y%m%d_%H%M%S")}.json'
+        return response
+
+
+# ============================================================================
+# Module Management
+# ============================================================================
+
+@admin_bp.route('/module')
+@login_required
+@admin_required
+def module():
+    """Manage modules (activate/deactivate, role access)."""
+    module_list = Modul.query.order_by(Modul.sort_order, Modul.name).all()
+    alle_rollen = Rolle.query.order_by(Rolle.name).all()
+
+    return render_template(
+        'administration/module.html',
+        module=module_list,
+        alle_rollen=alle_rollen
+    )
+
+
+@admin_bp.route('/module/<int:id>/toggle', methods=['POST'])
+@login_required
+@admin_required
+def module_toggle(id):
+    """Toggle module active status."""
+    from app.services import log_mittel
+
+    modul = Modul.query.get_or_404(id)
+
+    if modul.ist_basis:
+        return jsonify({'success': False, 'error': 'Basismodule können nicht deaktiviert werden'}), 400
+
+    modul.aktiv = not modul.aktiv
+    db.session.commit()
+
+    log_mittel(
+        modul='system',
+        aktion='modul_status_geaendert',
+        details=f'Modul "{modul.name}" {"aktiviert" if modul.aktiv else "deaktiviert"}',
+        entity_type='Modul',
+        entity_id=modul.id
+    )
+    db.session.commit()
+
+    return jsonify({'success': True, 'aktiv': modul.aktiv})
+
+
+@admin_bp.route('/module/<int:id>/access', methods=['POST'])
+@login_required
+@admin_required
+def module_access(id):
+    """Update role access for a module."""
+    modul = Modul.query.get_or_404(id)
+
+    data = request.get_json()
+    if not data or 'rollen' not in data:
+        return jsonify({'success': False, 'error': 'Keine Rollen übergeben'}), 400
+
+    rolle_ids = data['rollen']
+
+    # Define external roles that cannot access internal modules (lowercase)
+    EXTERNE_ROLLEN_NAMEN = ['kunde']
+
+    try:
+        # Validate: Internal modules cannot be assigned to external roles
+        if modul.ist_intern:
+            for rolle_id in rolle_ids:
+                rolle = Rolle.query.get(rolle_id)
+                if rolle and rolle.name.lower() in EXTERNE_ROLLEN_NAMEN:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Interne Module können nicht der Rolle "{rolle.name}" zugewiesen werden'
+                    }), 400
+
+        # Clear existing access
+        ModulZugriff.query.filter_by(modul_id=modul.id).delete()
+
+        # Add new access
+        for rolle_id in rolle_ids:
+            rolle = Rolle.query.get(rolle_id)
+            if rolle:
+                access = ModulZugriff(modul_id=modul.id, rolle_id=rolle_id)
+                db.session.add(access)
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Zugriffe aktualisiert'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@admin_bp.route('/module/reorder', methods=['POST'])
+@login_required
+@admin_required
+def module_reorder():
+    """Update sort order for modules via AJAX."""
+    data = request.get_json()
+
+    if not data or 'order' not in data:
+        return jsonify({'success': False, 'message': 'Keine Sortierreihenfolge übergeben'}), 400
+
+    order = data['order']  # List of IDs in new order
+
+    try:
+        for index, modul_id in enumerate(order):
+            modul = Modul.query.get(int(modul_id))
+            if modul:
+                modul.sort_order = (index + 1) * 10  # 10, 20, 30, ...
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Sortierung gespeichert'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+@admin_bp.route('/module/<int:id>/edit', methods=['POST'])
+@login_required
+@admin_required
+def module_edit(id):
+    """Edit module properties (beschreibung, icon, typ, color_hex)."""
+    from app.services import log_mittel
+    from app.models import ModulTyp
+
+    modul = Modul.query.get_or_404(id)
+
+    data = request.get_json()
+    if not data:
+        return jsonify({'success': False, 'error': 'Keine Daten übergeben'}), 400
+
+    try:
+        changes = []
+
+        # Update beschreibung
+        if 'beschreibung' in data:
+            new_beschreibung = data['beschreibung'].strip() if data['beschreibung'] else None
+            if modul.beschreibung != new_beschreibung:
+                changes.append(f"Beschreibung geändert")
+                modul.beschreibung = new_beschreibung
+
+        # Update icon
+        if 'icon' in data:
+            new_icon = data['icon'].strip() if data['icon'] else 'ti-apps'
+            if modul.icon != new_icon:
+                changes.append(f"Icon geändert zu {new_icon}")
+                modul.icon = new_icon
+
+        # Update typ
+        if 'typ' in data:
+            new_typ = data['typ'].strip() if data['typ'] else ModulTyp.BASIS.value
+            # Validate typ
+            valid_types = [t.value for t in ModulTyp]
+            if new_typ in valid_types and modul.typ != new_typ:
+                changes.append(f"Typ geändert zu {new_typ}")
+                modul.typ = new_typ
+
+        # Update color_hex
+        if 'color_hex' in data:
+            new_color = data['color_hex'].strip() if data['color_hex'] else '#6c757d'
+            if modul.color_hex != new_color:
+                changes.append(f"Farbe geändert zu {new_color}")
+                modul.color_hex = new_color
+
+        if changes:
+            db.session.commit()
+
+            log_mittel(
+                modul='system',
+                aktion='modul_bearbeitet',
+                details=f'Modul "{modul.name}": {", ".join(changes)}',
+                entity_type='Modul',
+                entity_id=modul.id
+            )
+            db.session.commit()
+
+        return jsonify({'success': True, 'message': 'Modul aktualisiert'})
+
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'error': str(e)}), 500

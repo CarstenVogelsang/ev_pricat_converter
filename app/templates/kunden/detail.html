@@ -9,6 +9,12 @@
 {% block content %}
 <style>
 /* Größere Badges für Branchen und Verbände */
+.branche-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
 .branche-btn, .verband-btn {
     width: 52px;
     height: 52px;
@@ -26,6 +32,21 @@
     max-height: 28px !important;
     max-width: 40px !important;
     object-fit: contain;
+}
+/* Rollen-Icons unter Branche-Button */
+.rollen-icons {
+    display: flex;
+    gap: 2px;
+    flex-wrap: wrap;
+    justify-content: center;
+    max-width: 60px;
+}
+.rollen-icons i {
+    font-size: 0.7rem;
+    color: #6c757d;
+}
+.rollen-icons i.text-primary {
+    color: var(--bs-primary) !important;
 }
 
 /* Verbände: weißer Hintergrund, unterschiedliche Hover-Farbe */
@@ -143,35 +164,161 @@
         </div>
         {% endif %}
 
-        <!-- Branchen Card -->
+        <!-- User-Account Card (PRD-006) -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="ti ti-category"></i> Branchen {{ help_icon('kunden.detail.branchen') }}</span>
+                <span><i class="ti ti-user"></i> Benutzer-Account</span>
             </div>
             <div class="card-body">
-                <div class="d-flex flex-wrap gap-2" id="branchen-container">
-                    {% for branche in alle_branchen %}
-                    {% set ist_zugeordnet = branche.id in kunde_branchen_ids %}
-                    {% set ist_primaer = branche.id in kunde_primaer_ids %}
-                    <button type="button"
-                            class="btn btn-{{ 'primary' if ist_zugeordnet else 'outline-secondary' }} position-relative branche-btn"
-                            data-branche-id="{{ branche.id }}"
-                            data-bs-toggle="tooltip"
-                            title="{{ branche.name }}{% if ist_primaer %} (Primär){% endif %}"
-                            onclick="toggleBranche({{ branche.id }})"
-                            oncontextmenu="togglePrimaer({{ branche.id }}); return false;">
-                        <i class="ti ti-{{ branche.icon }}"></i>
-                        {% if ist_primaer %}
-                        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark" style="font-size: 0.6em;">
-                            P
-                        </span>
+                {% if kunde.user %}
+                <!-- User existiert -->
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">E-Mail</dt>
+                    <dd class="col-sm-8">{{ kunde.user.email }}</dd>
+                    <dt class="col-sm-4">Name</dt>
+                    <dd class="col-sm-8">{{ kunde.user.full_name }}</dd>
+                    <dt class="col-sm-4">Status</dt>
+                    <dd class="col-sm-8">
+                        {% if kunde.user.aktiv %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inaktiv</span>
                         {% endif %}
+                    </dd>
+                    <dt class="col-sm-4">Letzter Login</dt>
+                    <dd class="col-sm-8">
+                        {% if kunde.user.last_login %}
+                        {{ kunde.user.last_login.strftime('%d.%m.%Y %H:%M') }}
+                        {% else %}
+                        <span class="text-muted">Noch nie</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+                <hr>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-outline-primary btn-sm" onclick="sendCredentials()">
+                        <i class="ti ti-mail"></i> Zugangsdaten senden
+                    </button>
+                    <button type="button" class="btn btn-outline-warning btn-sm" onclick="createNewToken()">
+                        <i class="ti ti-key"></i> Neues Passwort
+                    </button>
+                </div>
+                {% else %}
+                <!-- Kein User -->
+                <p class="text-muted mb-3">
+                    <i class="ti ti-info-circle"></i> Dieser Kunde hat noch keinen Benutzer-Account.
+                    Erstellen Sie einen Account, um Zugangsdaten zum Kundenportal zu versenden.
+                </p>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                    <i class="ti ti-user-plus"></i> Benutzer erstellen
+                </button>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Hauptbranche Card -->
+        <div class="card mb-4 border-primary">
+            <div class="card-header bg-primary text-white">
+                <i class="ti ti-star"></i> Hauptbranche
+            </div>
+            <div class="card-body">
+                {% if kunde.hauptbranche_id %}
+                <!-- Hauptbranche ist gesetzt: Nur diese anzeigen mit Löschen-Button -->
+                <div class="d-flex align-items-center gap-3" id="hauptbranche-container">
+                    <button type="button" class="btn btn-primary btn-lg" disabled>
+                        <i class="ti ti-{{ kunde.hauptbranche.icon }}"></i> {{ kunde.hauptbranche.name }}
+                    </button>
+                    <button type="button" class="btn btn-outline-danger"
+                            data-bs-toggle="modal"
+                            data-bs-target="#deleteHauptbrancheModal"
+                            title="Hauptbranche entfernen">
+                        <i class="ti ti-trash"></i> Ändern
+                    </button>
+                </div>
+                <p class="text-muted small mt-3 mb-0">
+                    <i class="ti ti-info-circle"></i> Um eine andere Hauptbranche zu wählen, muss die aktuelle erst entfernt werden.
+                </p>
+                {% else %}
+                <!-- Keine Hauptbranche: Alle zur Auswahl anbieten -->
+                <p class="text-muted small mb-3">
+                    Wählen Sie die Hauptbranche des Kunden. Erst danach können Unterbranchen zugeordnet werden.
+                </p>
+                <div class="d-flex flex-wrap gap-2" id="hauptbranche-container">
+                    {% for kat in hauptbranchen %}
+                    <button type="button"
+                            class="btn btn-outline-secondary hauptbranche-btn"
+                            data-hauptbranche-id="{{ kat.id }}"
+                            onclick="setHauptbranche({{ kat.id }})">
+                        <i class="ti ti-{{ kat.icon }}"></i> {{ kat.name }}
                     </button>
                     {% endfor %}
                 </div>
+                <div class="alert alert-info mt-3 mb-0">
+                    <i class="ti ti-info-circle"></i> <strong>Hinweis:</strong> Bitte erst eine Hauptbranche wählen, um Unterbranchen zuordnen zu können.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Branchen Card (Unterbranchen) -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="ti ti-category"></i> Unterbranchen {{ help_icon('kunden.detail.branchen') }}</span>
+                {% if kunde.hauptbranche %}
+                <span class="badge bg-primary"><i class="ti ti-{{ kunde.hauptbranche.icon }}"></i> {{ kunde.hauptbranche.name }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if not kunde.hauptbranche_id %}
+                <div class="text-center text-muted py-4">
+                    <i class="ti ti-arrow-up" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-0">Bitte erst eine Hauptbranche wählen</p>
+                </div>
+                {% elif alle_branchen|length == 0 %}
+                <div class="text-center text-muted py-4">
+                    <i class="ti ti-category-off" style="font-size: 2rem;"></i>
+                    <p class="mt-2 mb-0">Keine Unterbranchen in dieser Kategorie vorhanden</p>
+                </div>
+                {% else %}
+                <div class="d-flex flex-wrap gap-3" id="branchen-container">
+                    {% for branche in alle_branchen %}
+                    {% set ist_zugeordnet = branche.id in kunde_branchen_ids %}
+                    {% set ist_primaer = branche.id in kunde_primaer_ids %}
+                    {% set branche_rollen = kunde_rollen_ids.get(branche.id, []) %}
+                    <div class="branche-wrapper">
+                        <button type="button"
+                                class="btn btn-{{ 'primary' if ist_zugeordnet else 'outline-secondary' }} position-relative branche-btn"
+                                data-branche-id="{{ branche.id }}"
+                                data-branche-name="{{ branche.name }}"
+                                data-hat-rollen="{{ branche.zulaessige_branchenrollen|length > 0 }}"
+                                data-bs-toggle="tooltip"
+                                title="{{ branche.name }}{% if ist_primaer %} (Primär){% endif %}"
+                                onclick="handleBrancheClick({{ branche.id }}, {{ 'true' if ist_zugeordnet else 'false' }})"
+                                oncontextmenu="togglePrimaer({{ branche.id }}); return false;">
+                            <i class="ti ti-{{ branche.icon }}"></i>
+                            {% if ist_primaer %}
+                            <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark" style="font-size: 0.6em;">
+                                P
+                            </span>
+                            {% endif %}
+                        </button>
+                        <!-- Rollen-Icons unterhalb der Branche -->
+                        {% if ist_zugeordnet and branche_rollen %}
+                        <div class="rollen-icons" data-branche-id="{{ branche.id }}">
+                            {% for rolle in branche.zulaessige_branchenrollen %}
+                            <i class="ti ti-{{ rolle.icon }} {% if rolle.id in branche_rollen %}text-primary{% endif %}"
+                               title="{{ rolle.name }}"
+                               data-bs-toggle="tooltip"></i>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
                 <small class="text-muted mt-2 d-block">
-                    <i class="ti ti-info-circle"></i> Klick = Zuordnen/Entfernen | Rechtsklick = Primärbranche (max. 3)
+                    <i class="ti ti-info-circle"></i> Klick = Zuordnen + Rollen wählen | Rechtsklick = Primärbranche (max. 3)
                 </small>
+                {% endif %}
             </div>
         </div>
 
@@ -364,6 +511,75 @@
     </form>
 </div>
 
+<!-- Modal: Hauptbranche löschen mit Warnung -->
+{% if kunde.hauptbranche_id %}
+<div class="modal fade" id="deleteHauptbrancheModal" tabindex="-1" aria-labelledby="deleteHauptbrancheModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteHauptbrancheModalLabel">
+                    <i class="ti ti-alert-triangle"></i> Hauptbranche entfernen
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <div class="alert alert-warning mb-3">
+                    <i class="ti ti-alert-circle"></i>
+                    <strong>Achtung!</strong> Beim Entfernen der Hauptbranche werden auch alle zugeordneten Unterbranchen gelöscht!
+                </div>
+                <p>
+                    <strong>Aktuelle Hauptbranche:</strong> {{ kunde.hauptbranche.name }}<br>
+                    <strong>Zugeordnete Unterbranchen:</strong> <span id="unterbranchenCount">{{ kunde_branchen_ids|length }}</span>
+                </p>
+                <p class="text-muted small mb-0">
+                    Diese Aktion kann nicht rückgängig gemacht werden. Sie müssen danach eine neue Hauptbranche wählen und Unterbranchen neu zuordnen.
+                </p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+                    <i class="ti ti-x"></i> Abbrechen
+                </button>
+                <button type="button" class="btn btn-danger" onclick="deleteHauptbranche()">
+                    <i class="ti ti-trash"></i> Trotzdem löschen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Rollen-Modal (Branchenmodell V2) -->
+<div class="modal fade" id="rollenModal" tabindex="-1" aria-labelledby="rollenModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="rollenModalLabel">
+                    <i class="ti ti-users"></i> Rollen für <span id="rollenModalBrancheName">Branche</span>
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Welche Rolle(n) hat dieser Kunde in der Branche?
+                </p>
+                <div id="rollenCheckboxContainer">
+                    <!-- Wird per JavaScript befüllt -->
+                    <div class="text-center text-muted py-3">
+                        <div class="spinner-border spinner-border-sm" role="status"></div>
+                        Lade Rollen...
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="saveRollen()">
+                    <i class="ti ti-check"></i> Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% if kunde.ci and kunde.ci.raw_response %}
 <!-- Raw JSON Modal -->
 <div class="modal fade" id="rawJsonModal" tabindex="-1" aria-labelledby="rawJsonModalLabel" aria-hidden="true">
@@ -388,6 +604,58 @@
     </div>
 </div>
 {% endif %}
+
+<!-- PRD-006: User-Erstellung Modal -->
+{% if not kunde.user %}
+<div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="createUserModalLabel">
+                    <i class="ti ti-user-plus"></i> Benutzer erstellen
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Erstellen Sie einen Benutzer-Account für diesen Kunden. Die Zugangsdaten werden per E-Mail versendet.
+                </p>
+                <form id="createUserForm">
+                    <div class="mb-3">
+                        <label for="userEmail" class="form-label">E-Mail-Adresse *</label>
+                        <input type="email" class="form-control" id="userEmail" name="email" required
+                               placeholder="kunde@example.com">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="userVorname" class="form-label">Vorname *</label>
+                            <input type="text" class="form-control" id="userVorname" name="vorname" required
+                                   value="{{ kunde.ansprechpartner.split(' ')[0] if kunde.ansprechpartner else '' }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="userNachname" class="form-label">Nachname *</label>
+                            <input type="text" class="form-control" id="userNachname" name="nachname" required
+                                   value="{{ kunde.ansprechpartner.split(' ')[-1] if kunde.ansprechpartner and ' ' in kunde.ansprechpartner else '' }}">
+                        </div>
+                    </div>
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="sendCredentialsNow" checked>
+                        <label class="form-check-label" for="sendCredentialsNow">
+                            Zugangsdaten sofort per E-Mail senden
+                        </label>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="createUser()">
+                    <i class="ti ti-user-plus"></i> Benutzer erstellen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -395,6 +663,55 @@
 <script>
 const kundeId = {{ kunde.id }};
 const csrfToken = '{{ csrf_token() }}';
+let currentBrancheId = null;  // Für Rollen-Modal
+
+// Hauptbranche setzen
+async function setHauptbranche(hauptbrancheId) {
+    try {
+        const response = await fetch(`/kunden/${kundeId}/hauptbranche`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ hauptbranche_id: hauptbrancheId })
+        });
+        const data = await response.json();
+        if (data.success) {
+            showToast(data.message, 'success');
+            location.reload();
+        } else {
+            showToast(data.error || 'Fehler beim Speichern', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+// Hauptbranche löschen (mit Kaskade für Unterbranchen)
+async function deleteHauptbranche() {
+    try {
+        const response = await fetch(`/kunden/${kundeId}/hauptbranche`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+        if (data.success) {
+            // Modal schließen
+            const modal = bootstrap.Modal.getInstance(document.getElementById('deleteHauptbrancheModal'));
+            if (modal) modal.hide();
+            showToast(data.message, 'success');
+            location.reload();
+        } else {
+            showToast(data.error || 'Fehler beim Löschen', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
 
 function showToast(message, type = 'success') {
     const toastHtml = `
@@ -413,6 +730,48 @@ function showToast(message, type = 'success') {
     }
 }
 
+// Branchenmodell V2: Neuer Click-Handler
+async function handleBrancheClick(brancheId, istZugeordnet) {
+    const btn = document.querySelector(`[data-branche-id="${brancheId}"]`);
+    const hatRollen = btn?.dataset.hatRollen === 'True';
+    const brancheName = btn?.dataset.brancheName || 'Branche';
+
+    if (!istZugeordnet) {
+        // Branche noch nicht zugeordnet -> erst zuordnen
+        try {
+            const response = await fetch(`/kunden/${kundeId}/branche/${brancheId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            const data = await response.json();
+            if (data.success) {
+                // Wenn Branche zulässige Rollen hat -> Modal öffnen
+                if (hatRollen) {
+                    openRollenModal(brancheId, brancheName);
+                } else {
+                    location.reload();
+                }
+            } else {
+                showToast(data.error || 'Fehler beim Speichern', 'danger');
+            }
+        } catch (error) {
+            showToast('Verbindungsfehler', 'danger');
+        }
+    } else {
+        // Branche bereits zugeordnet -> Rollen-Modal öffnen oder entfernen
+        if (hatRollen) {
+            openRollenModal(brancheId, brancheName);
+        } else {
+            // Keine Rollen -> direkt entfernen
+            await toggleBranche(brancheId);
+        }
+    }
+}
+
+// Alte Funktion für direktes Toggle (ohne Rollen)
 async function toggleBranche(brancheId) {
     try {
         const response = await fetch(`/kunden/${kundeId}/branche/${brancheId}`, {
@@ -427,6 +786,133 @@ async function toggleBranche(brancheId) {
             location.reload();
         } else {
             showToast(data.error || 'Fehler beim Speichern', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+// Rollen-Modal öffnen und Daten laden
+async function openRollenModal(brancheId, brancheName) {
+    currentBrancheId = brancheId;
+    document.getElementById('rollenModalBrancheName').textContent = brancheName;
+
+    // Loading-State
+    document.getElementById('rollenCheckboxContainer').innerHTML = `
+        <div class="text-center text-muted py-3">
+            <div class="spinner-border spinner-border-sm" role="status"></div>
+            Lade Rollen...
+        </div>
+    `;
+
+    // Modal öffnen
+    const modal = new bootstrap.Modal(document.getElementById('rollenModal'));
+    modal.show();
+
+    // Rollen laden
+    try {
+        const response = await fetch(`/kunden/${kundeId}/branche/${brancheId}/rollen`, {
+            headers: { 'X-CSRFToken': csrfToken }
+        });
+        const data = await response.json();
+
+        if (data.success && data.rollen.length > 0) {
+            let html = '<div class="list-group">';
+            for (const rolle of data.rollen) {
+                html += `
+                    <label class="list-group-item d-flex align-items-center gap-2">
+                        <input type="checkbox" class="form-check-input rolle-checkbox"
+                               value="${rolle.id}" ${rolle.zugewiesen ? 'checked' : ''}>
+                        <i class="ti ti-${rolle.icon}"></i>
+                        <div>
+                            <strong>${rolle.name}</strong>
+                            ${rolle.beschreibung ? `<br><small class="text-muted">${rolle.beschreibung}</small>` : ''}
+                        </div>
+                    </label>
+                `;
+            }
+            html += '</div>';
+
+            // Entfernen-Button hinzufügen
+            html += `
+                <div class="mt-3 pt-3 border-top">
+                    <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="removeBranche(${brancheId})">
+                        <i class="ti ti-trash"></i> Branchenzuordnung entfernen
+                    </button>
+                </div>
+            `;
+
+            document.getElementById('rollenCheckboxContainer').innerHTML = html;
+        } else if (data.success && data.rollen.length === 0) {
+            document.getElementById('rollenCheckboxContainer').innerHTML = `
+                <div class="text-center text-muted py-3">
+                    <i class="ti ti-info-circle"></i> Keine Rollen für diese Branche verfügbar.
+                </div>
+                <div class="mt-3 pt-3 border-top">
+                    <button type="button" class="btn btn-outline-danger btn-sm w-100" onclick="removeBranche(${brancheId})">
+                        <i class="ti ti-trash"></i> Branchenzuordnung entfernen
+                    </button>
+                </div>
+            `;
+        } else {
+            throw new Error(data.error || 'Fehler beim Laden');
+        }
+    } catch (error) {
+        document.getElementById('rollenCheckboxContainer').innerHTML = `
+            <div class="alert alert-danger">Fehler beim Laden der Rollen</div>
+        `;
+    }
+}
+
+// Rollen speichern
+async function saveRollen() {
+    if (!currentBrancheId) return;
+
+    const checkboxes = document.querySelectorAll('.rolle-checkbox:checked');
+    const rollenIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
+
+    try {
+        const response = await fetch(`/kunden/${kundeId}/branche/${currentBrancheId}/rollen`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ rollen_ids: rollenIds })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('rollenModal')).hide();
+            showToast(data.message, 'success');
+            location.reload();
+        } else {
+            showToast(data.error || 'Fehler beim Speichern', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+// Branchenzuordnung entfernen (aus Modal)
+async function removeBranche(brancheId) {
+    if (!confirm('Branchenzuordnung wirklich entfernen?')) return;
+
+    try {
+        const response = await fetch(`/kunden/${kundeId}/branche/${brancheId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('rollenModal')).hide();
+            location.reload();
+        } else {
+            showToast(data.error || 'Fehler beim Entfernen', 'danger');
         }
     } catch (error) {
         showToast('Verbindungsfehler', 'danger');
@@ -478,6 +964,115 @@ document.addEventListener('DOMContentLoaded', function() {
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
     tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 });
+
+// PRD-006: User-Erstellung und Credential-Versand
+async function createUser() {
+    const email = document.getElementById('userEmail').value.trim();
+    const vorname = document.getElementById('userVorname').value.trim();
+    const nachname = document.getElementById('userNachname').value.trim();
+    const sendNow = document.getElementById('sendCredentialsNow').checked;
+
+    if (!email || !vorname || !nachname) {
+        showToast('Bitte alle Felder ausfüllen', 'warning');
+        return;
+    }
+
+    try {
+        // 1. User erstellen
+        const createResponse = await fetch(`/kunden/${kundeId}/user/create`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ email, vorname, nachname })
+        });
+        const createData = await createResponse.json();
+
+        if (!createData.success) {
+            showToast(createData.error || 'Fehler beim Erstellen', 'danger');
+            return;
+        }
+
+        showToast('Benutzer-Account erstellt', 'success');
+
+        // 2. Optional: Zugangsdaten senden
+        if (sendNow) {
+            const sendResponse = await fetch(`/kunden/${kundeId}/user/send-credentials`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            });
+            const sendData = await sendResponse.json();
+
+            if (sendData.success) {
+                showToast('Zugangsdaten per E-Mail gesendet', 'success');
+            } else {
+                showToast(sendData.error || 'E-Mail-Versand fehlgeschlagen', 'warning');
+            }
+        }
+
+        // Modal schließen und Seite neu laden
+        bootstrap.Modal.getInstance(document.getElementById('createUserModal')).hide();
+        setTimeout(() => location.reload(), 1000);
+
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+async function sendCredentials() {
+    if (!confirm('Zugangsdaten wirklich erneut senden?')) return;
+
+    try {
+        const response = await fetch(`/kunden/${kundeId}/user/send-credentials`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+        } else {
+            showToast(data.error || 'Fehler beim Senden', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+async function createNewToken() {
+    if (!confirm('Neues Passwort generieren? Das alte wird ungültig.')) return;
+
+    try {
+        const response = await fetch(`/kunden/${kundeId}/user/new-token`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            // Nachfragen ob direkt senden
+            if (confirm('Zugangsdaten jetzt per E-Mail senden?')) {
+                await sendCredentials();
+            }
+        } else {
+            showToast(data.error || 'Fehler', 'danger');
+        }
+    } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
 </script>
 
 {% if kunde.ci and kunde.ci.raw_response %}

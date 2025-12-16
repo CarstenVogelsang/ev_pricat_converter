@@ -21,109 +21,178 @@ tr.sortable-ghost {
 tr.sortable-chosen {
     background-color: #e9ecef;
 }
+.hauptbranche-item {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+.hauptbranche-item:hover {
+    background-color: #f8f9fa;
+}
+.hauptbranche-item.active {
+    background-color: #e7f1ff;
+    border-left: 3px solid var(--bs-primary);
+}
+.badge-rollen {
+    font-size: 0.75rem;
+}
 </style>
 
-<h2 class="mb-4"><i class="ti ti-category text-primary"></i> Branchen verwalten</h2>
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="ti ti-category text-primary"></i> Branchen verwalten</h2>
+    <div class="btn-group">
+        <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#importModal">
+            <i class="ti ti-upload"></i> Import
+        </button>
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#neueHauptbrancheModal">
+            <i class="ti ti-plus"></i> Neue Hauptbranche
+        </button>
+    </div>
+</div>
 
 <div class="row">
-    <!-- Add New Branche -->
-    <div class="col-md-5 mb-4">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="ti ti-plus"></i> Neue Branche</h5>
+    <!-- Left Column: Hauptbranchen (Master) -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="ti ti-folder"></i> Hauptbranchen</h5>
+                <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#neueHauptbrancheModal">
+                    <i class="ti ti-plus"></i>
+                </button>
             </div>
-            <div class="card-body">
-                <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    <input type="hidden" name="action" value="create">
-
-                    <div class="mb-3">
-                        <label for="name" class="form-label">Name *</label>
-                        <input type="text" class="form-control" id="name" name="name" required
-                               placeholder="z.B. Einzelhandel Spielwaren">
-                    </div>
-
-                    <div class="mb-3">
-                        <label for="icon" class="form-label">Icon (Tabler Icon)</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-category" id="icon-preview"></i></span>
-                            <input type="text" class="form-control" id="icon" name="icon" value="category"
-                                   placeholder="z.B. lego, train, bike">
+            <div class="card-body p-0">
+                {% if hauptbranchen %}
+                <div class="list-group list-group-flush" id="hauptbranchen-list">
+                    {% for hb in hauptbranchen %}
+                    <div class="list-group-item hauptbranche-item d-flex justify-content-between align-items-center {{ 'active' if hb.id == aktive_hauptbranche_id }}"
+                         data-id="{{ hb.id }}"
+                         onclick="window.location.href='{{ url_for('admin.branchen', hauptbranche=hb.id) }}'">
+                        <div>
+                            <i class="ti ti-{{ hb.icon }} me-2"></i>
+                            <strong>{{ hb.name }}</strong>
+                            <span class="badge bg-secondary ms-2">{{ hb.unterbranchen.count() }}</span>
                         </div>
-                        <div class="form-text">
-                            <a href="https://tabler.io/icons" target="_blank">Tabler Icons</a> - ohne "ti-" Prefix
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-primary btn-sm"
+                                    data-bs-toggle="modal" data-bs-target="#editHauptbrancheModal{{ hb.id }}"
+                                    onclick="event.stopPropagation();">
+                                <i class="ti ti-edit"></i>
+                            </button>
+                            <form method="POST" class="d-inline" onsubmit="event.stopPropagation(); return confirm('Hauptbranche wirklich löschen?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="id" value="{{ hb.id }}">
+                                <button type="submit" class="btn btn-outline-danger btn-sm"
+                                        {% if hb.unterbranchen.count() > 0 %}disabled title="Hat noch Unterbranchen"{% endif %}>
+                                    <i class="ti ti-trash"></i>
+                                </button>
+                            </form>
                         </div>
                     </div>
-
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ti ti-plus"></i> Anlegen
-                    </button>
-                </form>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="p-4 text-center text-muted">
+                    <i class="ti ti-folder-off fs-1 d-block mb-2"></i>
+                    Noch keine Hauptbranchen vorhanden.
+                </div>
+                {% endif %}
             </div>
         </div>
     </div>
 
-    <!-- Existing Branchen -->
-    <div class="col-md-7">
-        <div class="card">
+    <!-- Right Column: Unterbranchen (Detail) -->
+    <div class="col-md-8 mb-4">
+        <div class="card h-100">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <h5 class="mb-0"><i class="ti ti-list"></i> Vorhandene Branchen ({{ branchen|length }})</h5>
-                <small class="text-muted"><i class="ti ti-grip-vertical"></i> Ziehen zum Sortieren</small>
+                <h5 class="mb-0">
+                    <i class="ti ti-list-tree"></i>
+                    {% if aktive_hauptbranche %}
+                    Unterbranchen von <strong>{{ aktive_hauptbranche.name }}</strong>
+                    {% else %}
+                    Unterbranchen
+                    {% endif %}
+                </h5>
+                {% if aktive_hauptbranche %}
+                <div class="d-flex align-items-center gap-2">
+                    <small class="text-muted"><i class="ti ti-grip-vertical"></i> Ziehen zum Sortieren</small>
+                    <button type="button" class="btn btn-sm btn-primary" data-bs-toggle="modal" data-bs-target="#neueUnterbrancheModal">
+                        <i class="ti ti-plus"></i> Neue Unterbranche
+                    </button>
+                </div>
+                {% endif %}
             </div>
             <div class="card-body p-0">
-                {% if branchen %}
-                <div class="table-responsive">
-                    <table class="table table-hover mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th width="40"></th>
-                                <th width="60">Icon</th>
-                                <th>Name</th>
-                                <th width="70">Status</th>
-                                <th width="140">Aktionen</th>
-                            </tr>
-                        </thead>
-                        <tbody id="branchen-tbody">
-                            {% for branche in branchen %}
-                            <tr data-id="{{ branche.id }}">
-                                <td class="text-center">
-                                    <i class="ti ti-grip-vertical fs-5 drag-handle"></i>
-                                </td>
-                                <td class="text-center">
-                                    <i class="ti ti-{{ branche.icon }} fs-4"></i>
-                                </td>
-                                <td>{{ branche.name }}</td>
-                                <td>
-                                    {% if branche.aktiv %}
-                                    <span class="badge bg-success">Aktiv</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">Inaktiv</span>
-                                    {% endif %}
-                                </td>
-                                <td>
-                                    <button type="button" class="btn btn-sm btn-outline-primary"
-                                            data-bs-toggle="modal" data-bs-target="#editModal{{ branche.id }}">
-                                        <i class="ti ti-edit"></i>
-                                    </button>
-                                    <form method="POST" class="d-inline"
-                                          onsubmit="return confirm('Branche wirklich löschen?');">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                                        <input type="hidden" name="action" value="delete">
-                                        <input type="hidden" name="id" value="{{ branche.id }}">
-                                        <button type="submit" class="btn btn-sm btn-outline-danger"
-                                                {% if branche.kunden %}disabled title="Wird verwendet"{% endif %}>
-                                            <i class="ti ti-trash"></i>
+                {% if aktive_hauptbranche %}
+                    {% if unterbranchen %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th width="40"></th>
+                                    <th width="50">Icon</th>
+                                    <th>Name</th>
+                                    <th width="120">Rollen</th>
+                                    <th width="70">Status</th>
+                                    <th width="140">Aktionen</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unterbranchen-tbody">
+                                {% for ub in unterbranchen %}
+                                <tr data-id="{{ ub.id }}">
+                                    <td class="text-center">
+                                        <i class="ti ti-grip-vertical fs-5 drag-handle"></i>
+                                    </td>
+                                    <td class="text-center">
+                                        <i class="ti ti-{{ ub.icon }} fs-4"></i>
+                                    </td>
+                                    <td>{{ ub.name }}</td>
+                                    <td>
+                                        <span class="badge bg-info badge-rollen" title="Zulässige Rollen">
+                                            <i class="ti ti-users"></i> {{ ub.zulaessige_rollen|length }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        {% if ub.aktiv %}
+                                        <span class="badge bg-success">Aktiv</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inaktiv</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                data-bs-toggle="modal" data-bs-target="#editUnterbrancheModal{{ ub.id }}">
+                                            <i class="ti ti-edit"></i>
                                         </button>
-                                    </form>
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
+                                        <form method="POST" class="d-inline"
+                                              onsubmit="return confirm('Unterbranche wirklich löschen?');">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="id" value="{{ ub.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                    {% if ub.kunden %}disabled title="Wird verwendet"{% endif %}>
+                                                <i class="ti ti-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="p-4 text-center text-muted">
+                        <i class="ti ti-category-off fs-1 d-block mb-2"></i>
+                        Noch keine Unterbranchen in dieser Kategorie.
+                        <br>
+                        <button type="button" class="btn btn-primary mt-3" data-bs-toggle="modal" data-bs-target="#neueUnterbrancheModal">
+                            <i class="ti ti-plus"></i> Erste Unterbranche anlegen
+                        </button>
+                    </div>
+                    {% endif %}
                 {% else %}
                 <div class="p-4 text-center text-muted">
-                    Noch keine Branchen vorhanden.
+                    <i class="ti ti-arrow-left fs-1 d-block mb-2"></i>
+                    Bitte eine Hauptbranche auswählen oder anlegen.
                 </div>
                 {% endif %}
             </div>
@@ -131,36 +200,230 @@ tr.sortable-chosen {
     </div>
 </div>
 
-<!-- Edit Modals -->
-{% for branche in branchen %}
-<div class="modal fade" id="editModal{{ branche.id }}" tabindex="-1">
+<!-- Modal: Neue Hauptbranche -->
+<div class="modal fade" id="neueHauptbrancheModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
             <form method="POST">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <input type="hidden" name="action" value="update">
-                <input type="hidden" name="id" value="{{ branche.id }}">
+                <input type="hidden" name="action" value="create">
+                <input type="hidden" name="branche_typ" value="hauptbranche">
 
                 <div class="modal-header">
-                    <h5 class="modal-title">Branche bearbeiten</h5>
+                    <h5 class="modal-title"><i class="ti ti-folder-plus"></i> Neue Hauptbranche</h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                 </div>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Name *</label>
-                        <input type="text" class="form-control" name="name" value="{{ branche.name }}" required>
+                        <input type="text" class="form-control" name="name" required
+                               placeholder="z.B. DIENSTLEISTUNG">
+                        <div class="form-text">Empfehlung: Großbuchstaben für bessere Unterscheidung</div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icon (Tabler Icon)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-folder" id="new-hb-icon-preview"></i></span>
+                            <input type="text" class="form-control" name="icon" value="folder"
+                                   id="new-hb-icon" placeholder="z.B. building, briefcase">
+                        </div>
+                        <div class="form-text">
+                            <a href="https://tabler.io/icons" target="_blank">Tabler Icons</a> - ohne "ti-" Prefix
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="ti ti-plus"></i> Anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Neue Unterbranche -->
+{% if aktive_hauptbranche %}
+<div class="modal fade" id="neueUnterbrancheModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.branchen', hauptbranche=aktive_hauptbranche_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="create">
+                <input type="hidden" name="branche_typ" value="unterbranche">
+                <input type="hidden" name="parent_id" value="{{ aktive_hauptbranche_id }}">
+
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-plus"></i> Neue Unterbranche in {{ aktive_hauptbranche.name }}</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" name="name" required
+                               placeholder="z.B. Spielwaren">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Icon (Tabler Icon)</label>
+                        <div class="input-group">
+                            <span class="input-group-text"><i class="ti ti-category" id="new-ub-icon-preview"></i></span>
+                            <input type="text" class="form-control" name="icon" value="category"
+                                   id="new-ub-icon" placeholder="z.B. lego, train, bike">
+                        </div>
+                        <div class="form-text">
+                            <a href="https://tabler.io/icons" target="_blank">Tabler Icons</a> - ohne "ti-" Prefix
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="ti ti-plus"></i> Anlegen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Edit Modals: Hauptbranchen -->
+{% for hb in hauptbranchen %}
+<div class="modal fade" id="editHauptbrancheModal{{ hb.id }}" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" value="{{ hb.id }}">
+                <input type="hidden" name="branche_typ" value="hauptbranche">
+
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-edit"></i> Hauptbranche bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name *</label>
+                        <input type="text" class="form-control" name="name" value="{{ hb.name }}" required>
                     </div>
                     <div class="mb-3">
                         <label class="form-label">Icon</label>
                         <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-{{ branche.icon }}"></i></span>
-                            <input type="text" class="form-control" name="icon" value="{{ branche.icon }}">
+                            <span class="input-group-text"><i class="ti ti-{{ hb.icon }}"></i></span>
+                            <input type="text" class="form-control" name="icon" value="{{ hb.icon }}">
                         </div>
                     </div>
                     <div class="form-check">
-                        <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv{{ branche.id }}"
-                               {{ 'checked' if branche.aktiv }}>
-                        <label class="form-check-label" for="aktiv{{ branche.id }}">Aktiv</label>
+                        <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv-hb-{{ hb.id }}"
+                               {{ 'checked' if hb.aktiv }}>
+                        <label class="form-check-label" for="aktiv-hb-{{ hb.id }}">Aktiv</label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">Speichern</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- Modal: Branchen-Import -->
+<div class="modal fade" id="importModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.branchen_import') }}" enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-upload"></i> Branchenkatalog importieren</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-info">
+                        <i class="ti ti-info-circle"></i>
+                        <strong>Format:</strong> JSON-Export aus unternehmensdaten.org oder kompatibel.
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">JSON-Datei auswählen</label>
+                        <input type="file" class="form-control" name="import_file" accept=".json" required>
+                    </div>
+                    <div class="form-text">
+                        <p class="mb-2">Die Datei sollte folgende Struktur haben:</p>
+                        <ul class="mb-0 small">
+                            <li><code>hauptbranche</code> mit Name (Pflicht)</li>
+                            <li><code>unterbranchen</code> Array mit Branchen</li>
+                            <li><code>rollen</code> Array pro Unterbranche (optional)</li>
+                            <li><code>rollen_katalog</code> für neue Rollen (optional)</li>
+                        </ul>
+                    </div>
+                    <hr>
+                    <div class="form-text text-muted small">
+                        <i class="ti ti-refresh"></i> Bei bestehenden Einträgen (gleiche UUID oder Name) werden die Daten aktualisiert.
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="ti ti-upload"></i> Importieren</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modals: Unterbranchen (mit Rollen-Auswahl) -->
+{% for ub in unterbranchen %}
+<div class="modal fade" id="editUnterbrancheModal{{ ub.id }}" tabindex="-1">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('admin.branchen', hauptbranche=aktive_hauptbranche_id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" value="{{ ub.id }}">
+                <input type="hidden" name="branche_typ" value="unterbranche">
+
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-edit"></i> Unterbranche bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">Name *</label>
+                                <input type="text" class="form-control" name="name" value="{{ ub.name }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Icon</label>
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="ti ti-{{ ub.icon }}"></i></span>
+                                    <input type="text" class="form-control" name="icon" value="{{ ub.icon }}">
+                                </div>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv-ub-{{ ub.id }}"
+                                       {{ 'checked' if ub.aktiv }}>
+                                <label class="form-check-label" for="aktiv-ub-{{ ub.id }}">Aktiv</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label"><i class="ti ti-users"></i> Zulässige Rollen</label>
+                            <div class="border rounded p-2" style="max-height: 200px; overflow-y: auto;">
+                                {% set aktuelle_rollen_ids = ub.zulaessige_rollen | map(attribute='branchenrolle_id') | list %}
+                                {% for rolle in alle_rollen %}
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="rollen"
+                                           value="{{ rolle.id }}" id="rolle-{{ ub.id }}-{{ rolle.id }}"
+                                           {{ 'checked' if rolle.id in aktuelle_rollen_ids }}>
+                                    <label class="form-check-label" for="rolle-{{ ub.id }}-{{ rolle.id }}">
+                                        <i class="ti ti-{{ rolle.icon }} me-1"></i> {{ rolle.name }}
+                                    </label>
+                                </div>
+                                {% endfor %}
+                            </div>
+                            <div class="form-text">
+                                Welche Rollen können Kunden in dieser Branche zugewiesen werden?
+                            </div>
+                        </div>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -179,15 +442,20 @@ tr.sortable-chosen {
 <!-- SortableJS for drag & drop sorting -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
-// Live Icon Preview
-document.getElementById('icon').addEventListener('input', function() {
-    const preview = document.getElementById('icon-preview');
-    preview.className = 'ti ti-' + this.value;
+// Live Icon Previews
+document.querySelectorAll('[id$="-icon"]').forEach(function(input) {
+    input.addEventListener('input', function() {
+        const previewId = this.id + '-preview';
+        const preview = document.getElementById(previewId);
+        if (preview) {
+            preview.className = 'ti ti-' + this.value;
+        }
+    });
 });
 
-// Drag & Drop Sorting
+// Drag & Drop Sorting for Unterbranchen
 document.addEventListener('DOMContentLoaded', function() {
-    const tbody = document.getElementById('branchen-tbody');
+    const tbody = document.getElementById('unterbranchen-tbody');
     if (tbody) {
         new Sortable(tbody, {
             animation: 150,
@@ -209,7 +477,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 .then(response => response.json())
                 .then(data => {
                     if (data.success) {
-                        // Show toast notification
                         showToast('success', data.message);
                     } else {
                         showToast('danger', data.message || 'Fehler beim Speichern');

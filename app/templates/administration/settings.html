@@ -72,6 +72,96 @@
             </div>
         </div>
 
+        <!-- Brevo E-Mail API -->
+        <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="ti ti-mail"></i> Brevo E-Mail API</span>
+                <a href="https://www.brevo.com/" target="_blank" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-external-link"></i> Docs
+                </a>
+            </div>
+            <div class="card-body">
+                <p class="text-muted small mb-3">
+                    Brevo (ehem. Sendinblue) wird für den E-Mail-Versand an Kunden verwendet (Zugangsdaten, Fragebogen-Einladungen).
+                </p>
+
+                <!-- Quota Status (PRD-006) -->
+                {% if brevo_quota %}
+                <div class="alert {% if brevo_quota.is_exhausted %}alert-danger{% elif brevo_quota.is_low %}alert-warning{% else %}alert-info{% endif %} mb-3">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <span>
+                            <i class="ti ti-mail-forward"></i>
+                            <strong>Heute versendet:</strong> {{ brevo_quota.sent_today }} / {{ brevo_quota.daily_limit }}
+                        </span>
+                        <span class="{% if brevo_quota.is_exhausted %}text-danger{% elif brevo_quota.is_low %}text-warning{% else %}text-success{% endif %}">
+                            {% if brevo_quota.is_exhausted %}
+                            <i class="ti ti-alert-circle"></i> Limit erreicht!
+                            {% elif brevo_quota.is_low %}
+                            <i class="ti ti-alert-triangle"></i> {{ brevo_quota.remaining }} verbleibend
+                            {% else %}
+                            <i class="ti ti-check"></i> {{ brevo_quota.remaining }} verbleibend
+                            {% endif %}
+                        </span>
+                    </div>
+                    <div class="progress" style="height: 8px;">
+                        <div class="progress-bar {% if brevo_quota.is_exhausted %}bg-danger{% elif brevo_quota.is_low %}bg-warning{% else %}bg-success{% endif %}"
+                             role="progressbar"
+                             style="width: {{ brevo_quota.percent_used }}%"
+                             aria-valuenow="{{ brevo_quota.percent_used }}"
+                             aria-valuemin="0"
+                             aria-valuemax="100">
+                        </div>
+                    </div>
+                    {% if brevo_quota.is_exhausted %}
+                    <small class="text-muted mt-2 d-block">
+                        <i class="ti ti-info-circle"></i> Das tägliche Limit wird um Mitternacht zurückgesetzt.
+                    </small>
+                    {% endif %}
+                </div>
+                {% endif %}
+                <div class="row">
+                    <div class="col-md-12 mb-3">
+                        <label for="brevo_api_key" class="form-label">API Key</label>
+                        <div class="input-group">
+                            <input type="password" class="form-control settings-input" id="brevo_api_key" name="brevo_api_key"
+                                   value="{{ configs.brevo_api_key }}" placeholder="xkeysib-...">
+                            <button type="button" class="btn btn-outline-secondary toggle-password" data-target="brevo_api_key">
+                                <i class="ti ti-eye"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">API-Schlüssel von brevo.com (SMTP & API → API-Schlüssel)</div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="brevo_sender_email" class="form-label">Absender E-Mail</label>
+                        <input type="email" class="form-control settings-input" id="brevo_sender_email" name="brevo_sender_email"
+                               value="{{ configs.brevo_sender_email or 'noreply@e-vendo.de' }}" placeholder="noreply@e-vendo.de">
+                        <div class="form-text">Muss in Brevo verifiziert sein</div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="brevo_sender_name" class="form-label">Absender Name</label>
+                        <input type="text" class="form-control settings-input" id="brevo_sender_name" name="brevo_sender_name"
+                               value="{{ configs.brevo_sender_name or 'e-vendo AG' }}" placeholder="e-vendo AG">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-8 mb-3">
+                        <label for="portal_base_url" class="form-label">Portal Basis-URL</label>
+                        <input type="url" class="form-control settings-input" id="portal_base_url" name="portal_base_url"
+                               value="{{ configs.portal_base_url or 'https://portal.e-vendo.de' }}" placeholder="https://portal.e-vendo.de">
+                        <div class="form-text">Basis-URL für Links in E-Mails (ohne / am Ende)</div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label for="brevo_daily_limit" class="form-label">Tägliches Limit</label>
+                        <input type="number" class="form-control settings-input" id="brevo_daily_limit" name="brevo_daily_limit"
+                               value="{{ configs.brevo_daily_limit or '300' }}" min="1" max="10000" placeholder="300">
+                        <div class="form-text">Free Plan: 300/Tag</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- Placeholder for future APIs -->
         <div class="card mb-4 border-dashed opacity-50">
             <div class="card-header">
@@ -123,7 +213,7 @@
                             <option value="latin-1" {{ 'selected' if configs.get('vedes_ftp_encoding') == 'latin-1' }}>Latin-1 (ISO-8859-1)</option>
                             <option value="cp1252" {{ 'selected' if configs.get('vedes_ftp_encoding') == 'cp1252' }}>Windows-1252</option>
                         </select>
-                        <div class="form-text">Zeichensatz fuer Dateinamen</div>
+                        <div class="form-text">Zeichensatz für Dateinamen</div>
                     </div>
                 </div>
                 <div class="row">
