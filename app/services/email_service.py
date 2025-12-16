@@ -68,11 +68,11 @@ class BrevoService:
             Config.set_value('brevo_emails_sent_today', '0')
             Config.set_value('brevo_last_reset_date', today_str)
 
-    def _check_and_update_quota(self) -> bool:
-        """Check if quota is available and increment counter.
+    def _check_quota(self) -> bool:
+        """Check if quota is available (without incrementing).
 
         Returns:
-            True if email can be sent, False if quota exceeded.
+            True if email can be sent.
 
         Raises:
             QuotaExceededError: If daily limit is reached.
@@ -87,10 +87,12 @@ class BrevoService:
                 f'Tägliches E-Mail-Limit erreicht ({daily_limit} E-Mails). '
                 f'Bitte warten Sie bis morgen oder erhöhen Sie das Limit in den Einstellungen.'
             )
-
-        # Increment counter (set_value commits automatically)
-        Config.set_value('brevo_emails_sent_today', str(sent_today + 1))
         return True
+
+    def _increment_quota(self) -> None:
+        """Increment the sent counter after successful send."""
+        sent_today = int(Config.get_value('brevo_emails_sent_today', '0'))
+        Config.set_value('brevo_emails_sent_today', str(sent_today + 1))
 
     def get_remaining_quota(self) -> int:
         """Get the number of remaining emails for today.
@@ -143,9 +145,9 @@ class BrevoService:
         if not self._api_key:
             return EmailResult(success=False, error='Brevo API-Key nicht konfiguriert')
 
-        # Check quota before sending
+        # Check quota before sending (but don't increment yet)
         try:
-            self._check_and_update_quota()
+            self._check_quota()
         except QuotaExceededError as e:
             return EmailResult(success=False, error=str(e))
 
@@ -174,6 +176,8 @@ class BrevoService:
             response = requests.post(self.BREVO_API_URL, headers=headers, json=payload, timeout=30)
 
             if response.status_code == 201:
+                # Only increment quota on successful send
+                self._increment_quota()
                 data = response.json()
                 return EmailResult(success=True, message_id=data.get('messageId'))
             else:
