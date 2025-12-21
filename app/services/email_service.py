@@ -404,6 +404,157 @@ Ihr e-vendo Team
         return self._send_email(to_email, to_name, subject, html_content, text_content)
 
 
+    def send_test_email(self, to_email: str, to_name: str) -> EmailResult:
+        """Send a test email to verify Brevo configuration.
+
+        Args:
+            to_email: Recipient email
+            to_name: Recipient name
+
+        Returns:
+            EmailResult with success status and message_id
+        """
+        from datetime import datetime
+        self._load_config()
+
+        timestamp = datetime.now().strftime('%d.%m.%Y %H:%M:%S')
+
+        subject = f'[TEST] e-vendo Portal - Brevo Konfigurationstest ({timestamp})'
+
+        html_content = f'''
+        <html>
+        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
+            <h2 style="color: #28a745;">✓ Brevo Test erfolgreich</h2>
+
+            <p>Guten Tag {to_name},</p>
+
+            <p>Dies ist eine Test-E-Mail zur Überprüfung der Brevo-Konfiguration im e-vendo Kundenportal.</p>
+
+            <div style="background-color: #f5f5f5; padding: 20px; border-radius: 8px; margin: 20px 0;">
+                <h3 style="margin-top: 0; color: #333;">Konfigurationsdetails</h3>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Zeitstempel:</strong></td>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">{timestamp}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Absender E-Mail:</strong></td>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">{self._sender_email}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Absender Name:</strong></td>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">{self._sender_name}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ddd;"><strong>Portal URL:</strong></td>
+                        <td style="padding: 8px 0; border-bottom: 1px solid #ddd;">{self._portal_base_url}</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 8px 0;"><strong>API Server:</strong></td>
+                        <td style="padding: 8px 0;">api.brevo.com</td>
+                    </tr>
+                </table>
+            </div>
+
+            <p style="color: #28a745;">
+                <strong>✓ Die Brevo-Konfiguration funktioniert korrekt.</strong>
+            </p>
+
+            <p style="color: #666; font-size: 14px; margin-top: 30px;">
+                Mit freundlichen Grüßen<br>
+                Ihr e-vendo System
+            </p>
+        </body>
+        </html>
+        '''
+
+        text_content = f'''
+Brevo Test erfolgreich
+
+Guten Tag {to_name},
+
+Dies ist eine Test-E-Mail zur Überprüfung der Brevo-Konfiguration im e-vendo Kundenportal.
+
+Konfigurationsdetails:
+- Zeitstempel: {timestamp}
+- Absender E-Mail: {self._sender_email}
+- Absender Name: {self._sender_name}
+- Portal URL: {self._portal_base_url}
+- API Server: api.brevo.com
+
+Die Brevo-Konfiguration funktioniert korrekt.
+
+Mit freundlichen Grüßen
+Ihr e-vendo System
+        '''
+
+        return self._send_email(to_email, to_name, subject, html_content, text_content)
+
+    def check_api_status(self) -> dict:
+        """Check Brevo API status and account info.
+
+        Returns:
+            Dict with API status information.
+        """
+        self._load_config()
+
+        if not self._api_key:
+            return {
+                'success': False,
+                'error': 'API-Key nicht konfiguriert',
+                'configured': False
+            }
+
+        headers = {
+            'accept': 'application/json',
+            'api-key': self._api_key
+        }
+
+        try:
+            # Get account info from Brevo API
+            response = requests.get(
+                'https://api.brevo.com/v3/account',
+                headers=headers,
+                timeout=10
+            )
+
+            if response.status_code == 200:
+                data = response.json()
+                return {
+                    'success': True,
+                    'configured': True,
+                    'email': data.get('email', '-'),
+                    'company_name': data.get('companyName', '-'),
+                    'plan': data.get('plan', [{}])[0].get('type', 'unknown') if data.get('plan') else 'unknown',
+                    'credits': data.get('plan', [{}])[0].get('credits', 0) if data.get('plan') else 0
+                }
+            elif response.status_code == 401:
+                return {
+                    'success': False,
+                    'error': 'Ungültiger API-Key',
+                    'configured': True
+                }
+            else:
+                return {
+                    'success': False,
+                    'error': f'API-Fehler: {response.status_code}',
+                    'configured': True
+                }
+
+        except requests.Timeout:
+            return {
+                'success': False,
+                'error': 'Timeout bei API-Anfrage',
+                'configured': True
+            }
+        except requests.RequestException as e:
+            return {
+                'success': False,
+                'error': f'Netzwerkfehler: {str(e)}',
+                'configured': True
+            }
+
+
 # Singleton instance
 _brevo_service = None
 

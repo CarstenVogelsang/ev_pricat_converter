@@ -12,6 +12,13 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Added
 
+- **Brevo Test-E-Mail Funktionalität:** In Systemeinstellungen `/admin/settings`
+  - User-Dropdown zur Auswahl des Empfängers (Auswahl wird gespeichert)
+  - Test-E-Mail mit Zeitstempel, Absender-Adresse, Server-Info
+  - "Status prüfen" Button zeigt API-Status, Konto-E-Mail, Plan und Credits
+  - Neue Methoden in `BrevoService`: `send_test_email()`, `check_api_status()`
+  - Neue Routes: `POST /admin/brevo/test`, `POST /admin/brevo/status`
+
 - **PRD_BASIS_RECHTEVERWALTUNG.md:** Neue zentrale Dokumentation für Rechteverwaltung
   - Konsolidiert Inhalte aus CLAUDE.md, PRD_BASIS_MVP.md, PRD_BASIS_MODULVERWALTUNG.md
   - Dokumentiert Admin-Sonderrechte (immer Zugriff auf alle Module)

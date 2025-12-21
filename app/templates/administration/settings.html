@@ -159,6 +159,41 @@
                         <div class="form-text">Free Plan: 300/Tag</div>
                     </div>
                 </div>
+
+                <!-- Test & Status Section -->
+                <hr class="my-4">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="mb-3"><i class="ti ti-send"></i> Test-E-Mail senden</h6>
+                        <form method="POST" action="{{ url_for('admin.brevo_test_email') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="input-group">
+                                <select class="form-select" name="test_user_id" required>
+                                    <option value="">-- Empfänger wählen --</option>
+                                    {% for user in all_users %}
+                                    <option value="{{ user.id }}" {{ 'selected' if configs.brevo_test_user_id == user.id|string }}>
+                                        {{ user.full_name }} ({{ user.email }})
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <button type="submit" class="btn btn-outline-primary">
+                                    <i class="ti ti-mail-forward"></i> Senden
+                                </button>
+                            </div>
+                            <div class="form-text">Sendet eine Test-E-Mail mit Konfigurationsdetails</div>
+                        </form>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="mb-3"><i class="ti ti-api"></i> API-Status prüfen</h6>
+                        <form method="POST" action="{{ url_for('admin.brevo_check_status') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-info">
+                                <i class="ti ti-refresh"></i> Status prüfen
+                            </button>
+                        </form>
+                        <div class="form-text">Prüft API-Key und zeigt Konto-Informationen</div>
+                    </div>
+                </div>
             </div>
         </div>
 

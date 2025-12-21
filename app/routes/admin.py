@@ -552,6 +552,7 @@ def settings():
     config_keys = [
         'firecrawl_api_key', 'firecrawl_credit_kosten',
         'brevo_api_key', 'brevo_sender_email', 'brevo_sender_name', 'portal_base_url', 'brevo_daily_limit',
+        'brevo_test_user_id',
         'vedes_ftp_host', 'vedes_ftp_port', 'vedes_ftp_user', 'vedes_ftp_pass', 'vedes_ftp_basepath', 'vedes_ftp_encoding',
         'elena_ftp_host', 'elena_ftp_port', 'elena_ftp_user', 'elena_ftp_pass',
         's3_enabled', 's3_endpoint', 's3_access_key', 's3_secret_key', 's3_bucket',
@@ -568,13 +569,73 @@ def settings():
     brevo_service = get_brevo_service()
     brevo_quota = brevo_service.get_quota_info()
 
+    # Get all users for test email dropdown
+    all_users = User.query.filter_by(aktiv=True).order_by(User.nachname, User.vorname).all()
+
     return render_template(
         'administration/settings.html',
         configs=configs,
         all_configs=all_configs,
         config_count=config_count,
-        brevo_quota=brevo_quota
+        brevo_quota=brevo_quota,
+        all_users=all_users
     )
+
+
+# ============================================================================
+# Brevo E-Mail Test
+# ============================================================================
+
+@admin_bp.route('/brevo/test', methods=['POST'])
+@login_required
+@admin_required
+def brevo_test_email():
+    """Send a test email via Brevo to verify configuration."""
+    test_user_id = request.form.get('test_user_id', type=int)
+
+    if not test_user_id:
+        flash('Bitte einen Empfänger auswählen', 'warning')
+        return redirect(url_for('admin.settings') + '#api')
+
+    # Save selection for next time
+    _update_config('brevo_test_user_id', str(test_user_id))
+    db.session.commit()
+
+    # Get user
+    user = User.query.get(test_user_id)
+    if not user:
+        flash('Benutzer nicht gefunden', 'danger')
+        return redirect(url_for('admin.settings') + '#api')
+
+    # Send test email
+    brevo_service = get_brevo_service()
+    result = brevo_service.send_test_email(user.email, user.full_name)
+
+    if result.success:
+        flash(f'Test-E-Mail erfolgreich an {user.email} gesendet (Message-ID: {result.message_id})', 'success')
+    else:
+        flash(f'Fehler beim Senden der Test-E-Mail: {result.error}', 'danger')
+
+    return redirect(url_for('admin.settings') + '#api')
+
+
+@admin_bp.route('/brevo/status', methods=['POST'])
+@login_required
+@admin_required
+def brevo_check_status():
+    """Check Brevo API status and account info."""
+    brevo_service = get_brevo_service()
+    status = brevo_service.check_api_status()
+
+    if status['success']:
+        flash(
+            f'Brevo API aktiv ✓ | Konto: {status["email"]} | Plan: {status["plan"]} | Credits: {status["credits"]}',
+            'success'
+        )
+    else:
+        flash(f'Brevo API Fehler: {status["error"]}', 'danger')
+
+    return redirect(url_for('admin.settings') + '#api')
 
 
 # ============================================================================
