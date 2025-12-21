@@ -87,6 +87,8 @@ class Modul(db.Model):
 
 ### 2.2 Zugriffstabelle (umbenannt)
 
+> **Rechteverwaltung:** Für Details zu Rollen, Admin-Sonderrechten und Zugriffskontrolle siehe [PRD_BASIS_RECHTEVERWALTUNG.md](PRD_BASIS_RECHTEVERWALTUNG.md).
+
 ```python
 class ModulZugriff(db.Model):
     """Role-based module access control."""

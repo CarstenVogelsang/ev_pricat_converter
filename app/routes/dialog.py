@@ -27,10 +27,26 @@ dialog_bp = Blueprint('dialog', __name__, url_prefix='/dialog')
 @dialog_bp.route('/')
 @login_required
 def index():
-    """List all questionnaires for the current customer.
+    """List questionnaires.
 
-    Only available for users linked to a Kunde.
+    - Admin/Mitarbeiter: See ALL questionnaires with participation stats
+    - Kunde: See only assigned questionnaires
     """
+    # Admin and Mitarbeiter see all questionnaires
+    if current_user.is_admin or current_user.is_mitarbeiter:
+        frageboegen = Fragebogen.query.order_by(Fragebogen.erstellt_am.desc()).all()
+
+        # Group by status
+        entwuerfe = [f for f in frageboegen if f.is_entwurf]
+        aktive = [f for f in frageboegen if f.is_aktiv]
+        geschlossene = [f for f in frageboegen if f.is_geschlossen]
+
+        return render_template('dialog/index_internal.html',
+                               entwuerfe=entwuerfe,
+                               aktive=aktive,
+                               geschlossene=geschlossene)
+
+    # Kunde view: only own participations
     if not current_user.is_kunde:
         flash('Diese Seite ist nur für Kunden verfügbar.', 'warning')
         return redirect(url_for('main.landing'))
@@ -59,8 +75,13 @@ def index():
 def fragebogen(id):
     """Fill out a questionnaire (with login).
 
-    Only accessible if user's Kunde is a participant.
+    - Admin/Mitarbeiter: Redirect to admin detail view
+    - Kunde: Only accessible if user's Kunde is a participant
     """
+    # Admin/Mitarbeiter redirect to admin view
+    if current_user.is_admin or current_user.is_mitarbeiter:
+        return redirect(url_for('dialog_admin.detail', id=id))
+
     if not current_user.is_kunde:
         abort(403)
 

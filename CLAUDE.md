@@ -36,6 +36,7 @@ Alle Details zur Architektur, Datenmodellen und Features sind in den PRD-Dokumen
 ### Basis-Plattform
 
 - [docs/prd/PRD_BASIS_MVP.md](docs/prd/PRD_BASIS_MVP.md) - Tech-Stack, Projektstruktur, DB-Schema, UI-Richtlinien
+- [docs/prd/PRD_BASIS_RECHTEVERWALTUNG.md](docs/prd/PRD_BASIS_RECHTEVERWALTUNG.md) - Rollen, Modul-Zugriff, Admin-Sonderrechte
 - [docs/prd/PRD_BASIS_CHANGELOG.md](docs/prd/PRD_BASIS_CHANGELOG.md) - Plattform-Änderungen
 
 ### Module

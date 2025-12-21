@@ -23,6 +23,7 @@
                     <h5 class="mb-0">Aktuelle Teilnehmer ({{ fragebogen.teilnahmen|length }})</h5>
                     {% if fragebogen.is_aktiv and fragebogen.teilnahmen %}
                     <form method="post" action="{{ url_for('dialog_admin.send_einladungen', id=fragebogen.id) }}" class="d-inline">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <button type="submit" class="btn btn-sm btn-primary">
                             <i class="ti ti-mail"></i> Alle einladen
                         </button>
@@ -75,6 +76,7 @@
                                 <td class="text-end">
                                     {% if teilnahme.is_eingeladen and not teilnahme.einladung_gesendet_am %}
                                     <form method="post" action="{{ url_for('dialog_admin.remove_teilnehmer', id=fragebogen.id, tid=teilnahme.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                                         <button type="submit" class="btn btn-sm btn-outline-danger"
                                                 onclick="return confirm('Teilnehmer entfernen?')">
                                             <i class="ti ti-trash"></i>
@@ -104,6 +106,7 @@
                 <div class="card-body">
                     {% if verfuegbare_kunden %}
                     <form method="post" action="{{ url_for('dialog_admin.add_teilnehmer', id=fragebogen.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
                             <label for="kunde_id" class="form-label">Kunde auswählen</label>
                             <select class="form-select" id="kunde_id" name="kunde_id" required>

@@ -32,25 +32,17 @@ Multi-Tool-Plattform für e-vendo Mitarbeiter und Kunden.
 
 ## 3. Rollen-Konzept
 
-### Aktuelle Rollen
-- `admin` - Vollzugriff auf alle Funktionen
-- `sachbearbeiter` - e-vendo Mitarbeiter
+> **Vollständige Dokumentation:** [PRD_BASIS_RECHTEVERWALTUNG.md](PRD_BASIS_RECHTEVERWALTUNG.md)
 
-### Geplante Rollen
-- `admin` - Vollzugriff
-- `mitarbeiter` - e-vendo Mitarbeiter (Umbenennung von sachbearbeiter)
-- `kunde` - Externer Kunde mit eingeschränktem Zugriff
+### Rollen-Übersicht
 
-### Menü-Sichtbarkeit (Ziel)
+| Rolle | Beschreibung |
+|-------|--------------|
+| `admin` | Vollzugriff auf alle Module (Sonderrolle) |
+| `mitarbeiter` | e-vendo Mitarbeiter |
+| `kunde` | Externer Kunde mit eingeschränktem Zugriff |
 
-| Menüpunkt | admin | mitarbeiter | kunde |
-|-----------|-------|-------------|-------|
-| PRICAT Konverter | ✓ | ✓ | ✗ |
-| Lead- & Kundenreport | ✓ | ✓ | ✓ |
-| Lieferanten-Verwaltung | ✓ | ✓ | ✓ |
-| Content Generator | ✓ | ✓ | ✓ |
-| Admin | ✓ | ✗ | ✗ |
-| DB Admin | ✓ | ✗ | ✗ |
+> ⚠️ **Wichtig:** Admin hat IMMER Zugriff auf alle Module - dieser Zugriff kann nicht entzogen werden. Details siehe PRD_BASIS_RECHTEVERWALTUNG.md.
 
 ---
 

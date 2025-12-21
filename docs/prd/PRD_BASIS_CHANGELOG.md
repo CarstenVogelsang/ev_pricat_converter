@@ -12,6 +12,13 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Added
 
+- **PRD_BASIS_RECHTEVERWALTUNG.md:** Neue zentrale Dokumentation für Rechteverwaltung
+  - Konsolidiert Inhalte aus CLAUDE.md, PRD_BASIS_MVP.md, PRD_BASIS_MODULVERWALTUNG.md
+  - Dokumentiert Admin-Sonderrechte (immer Zugriff auf alle Module)
+  - Erklärt zwei Rollensysteme: Benutzer-Rollen vs. Branchenrollen
+  - API-Autorisierung mit Decorator-Übersicht
+  - Implementierungshinweise für neue Module
+
 - **UI-Konventionen in CLAUDE.md:** Dokumentation der Standard-UI-Elemente
   - Audit-Logging für alle Module
   - Hilfe-Button (i) für Enduser-Dokumentation
@@ -91,8 +98,18 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 ### Changed
 
 - PRD_BASIS_MVP.md enthält jetzt Tech-Stack, Projektstruktur, Basis-DB-Schema
+- PRD_BASIS_MVP.md: Rollen-Abschnitt gekürzt, Verweis auf PRD_BASIS_RECHTEVERWALTUNG.md
+- PRD_BASIS_MODULVERWALTUNG.md: Rechteverwaltungs-Referenz hinzugefügt
 - Admin-Sidebar: Neuer Link "Systemeinstellungen" unter "Einstellungen"
 - Admin-Sidebar: Neuer Link "Modulverwaltung" unter "Einstellungen"
+
+### Fixed
+
+- **Dialog-Modul Admin-Zugriff:** Admin und Mitarbeiter wurden von `/dialog/` auf Landing Page umgeleitet
+  - Route prüft jetzt auf `is_admin`/`is_mitarbeiter` für interne Ansicht
+  - Neues Template `dialog/index_internal.html` zeigt alle Fragebögen mit Statistiken
+  - Admin/Mitarbeiter sehen jetzt alle Fragebögen mit Fortschritts-Indikatoren
+  - Kunden sehen weiterhin nur ihre zugewiesenen Fragebögen
 
 ### Removed
 
