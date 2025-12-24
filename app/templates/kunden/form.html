@@ -91,6 +91,24 @@
                         {% endfor %}
                     </div>
 
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="telefon" class="form-label">Telefon</label>
+                            {{ form.telefon(class="form-control" + (" is-invalid" if form.telefon.errors else ""), placeholder="+49 123 456789") }}
+                            {% for error in form.telefon.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="email" class="form-label">E-Mail</label>
+                            {{ form.email(class="form-control" + (" is-invalid" if form.email.errors else ""), placeholder="info@firma.de") }}
+                            {% for error in form.email.errors %}
+                            <div class="invalid-feedback">{{ error }}</div>
+                            {% endfor %}
+                            <div class="form-text">Wird für die Benutzer-Zuordnung verwendet.</div>
+                        </div>
+                    </div>
+
                     <div class="mb-3">
                         <label for="notizen" class="form-label">Notizen</label>
                         {{ form.notizen(class="form-control", rows="4", placeholder="Interne Notizen...") }}

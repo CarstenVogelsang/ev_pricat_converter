@@ -25,14 +25,32 @@ class Kunde(db.Model):
 
     website_url = db.Column(db.String(500))
     shop_url = db.Column(db.String(500))
+
+    # Contact information (company-level, not user-level)
+    telefon = db.Column(db.String(50))
+    email = db.Column(db.String(200))
+
     notizen = db.Column(db.Text)
     aktiv = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
-    # Ansprechpartner (User) für Kunden-Portal-Zugang
+    # Email settings
+    email_footer = db.Column(db.Text, nullable=True)  # HTML footer for emails
+    ist_systemkunde = db.Column(db.Boolean, default=False, nullable=False)  # System default for footer
+
+    # DEPRECATED: Legacy 1:1 user assignment - use benutzer_zuordnungen instead
+    # Kept temporarily for migration, will be removed in future version
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, unique=True)
-    user = db.relationship('User', backref=db.backref('kunde', uselist=False))
+    _legacy_user = db.relationship('User', foreign_keys=[user_id])
+
+    # NEW: 1:N relationship to users via junction table
+    benutzer_zuordnungen = db.relationship(
+        'KundeBenutzer',
+        back_populates='kunde',
+        cascade='all, delete-orphan',
+        order_by='desc(KundeBenutzer.ist_hauptbenutzer)'
+    )
 
     # Hauptbranche - muss vor Unterbranche-Zuordnung gesetzt sein
     hauptbranche_id = db.Column(db.Integer, db.ForeignKey('branche.id'), nullable=True)
@@ -85,6 +103,37 @@ class Kunde(db.Model):
         return result
 
     @property
+    def hauptbenutzer(self):
+        """Return the primary user (Hauptbenutzer) for this Kunde.
+
+        The Hauptbenutzer is the one marked with ist_hauptbenutzer=True.
+        Falls back to first assigned user if none is marked.
+        Falls back to legacy user_id if no junction entries exist.
+        """
+        # First check new junction table
+        for zuo in self.benutzer_zuordnungen:
+            if zuo.ist_hauptbenutzer:
+                return zuo.user
+        # Fallback: first user in list
+        if self.benutzer_zuordnungen:
+            return self.benutzer_zuordnungen[0].user
+        # Fallback: legacy user_id relationship
+        return self._legacy_user
+
+    @property
+    def user(self):
+        """DEPRECATED: Use hauptbenutzer instead.
+
+        Returns the Hauptbenutzer for backward compatibility.
+        """
+        return self.hauptbenutzer
+
+    @property
+    def alle_benutzer(self):
+        """Return all users assigned to this Kunde."""
+        return [zuo.user for zuo in self.benutzer_zuordnungen]
+
+    @property
     def adresse_formatiert(self):
         """Get formatted address from structured fields or legacy field."""
         if self.strasse or self.plz or self.ort:
@@ -113,6 +162,8 @@ class Kunde(db.Model):
             'adresse_formatiert': self.adresse_formatiert,
             'website_url': self.website_url,
             'shop_url': self.shop_url,
+            'telefon': self.telefon,
+            'email': self.email,
             'notizen': self.notizen,
             'aktiv': self.aktiv,
             'has_ci': self.ci is not None,

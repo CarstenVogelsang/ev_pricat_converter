@@ -1,0 +1,99 @@
+{% extends "administration/base.html" %}
+
+{% block title %}E-Mail-Templates - {{ super() }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="ti ti-mail"></i> E-Mail-Templates</h2>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">Verfügbare Templates</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Schlüssel</th>
+                    <th>Betreff</th>
+                    <th class="text-center">Status</th>
+                    <th class="text-center">Geändert</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for template in templates %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('admin.email_template_edit', id=template.id) }}">
+                            <strong>{{ template.name }}</strong>
+                        </a>
+                        {% if template.beschreibung %}
+                        <br><small class="text-muted">{{ template.beschreibung }}</small>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ template.schluessel }}</code></td>
+                    <td>{{ template.betreff[:50] }}{% if template.betreff|length > 50 %}...{% endif %}</td>
+                    <td class="text-center">
+                        {% if template.aktiv %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-center">
+                        {% if template.aktualisiert_am %}
+                        {{ template.aktualisiert_am.strftime('%d.%m.%Y') }}
+                        {% else %}
+                        {{ template.erstellt_am.strftime('%d.%m.%Y') }}
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{{ url_for('admin.email_template_preview', id=template.id) }}"
+                           class="btn btn-sm btn-outline-info" title="Vorschau">
+                            <i class="ti ti-eye"></i>
+                        </a>
+                        <a href="{{ url_for('admin.email_template_edit', id=template.id) }}"
+                           class="btn btn-sm btn-outline-primary" title="Bearbeiten">
+                            <i class="ti ti-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="ti ti-mail-off fs-1 mb-2 d-block"></i>
+                        Keine E-Mail-Templates vorhanden.<br>
+                        <small>Führen Sie <code>flask seed</code> aus, um die Standard-Templates zu erstellen.</small>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="ti ti-info-circle"></i> Hinweise</h5>
+    </div>
+    <div class="card-body">
+        <p class="mb-2">
+            E-Mail-Templates verwenden <strong>Jinja2-Syntax</strong> für Platzhalter.
+            Alle Templates erhalten automatisch das System-Branding (Logo, Farben).
+        </p>
+        <p class="mb-0">
+            <strong>Verwendete Platzhalter:</strong><br>
+            <code>{{ '{{' }} firmenname {{ '}}' }}</code>,
+            <code>{{ '{{' }} link {{ '}}' }}</code>,
+            <code>{{ '{{' }} fragebogen_titel {{ '}}' }}</code>,
+            <code>{{ '{{' }} portal_name {{ '}}' }}</code>,
+            <code>{{ '{{' }} primary_color {{ '}}' }}</code>,
+            <code>{{ '{{' }} logo_url {{ '}}' }}</code>,
+            <code>{{ '{{' }} footer | safe {{ '}}' }}</code>
+        </p>
+    </div>
+</div>
+{% endblock %}

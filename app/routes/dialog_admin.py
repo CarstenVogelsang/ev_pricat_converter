@@ -47,18 +47,34 @@ def check_access():
 
 @dialog_admin_bp.route('/')
 def index():
-    """List all questionnaires."""
-    frageboegen = Fragebogen.query.order_by(Fragebogen.erstellt_am.desc()).all()
+    """List all questionnaires.
+
+    Query params:
+    - archived: '1' to show archived, default '0'
+    """
+    show_archived = request.args.get('archived', '0') == '1'
+
+    # Filter by archive status
+    query = Fragebogen.query
+    if not show_archived:
+        query = query.filter(Fragebogen.archiviert == False)
+
+    frageboegen = query.order_by(Fragebogen.erstellt_am.desc()).all()
 
     # Group by status
     entwuerfe = [f for f in frageboegen if f.is_entwurf]
     aktive = [f for f in frageboegen if f.is_aktiv]
     geschlossene = [f for f in frageboegen if f.is_geschlossen]
 
+    # Count archived for badge
+    archiviert_count = Fragebogen.query.filter(Fragebogen.archiviert == True).count()
+
     return render_template('dialog_admin/index.html',
                            entwuerfe=entwuerfe,
                            aktive=aktive,
-                           geschlossene=geschlossene)
+                           geschlossene=geschlossene,
+                           show_archived=show_archived,
+                           archiviert_count=archiviert_count)
 
 
 @dialog_admin_bp.route('/neu', methods=['GET', 'POST'])
@@ -229,6 +245,14 @@ def change_status(id):
             db.session.commit()
             flash('Fragebogen wurde geschlossen.', 'success')
 
+    elif action == 'reaktivieren':
+        if not fragebogen.is_geschlossen:
+            flash('Nur geschlossene Fragebögen können reaktiviert werden.', 'warning')
+        else:
+            fragebogen.reaktivieren()
+            db.session.commit()
+            flash('Fragebogen wurde reaktiviert und ist wieder aktiv.', 'success')
+
     else:
         flash('Ungültige Aktion.', 'danger')
 
@@ -327,14 +351,157 @@ def send_einladungen(id):
     return redirect(url_for('dialog_admin.teilnehmer', id=id))
 
 
+@dialog_admin_bp.route('/<int:id>/teilnehmer/<int:tid>/resend', methods=['POST'])
+def resend_einladung(id, tid):
+    """Resend invitation email to a specific participant."""
+    fragebogen = Fragebogen.query.get_or_404(id)
+    teilnahme = FragebogenTeilnahme.query.get_or_404(tid)
+
+    if teilnahme.fragebogen_id != id:
+        abort(400)
+
+    if not fragebogen.is_aktiv:
+        flash('Fragebogen muss aktiv sein um Einladungen zu senden.', 'warning')
+        return redirect(url_for('dialog_admin.teilnehmer', id=id))
+
+    if teilnahme.is_abgeschlossen:
+        flash('Teilnehmer hat bereits abgeschlossen.', 'warning')
+        return redirect(url_for('dialog_admin.teilnehmer', id=id))
+
+    service = get_fragebogen_service()
+    result = service.send_einladungen(fragebogen, [teilnahme], is_resend=True)
+
+    if result.success and result.sent_count > 0:
+        flash(f'Einladung an {teilnahme.kunde.firmierung} erneut gesendet.', 'success')
+    else:
+        error_msg = result.errors[0] if result.errors else 'Unbekannter Fehler'
+        flash(f'Fehler beim Senden: {error_msg}', 'danger')
+
+    return redirect(url_for('dialog_admin.teilnehmer', id=id))
+
+
 @dialog_admin_bp.route('/<int:id>/auswertung')
 def auswertung(id):
-    """View questionnaire statistics and responses."""
+    """View questionnaire statistics and responses.
+
+    Optional query param:
+    - teilnehmer: ID of specific participant to view
+    """
     fragebogen = Fragebogen.query.get_or_404(id)
     service = get_fragebogen_service()
 
-    stats = service.get_auswertung(fragebogen)
+    # Check for single participant filter
+    teilnehmer_id = request.args.get('teilnehmer', type=int)
 
-    return render_template('dialog_admin/auswertung.html',
-                           fragebogen=fragebogen,
-                           stats=stats)
+    if teilnehmer_id:
+        # Single participant view
+        teilnahme = FragebogenTeilnahme.query.get_or_404(teilnehmer_id)
+        if teilnahme.fragebogen_id != id:
+            abort(400)
+
+        einzelauswertung = service.get_teilnehmer_auswertung(teilnahme)
+        return render_template('dialog_admin/auswertung.html',
+                               fragebogen=fragebogen,
+                               stats=None,
+                               einzelauswertung=einzelauswertung,
+                               selected_teilnehmer_id=teilnehmer_id)
+    else:
+        # Overall statistics view
+        stats = service.get_auswertung(fragebogen)
+        return render_template('dialog_admin/auswertung.html',
+                               fragebogen=fragebogen,
+                               stats=stats,
+                               einzelauswertung=None,
+                               selected_teilnehmer_id=None)
+
+
+@dialog_admin_bp.route('/<int:id>/duplicate', methods=['POST'])
+def duplicate(id):
+    """Create a new version of a Fragebogen.
+
+    Only the newest version in a chain can be duplicated.
+    Creates: V1 → V2 → V3, etc.
+    """
+    from app.services.logging_service import log_mittel
+
+    fragebogen = Fragebogen.query.get_or_404(id)
+    service = get_fragebogen_service()
+
+    # Get custom title from form (optional)
+    new_titel = request.form.get('titel', '').strip() or None
+
+    try:
+        new_fragebogen = service.duplicate_fragebogen(
+            fragebogen,
+            user_id=current_user.id,
+            new_titel=new_titel
+        )
+
+        log_mittel(
+            modul='dialog',
+            aktion='fragebogen_dupliziert',
+            details=f'Fragebogen "{fragebogen.titel}" V{fragebogen.version_nummer} → '
+                    f'"{new_fragebogen.titel}" V{new_fragebogen.version_nummer}',
+            entity_type='Fragebogen',
+            entity_id=new_fragebogen.id
+        )
+
+        flash(f'Neue Version V{new_fragebogen.version_nummer} erstellt.', 'success')
+        return redirect(url_for('dialog_admin.detail', id=new_fragebogen.id))
+
+    except ValueError as e:
+        # Not the newest version - can't duplicate
+        flash(str(e), 'warning')
+        return redirect(url_for('dialog_admin.detail', id=id))
+
+
+@dialog_admin_bp.route('/<int:id>/archivieren', methods=['POST'])
+def archivieren(id):
+    """Archive a Fragebogen (soft-delete)."""
+    from app.services.logging_service import log_mittel
+
+    fragebogen = Fragebogen.query.get_or_404(id)
+
+    if fragebogen.is_archiviert:
+        flash('Fragebogen ist bereits archiviert.', 'warning')
+        return redirect(url_for('dialog_admin.detail', id=id))
+
+    service = get_fragebogen_service()
+    service.archiviere_fragebogen(fragebogen)
+
+    log_mittel(
+        modul='dialog',
+        aktion='fragebogen_archiviert',
+        details=f'Fragebogen "{fragebogen.titel}" V{fragebogen.version_nummer} archiviert',
+        entity_type='Fragebogen',
+        entity_id=fragebogen.id
+    )
+
+    flash(f'Fragebogen "{fragebogen.titel}" wurde archiviert.', 'success')
+    return redirect(url_for('dialog_admin.index'))
+
+
+@dialog_admin_bp.route('/<int:id>/dearchivieren', methods=['POST'])
+def dearchivieren(id):
+    """Restore an archived Fragebogen."""
+    from app.services.logging_service import log_mittel
+
+    fragebogen = Fragebogen.query.get_or_404(id)
+
+    if not fragebogen.is_archiviert:
+        flash('Fragebogen ist nicht archiviert.', 'warning')
+        return redirect(url_for('dialog_admin.detail', id=id))
+
+    service = get_fragebogen_service()
+    service.dearchiviere_fragebogen(fragebogen)
+
+    log_mittel(
+        modul='dialog',
+        aktion='fragebogen_dearchiviert',
+        details=f'Fragebogen "{fragebogen.titel}" V{fragebogen.version_nummer} wiederhergestellt',
+        entity_type='Fragebogen',
+        entity_id=fragebogen.id
+    )
+
+    flash(f'Fragebogen "{fragebogen.titel}" wurde wiederhergestellt.', 'success')
+    return redirect(url_for('dialog_admin.detail', id=id))

@@ -23,7 +23,7 @@ class TeilnahmeStatus(Enum):
 class Fragebogen(db.Model):
     """Questionnaire definition.
 
-    The questions are stored as JSON in definition_json with this schema:
+    Schema V1 (flache Liste):
     {
         "fragen": [
             {
@@ -35,6 +35,29 @@ class Fragebogen(db.Model):
                 "labels": {"1": "Low", "5": "High"},   # optional for skala
                 "multiline": true,                     # for text
                 "pflicht": true                        # required field
+            }
+        ]
+    }
+
+    Schema V2 (mehrseitig mit Wizard):
+    {
+        "version": 2,
+        "seiten": [
+            {
+                "id": "s1",
+                "titel": "Allgemeine Fragen",
+                "hilfetext": "Optionaler Hilfetext für die Seite",
+                "fragen": [
+                    {
+                        "id": "q1",
+                        "typ": "text|dropdown|date|number|group|table|url|...",
+                        "frage": "Frage",
+                        "pflicht": true,
+                        "prefill": "kunde.firmierung",  # V2: Vorausfüllung
+                        "hilfetext": "Hilfe zur Frage",  # V2: Frage-Hilfe
+                        "show_if": {"frage_id": "x", "equals": true}  # V2: Bedingte Anzeige
+                    }
+                ]
             }
         ]
     }
@@ -56,25 +79,77 @@ class Fragebogen(db.Model):
     geschlossen_am = db.Column(db.DateTime)  # When status changed to GESCHLOSSEN
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
+    # Versioning: V1 -> V2 -> V3 chain
+    vorgaenger_id = db.Column(db.Integer, db.ForeignKey('fragebogen.id'), nullable=True)
+    version_nummer = db.Column(db.Integer, default=1, nullable=False)
+
+    # Soft-delete via archiving
+    archiviert = db.Column(db.Boolean, default=False, nullable=False)
+    archiviert_am = db.Column(db.DateTime, nullable=True)
+
     # Relationships
     erstellt_von = db.relationship('User', backref=db.backref('erstellte_frageboegen', lazy='dynamic'))
     teilnahmen = db.relationship('FragebogenTeilnahme', back_populates='fragebogen',
                                  cascade='all, delete-orphan')
 
+    # Self-referential relationship for version chain
+    vorgaenger = db.relationship(
+        'Fragebogen',
+        remote_side='Fragebogen.id',
+        backref=db.backref('nachfolger', lazy='dynamic'),
+        foreign_keys=[vorgaenger_id]
+    )
+
     def __repr__(self):
         return f'<Fragebogen {self.titel}>'
 
     @property
-    def fragen(self) -> list:
-        """Get the list of questions from definition_json."""
-        if self.definition_json and 'fragen' in self.definition_json:
-            return self.definition_json['fragen']
+    def is_v2(self) -> bool:
+        """Check if this fragebogen uses V2 schema (with pages)."""
+        return self.definition_json and self.definition_json.get('version') == 2
+
+    @property
+    def seiten(self) -> list:
+        """Get the list of pages (V2 only, empty for V1)."""
+        if self.is_v2:
+            return self.definition_json.get('seiten', [])
         return []
+
+    @property
+    def fragen(self) -> list:
+        """Get the list of all questions from definition_json.
+
+        Works with both V1 (flat list) and V2 (pages) schemas.
+        """
+        if not self.definition_json:
+            return []
+
+        # V2: Collect questions from all pages
+        if self.is_v2:
+            alle_fragen = []
+            for seite in self.definition_json.get('seiten', []):
+                alle_fragen.extend(seite.get('fragen', []))
+            return alle_fragen
+
+        # V1: Direct fragen list
+        return self.definition_json.get('fragen', [])
+
+    @property
+    def fragen_mit_prefill(self) -> list:
+        """Get all questions that have prefill configured (V2 only)."""
+        return [f for f in self.fragen if f.get('prefill')]
 
     @property
     def anzahl_fragen(self) -> int:
         """Get number of questions."""
         return len(self.fragen)
+
+    @property
+    def anzahl_seiten(self) -> int:
+        """Get number of pages (1 for V1, actual count for V2)."""
+        if self.is_v2:
+            return len(self.seiten)
+        return 1 if self.fragen else 0
 
     @property
     def anzahl_teilnehmer(self) -> int:
@@ -98,6 +173,41 @@ class Fragebogen(db.Model):
     def is_geschlossen(self) -> bool:
         return self.status == FragebogenStatus.GESCHLOSSEN.value
 
+    @property
+    def is_archiviert(self) -> bool:
+        """Check if this Fragebogen is archived."""
+        return self.archiviert
+
+    @property
+    def ist_neueste_version(self) -> bool:
+        """Check if this is the newest version (has no successors).
+
+        Returns True if no newer version exists in the chain.
+        Used to determine if duplication is allowed.
+        """
+        return self.nachfolger.count() == 0
+
+    @property
+    def version_kette(self) -> list:
+        """Get the complete version chain, starting from V1.
+
+        Returns a list of all Fragebögen in this version chain,
+        ordered from oldest (V1) to newest.
+        """
+        # Navigate to V1 (root of the chain)
+        root = self
+        while root.vorgaenger:
+            root = root.vorgaenger
+
+        # Collect all versions forward
+        chain = [root]
+        current = root
+        while current.nachfolger.first():
+            current = current.nachfolger.first()
+            chain.append(current)
+
+        return chain
+
     def aktivieren(self):
         """Set status to AKTIV."""
         self.status = FragebogenStatus.AKTIV.value
@@ -107,6 +217,36 @@ class Fragebogen(db.Model):
         """Set status to GESCHLOSSEN."""
         self.status = FragebogenStatus.GESCHLOSSEN.value
         self.geschlossen_am = datetime.utcnow()
+
+    def reaktivieren(self):
+        """Set status back to AKTIV from GESCHLOSSEN.
+
+        Only closed questionnaires can be reactivated.
+        The geschlossen_am timestamp is preserved as history.
+        """
+        if self.status != FragebogenStatus.GESCHLOSSEN.value:
+            raise ValueError('Nur geschlossene Fragebögen können reaktiviert werden')
+        self.status = FragebogenStatus.AKTIV.value
+        # geschlossen_am bleibt erhalten als Historie
+
+    def archivieren(self):
+        """Archive this Fragebogen (soft-delete).
+
+        Archived Fragebögen are hidden from the default list view
+        but can be shown with a filter. They cannot be deleted.
+        """
+        self.archiviert = True
+        self.archiviert_am = datetime.utcnow()
+
+    def dearchivieren(self):
+        """Restore an archived Fragebogen."""
+        self.archiviert = False
+        self.archiviert_am = None
+
+    @property
+    def teilnehmer_ohne_einladung(self) -> int:
+        """Count participants who haven't received invitation email."""
+        return sum(1 for t in self.teilnahmen if t.einladung_gesendet_am is None)
 
     def to_dict(self):
         """Return dictionary representation."""
@@ -123,6 +263,13 @@ class Fragebogen(db.Model):
             'anzahl_fragen': self.anzahl_fragen,
             'anzahl_teilnehmer': self.anzahl_teilnehmer,
             'anzahl_abgeschlossen': self.anzahl_abgeschlossen,
+            # Versioning
+            'version_nummer': self.version_nummer,
+            'vorgaenger_id': self.vorgaenger_id,
+            'ist_neueste_version': self.ist_neueste_version,
+            # Archiving
+            'archiviert': self.archiviert,
+            'archiviert_am': self.archiviert_am.isoformat() if self.archiviert_am else None,
         }
 
 
@@ -150,6 +297,11 @@ class FragebogenTeilnahme(db.Model):
 
     # Email tracking
     einladung_gesendet_am = db.Column(db.DateTime)  # When invitation email was sent
+
+    # V2: Prefill snapshot for change detection
+    # Stores the original values of prefilled fields when participation started
+    # Used to detect which fields the customer changed from their stored data
+    prefill_snapshot_json = db.Column(db.JSON, nullable=True)
 
     # Relationships
     fragebogen = db.relationship('Fragebogen', back_populates='teilnahmen')
@@ -207,6 +359,43 @@ class FragebogenTeilnahme(db.Model):
                 return antwort
         return None
 
+    def get_geaenderte_felder(self) -> list:
+        """Compare prefill snapshot with answers, return changed fields.
+
+        Returns a list of dicts with:
+        - frage_id: The question ID
+        - prefill_key: The prefill mapping key (e.g., 'kunde.firmierung')
+        - original: The original value from snapshot
+        - neu: The new value from answer
+        """
+        if not self.prefill_snapshot_json:
+            return []
+
+        changes = []
+        for frage in self.fragebogen.fragen_mit_prefill:
+            prefill_key = frage.get('prefill')
+            if not prefill_key:
+                continue
+
+            original = self.prefill_snapshot_json.get(prefill_key)
+            antwort = self.get_antwort(frage['id'])
+
+            if antwort:
+                neue_value = antwort.value
+                # Normalize for comparison (handle empty strings vs None)
+                original_normalized = original if original else ''
+                neue_normalized = neue_value if neue_value else ''
+
+                if original_normalized != neue_normalized:
+                    changes.append({
+                        'frage_id': frage['id'],
+                        'prefill_key': prefill_key,
+                        'original': original,
+                        'neu': neue_value
+                    })
+
+        return changes
+
     def to_dict(self):
         """Return dictionary representation."""
         return {
@@ -219,6 +408,7 @@ class FragebogenTeilnahme(db.Model):
             'gestartet_am': self.gestartet_am.isoformat() if self.gestartet_am else None,
             'abgeschlossen_am': self.abgeschlossen_am.isoformat() if self.abgeschlossen_am else None,
             'einladung_gesendet_am': self.einladung_gesendet_am.isoformat() if self.einladung_gesendet_am else None,
+            'prefill_snapshot_json': self.prefill_snapshot_json,
         }
 
 

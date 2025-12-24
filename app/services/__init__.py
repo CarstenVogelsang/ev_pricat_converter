@@ -13,6 +13,9 @@ from app.services.logging_service import log_event, log_kritisch, log_hoch, log_
 
 # Kunden-Dialog Module (PRD-006)
 from app.services.email_service import BrevoService, EmailResult, get_brevo_service, QuotaExceededError
+from app.services.email_template_service import (
+    EmailTemplateService, get_email_template_service
+)
 from app.services.password_service import (
     PasswordService, UserCreationResult, CredentialsSendResult, get_password_service
 )
@@ -45,6 +48,7 @@ __all__ = [
     'log_event', 'log_kritisch', 'log_hoch', 'log_mittel',
     # Kunden-Dialog Module (PRD-006)
     'BrevoService', 'EmailResult', 'get_brevo_service', 'QuotaExceededError',
+    'EmailTemplateService', 'get_email_template_service',
     'PasswordService', 'UserCreationResult', 'CredentialsSendResult', 'get_password_service',
     'FragebogenService', 'ValidationResult', 'EinladungResult', 'get_fragebogen_service',
 ]

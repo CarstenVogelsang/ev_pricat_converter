@@ -12,12 +12,39 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Added
 
+- **E-Mail-Template-System:** Datenbankgestützte E-Mail-Templates mit CI/Branding
+  - Neues Model `EmailTemplate` mit Jinja2-Platzhaltern (`{{ firmenname }}`, `{{ link }}`, etc.)
+  - `EmailTemplateService` für Template-Rendering mit BrandingService-Integration
+  - System-Branding (Logo, Primär-/Sekundärfarbe) wird automatisch eingefügt
+  - Kunden-spezifischer Footer mit System-Kunde-Fallback
+  - 4 Standard-Templates: `fragebogen_einladung`, `passwort_zugangsdaten`, `passwort_reset`, `test_email`
+  - Admin-UI unter `/admin/email-templates`: Liste, Bearbeiten, Vorschau, Test-Versand
+  - Neue `BrevoService`-Methoden: `send_with_template()`, `send_fragebogen_einladung_mit_template()`
+  - Migration: `f5898ef9f836` (email_template, Kunde.email_footer, Kunde.ist_systemkunde)
+  - Dokumentation: Templates in `flask seed` erstellt
+
+- **Kundenname im Header:** Für Kunde-Benutzer wird im User-Dropdown zusätzlich die Firmierung angezeigt
+  - Anzeige mit Gebäude-Icon unter der E-Mail-Adresse
+  - Nur sichtbar für Benutzer mit `is_kunde = True` und zugeordnetem Kunden
+  - Datei: `app/templates/base.html`
+
 - **Brevo Test-E-Mail Funktionalität:** In Systemeinstellungen `/admin/settings`
   - User-Dropdown zur Auswahl des Empfängers (Auswahl wird gespeichert)
   - Test-E-Mail mit Zeitstempel, Absender-Adresse, Server-Info
   - "Status prüfen" Button zeigt API-Status, Konto-E-Mail, Plan und Credits
   - Neue Methoden in `BrevoService`: `send_test_email()`, `check_api_status()`
   - Neue Routes: `POST /admin/brevo/test`, `POST /admin/brevo/status`
+
+- **Fragebogen Einladungs-Resend:** Auf `/admin/dialog/<id>/teilnehmer`
+  - Neuer Resend-Button für jeden Teilnehmer (auch wenn bereits Einladung gesendet)
+  - Neue Route: `POST /admin/dialog/<id>/teilnehmer/<tid>/resend`
+  - Confirm-Dialog vor dem erneuten Senden
+
+- **Audit-Logging für E-Mail-Versand:** Im Dialog-Modul
+  - Erfolgreiche Einladungen: Aktion `einladung_gesendet` oder `einladung_erneut_gesendet`
+  - Fehlgeschlagene Einladungen: Aktion `einladung_fehlgeschlagen`
+  - Details enthalten: Fragebogen-Titel, E-Mail-Adresse, Kunde, Message-ID
+  - Wichtigkeit: `mittel`
 
 - **PRD_BASIS_RECHTEVERWALTUNG.md:** Neue zentrale Dokumentation für Rechteverwaltung
   - Konsolidiert Inhalte aus CLAUDE.md, PRD_BASIS_MVP.md, PRD_BASIS_MODULVERWALTUNG.md
@@ -111,6 +138,20 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 - Admin-Sidebar: Neuer Link "Modulverwaltung" unter "Einstellungen"
 
 ### Fixed
+
+- **Magic-Link CSRF-Exemption:** AJAX-Requests für Magic-Link-Routen waren durch CSRF-Schutz blockiert
+  - `POST /dialog/t/<token>/antwort`: Antwort speichern
+  - `POST /dialog/t/<token>/abschliessen`: Fragebogen abschließen
+  - Lösung: `@csrf.exempt` Decorator, da Magic-Token bereits Authentifizierung ist
+
+- **Dynamische Portal-URL im Dev-Modus:** E-Mail-Links zeigten auf Production statt localhost
+  - Im Debug-Modus wird jetzt `request.host_url` verwendet (z.B. `http://localhost:5000`)
+  - Im Production-Modus: Konfigurierte `portal_base_url` aus DB-Config
+  - Betrifft: Fragebogen-Einladungen, Passwort-Links, Test-E-Mails
+
+- **CSRF-Token in Dialog-Admin Templates:** Fehlende CSRF-Tokens hinzugefügt
+  - `dialog_admin/detail.html`: Aktivieren- und Schließen-Formulare
+  - `dialog_admin/teilnehmer.html`: Alle Formulare (Resend, Löschen, Hinzufügen, Alle einladen)
 
 - **Dialog-Modul Admin-Zugriff:** Admin und Mitarbeiter wurden von `/dialog/` auf Landing Page umgeleitet
   - Route prüft jetzt auf `is_admin`/`is_mitarbeiter` für interne Ansicht

@@ -4,6 +4,55 @@ Alle Änderungen am Modul "Kunden-Dialog" werden hier dokumentiert.
 
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [1.3.0] - 2025-12-23
+
+### Added
+
+- **Fragebogen-Versionierung:** Versionskette für Fragebögen mit Archivierung
+  - Neue Felder: `vorgaenger_id`, `version_nummer`, `archiviert`, `archiviert_am`
+  - Self-referential FK für Versionskette: V1 → V2 → V3
+  - Nur neueste Version kann dupliziert werden (Prüfung in Service + UI)
+  - Archivierung statt Löschung (Soft-Delete)
+  - Index-Seite: Toggle "Archivierte anzeigen" mit Badge-Counter
+  - Detail-Seite: Version-Card mit Vorgänger/Nachfolger-Links
+  - Neue Properties: `ist_neueste_version`, `version_kette`, `is_archiviert`
+  - Neue Service-Methoden: `archiviere_fragebogen()`, `dearchiviere_fragebogen()`
+  - Neue Routes: `POST /admin/dialog/<id>/archivieren`, `POST /admin/dialog/<id>/dearchivieren`
+  - Audit-Log: `fragebogen_archiviert`, `fragebogen_dearchiviert`
+  - Migration: `dd224207bda2` (vorgaenger_id, version_nummer, archiviert, archiviert_am)
+
+### Changed
+
+- **Duplizieren:** Setzt jetzt `vorgaenger_id` und erhöht `version_nummer`
+  - Duplizieren-Button deaktiviert für ältere Versionen (Hinweis auf neueste Version)
+  - Neue Version zeigt Vorgänger-Link
+
+---
+
+## [1.2.0] - 2025-12-23
+
+### Added
+
+- **Einzelauswertung für Teilnehmer:** Dropdown-Filter in der Auswertungsseite
+  - Wähle einzelne Teilnehmer aus, um alle ihre Antworten zu sehen
+  - Anzeige der Änderungen an Prefill-Daten mit farblicher Hervorhebung
+  - Badge `(✎ X Änderungen)` im Dropdown zeigt Teilnehmer mit Änderungen
+  - Geänderter Original-Wert wird durchgestrichen angezeigt
+  - Neue Service-Methode: `get_teilnehmer_auswertung()`
+  - Route: `GET /admin/dialog/<id>/auswertung?teilnehmer=<tid>`
+
+- **Fragebogen duplizieren:** Kopier-Funktion für Fragebögen
+  - Button "Duplizieren" in der Fragebogen-Detailseite (für alle Status)
+  - Modal zur Eingabe des neuen Titels (Default: "Kopie von {Original}")
+  - Kopiert: Titel, Beschreibung, JSON-Definition mit allen Fragen
+  - Kopiert NICHT: Teilnehmer, Antworten (startet leer)
+  - Kopie wird immer als ENTWURF erstellt
+  - Neue Service-Methode: `duplicate_fragebogen()`
+  - Route: `POST /admin/dialog/<id>/duplicate`
+  - Audit-Log: `fragebogen_dupliziert`
+
+---
+
 ## [1.1.0] - 2025-12-16
 
 ### Added

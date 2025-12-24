@@ -1,0 +1,163 @@
+{% extends "administration/base.html" %}
+
+{% block title %}{{ template.name }} bearbeiten - {{ super() }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="{{ url_for('admin.email_templates') }}" class="text-muted text-decoration-none">
+            <i class="ti ti-arrow-left"></i> E-Mail-Templates
+        </a>
+        <h2 class="mt-2 mb-0"><i class="ti ti-mail"></i> {{ template.name }}</h2>
+        <code class="text-muted">{{ template.schluessel }}</code>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('admin.email_template_preview', id=template.id) }}"
+           class="btn btn-outline-info">
+            <i class="ti ti-eye"></i> Vorschau
+        </a>
+    </div>
+</div>
+
+<form method="post" action="{{ url_for('admin.email_template_edit', id=template.id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Template Content -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Template-Inhalt</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Betreff</label>
+                        <input type="text" class="form-control" name="betreff"
+                               value="{{ template.betreff }}" required>
+                        <small class="text-muted">Jinja2-Platzhalter erlaubt, z.B. <code>{{ '{{' }} fragebogen_titel {{ '}}' }}</code></small>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">HTML-Inhalt</label>
+                        <textarea class="form-control font-monospace" name="body_html"
+                                  rows="20" required style="font-size: 0.85rem;">{{ template.body_html }}</textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Plain-Text-Inhalt (optional)</label>
+                        <textarea class="form-control font-monospace" name="body_text"
+                                  rows="10" style="font-size: 0.85rem;">{{ template.body_text or '' }}</textarea>
+                        <small class="text-muted">Fallback für E-Mail-Clients ohne HTML-Unterstützung</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-4">
+            <!-- Meta Info -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Einstellungen</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label">Name</label>
+                        <input type="text" class="form-control" name="name"
+                               value="{{ template.name }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Beschreibung</label>
+                        <textarea class="form-control" name="beschreibung" rows="2">{{ template.beschreibung or '' }}</textarea>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv"
+                               {% if template.aktiv %}checked{% endif %}>
+                        <label class="form-check-label" for="aktiv">Template aktiv</label>
+                    </div>
+
+                    <hr>
+
+                    <small class="text-muted d-block">
+                        <strong>Erstellt:</strong> {{ template.erstellt_am.strftime('%d.%m.%Y %H:%M') }}<br>
+                        {% if template.aktualisiert_am %}
+                        <strong>Geändert:</strong> {{ template.aktualisiert_am.strftime('%d.%m.%Y %H:%M') }}
+                        {% endif %}
+                    </small>
+                </div>
+            </div>
+
+            <!-- Placeholders Reference -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="ti ti-code"></i> Verfügbare Platzhalter</h5>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            {% for placeholder, description in placeholders %}
+                            <tr>
+                                <td><code style="font-size: 0.75rem;">{{ placeholder }}</code></td>
+                                <td class="text-muted" style="font-size: 0.8rem;">{{ description }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Actions -->
+            <div class="d-grid gap-2">
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="ti ti-device-floppy"></i> Speichern
+                </button>
+                <button type="button" class="btn btn-outline-primary"
+                        data-bs-toggle="modal" data-bs-target="#testEmailModal">
+                    <i class="ti ti-send"></i> Test-E-Mail senden
+                </button>
+                <a href="{{ url_for('admin.email_templates') }}" class="btn btn-outline-secondary">
+                    Abbrechen
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Test-E-Mail Modal (AUSSERHALB des Hauptformulars!) -->
+<div class="modal fade" id="testEmailModal" tabindex="-1" aria-labelledby="testEmailModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('admin.email_template_send_test', id=template.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="testEmailModalLabel">
+                        <i class="ti ti-send"></i> Test-E-Mail senden
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted">
+                        Sendet dieses Template mit Beispieldaten an den ausgewählten Empfänger.
+                    </p>
+                    <div class="mb-3">
+                        <label class="form-label">Empfänger</label>
+                        <select class="form-select" name="test_user_id" required>
+                            <option value="">-- Empfänger wählen --</option>
+                            {% for user in all_users %}
+                            <option value="{{ user.id }}">{{ user.full_name }} ({{ user.email }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-send"></i> Senden
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

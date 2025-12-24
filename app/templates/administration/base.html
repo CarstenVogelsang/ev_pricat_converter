@@ -50,6 +50,10 @@
                     <i class="ti ti-messages"></i><span>Kunden-Dialog</span>
                 </a>
                 <div class="list-group-item text-muted small py-2">Stammdaten</div>
+                <a href="{{ url_for('benutzer.index') }}"
+                   class="list-group-item list-group-item-action{% if 'benutzer' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-users-group"></i><span>Benutzer</span>
+                </a>
                 <a href="{{ url_for('admin.branchen') }}"
                    class="list-group-item list-group-item-action{% if request.endpoint == 'admin.branchen' %} active{% endif %}">
                     <i class="ti ti-category"></i><span>Branchen</span>
@@ -78,6 +82,10 @@
                 <a href="{{ url_for('admin.hilfetexte') }}"
                    class="list-group-item list-group-item-action{% if 'hilfetexte' in request.endpoint %} active{% endif %}">
                     <i class="ti ti-help"></i><span>Hilfetexte</span>
+                </a>
+                <a href="{{ url_for('admin.email_templates') }}"
+                   class="list-group-item list-group-item-action{% if 'email_template' in request.endpoint %} active{% endif %}">
+                    <i class="ti ti-mail"></i><span>E-Mail-Templates</span>
                 </a>
                 <a href="{{ url_for('admin.logs') }}"
                    class="list-group-item list-group-item-action{% if 'logs' in request.endpoint %} active{% endif %}">

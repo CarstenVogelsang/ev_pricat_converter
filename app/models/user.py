@@ -21,6 +21,13 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # NEW: 1:N relationship to Kunden via junction table
+    kunde_zuordnungen = db.relationship(
+        'KundeBenutzer',
+        back_populates='user',
+        cascade='all, delete-orphan'
+    )
+
     def __repr__(self):
         return f'<User {self.email}>'
 
@@ -61,6 +68,26 @@ class User(UserMixin, db.Model):
     def full_name(self):
         """Return full name."""
         return f'{self.vorname} {self.nachname}'
+
+    @property
+    def kunden(self):
+        """Return all Kunden this user is assigned to."""
+        return [zuo.kunde for zuo in self.kunde_zuordnungen]
+
+    @property
+    def kunde(self):
+        """DEPRECATED: Return the primary Kunde (for backward compatibility).
+
+        Returns the Kunde where this user is Hauptbenutzer, or first assigned Kunde.
+        """
+        # Prefer Kunde where user is Hauptbenutzer
+        for zuo in self.kunde_zuordnungen:
+            if zuo.ist_hauptbenutzer:
+                return zuo.kunde
+        # Fallback: first assigned Kunde
+        if self.kunde_zuordnungen:
+            return self.kunde_zuordnungen[0].kunde
+        return None
 
     def to_dict(self):
         """Convert to dictionary."""

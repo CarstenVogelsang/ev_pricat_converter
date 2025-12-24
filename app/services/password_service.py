@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from typing import Optional, Tuple
 
 from app import db
-from app.models import User, Kunde, Rolle, PasswordToken
+from app.models import User, Kunde, Rolle, PasswordToken, KundeBenutzer
 from app.services.email_service import get_brevo_service, EmailResult
 
 
@@ -22,6 +22,7 @@ class UserCreationResult:
     success: bool
     user: Optional[User] = None
     password_token: Optional[PasswordToken] = None
+    is_hauptbenutzer: bool = False
     error: Optional[str] = None
 
 
@@ -80,6 +81,8 @@ class PasswordService:
                               vorname: str, nachname: str) -> UserCreationResult:
         """Create a user account for a Kunde.
 
+        The first user created for a Kunde automatically becomes Hauptbenutzer.
+
         Args:
             kunde: The Kunde to create user for
             email: Email address for the user
@@ -87,14 +90,10 @@ class PasswordService:
             nachname: Last name
 
         Returns:
-            UserCreationResult with user and password token
+            UserCreationResult with user, password token, and hauptbenutzer flag
         """
         # Validations
-        if kunde.user_id:
-            return UserCreationResult(
-                success=False,
-                error='Kunde hat bereits einen User-Account'
-            )
+        email = email.lower().strip()
 
         if User.query.filter_by(email=email).first():
             return UserCreationResult(
@@ -110,6 +109,10 @@ class PasswordService:
             )
 
         try:
+            # Check if this will be the first user (becomes Hauptbenutzer)
+            is_first_user = len(kunde.benutzer_zuordnungen) == 0
+            is_hauptbenutzer = is_first_user
+
             # Generate password
             password_plain = self.generate_secure_password()
 
@@ -125,8 +128,17 @@ class PasswordService:
             db.session.add(user)
             db.session.flush()  # Get user.id
 
-            # Link kunde to user
-            kunde.user_id = user.id
+            # Create KundeBenutzer junction entry
+            kunde_benutzer = KundeBenutzer(
+                kunde_id=kunde.id,
+                user_id=user.id,
+                ist_hauptbenutzer=is_hauptbenutzer
+            )
+            db.session.add(kunde_benutzer)
+
+            # Update legacy kunde.user_id for backward compatibility (if first user)
+            if is_first_user:
+                kunde.user_id = user.id
 
             # Create password token
             password_token = PasswordToken.create_for_user(
@@ -140,7 +152,8 @@ class PasswordService:
             return UserCreationResult(
                 success=True,
                 user=user,
-                password_token=password_token
+                password_token=password_token,
+                is_hauptbenutzer=is_hauptbenutzer
             )
 
         except Exception as e:

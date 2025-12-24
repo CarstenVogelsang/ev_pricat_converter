@@ -1422,6 +1422,172 @@ def hilfetexte():
 
 
 # ============================================================================
+# E-Mail Templates Management
+# ============================================================================
+
+@admin_bp.route('/email-templates')
+@login_required
+@admin_required
+def email_templates():
+    """List all email templates for management."""
+    from app.models import EmailTemplate
+
+    templates = EmailTemplate.query.order_by(EmailTemplate.name).all()
+    return render_template(
+        'administration/email_templates.html',
+        templates=templates
+    )
+
+
+@admin_bp.route('/email-templates/<int:id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def email_template_edit(id):
+    """Edit an email template."""
+    from app.models import EmailTemplate
+    from app.services import log_mittel
+
+    template = EmailTemplate.query.get_or_404(id)
+
+    if request.method == 'POST':
+        template.name = request.form.get('name', template.name).strip()
+        template.beschreibung = request.form.get('beschreibung', '').strip() or None
+        template.betreff = request.form.get('betreff', template.betreff).strip()
+        template.body_html = request.form.get('body_html', template.body_html)
+        template.body_text = request.form.get('body_text', '').strip() or None
+        template.aktiv = request.form.get('aktiv') == 'on'
+
+        db.session.commit()
+
+        log_mittel(
+            modul='system',
+            aktion='email_template_bearbeitet',
+            details=f'E-Mail-Template "{template.schluessel}" bearbeitet',
+            entity_type='EmailTemplate',
+            entity_id=template.id
+        )
+        db.session.commit()
+
+        flash(f'Template "{template.name}" gespeichert', 'success')
+        return redirect(url_for('admin.email_templates'))
+
+    # GET request
+    # List of available placeholders for help text
+    placeholders = [
+        ('{{ firmenname }}', 'Firmenname des Kunden'),
+        ('{{ link }}', 'Aktions-Link (Magic-Link, Passwort-Link, etc.)'),
+        ('{{ fragebogen_titel }}', 'Titel des Fragebogens'),
+        ('{{ email }}', 'E-Mail-Adresse des Empfängers'),
+        ('{{ vorname }}', 'Vorname des Empfängers'),
+        ('{{ nachname }}', 'Nachname des Empfängers'),
+        ('{{ portal_name }}', 'Portal-Name aus Branding'),
+        ('{{ primary_color }}', 'Primärfarbe aus Branding'),
+        ('{{ secondary_color }}', 'Sekundärfarbe aus Branding'),
+        ('{{ logo_url }}', 'Logo-URL aus Branding'),
+        ('{{ footer | safe }}', 'Kunden- oder System-Footer (HTML)'),
+        ('{{ copyright_text }}', 'Copyright-Text aus Branding'),
+    ]
+
+    # Get all users for test email dropdown
+    all_users = User.query.filter_by(aktiv=True).order_by(User.nachname, User.vorname).all()
+
+    return render_template(
+        'administration/email_template_form.html',
+        template=template,
+        placeholders=placeholders,
+        all_users=all_users
+    )
+
+
+@admin_bp.route('/email-templates/<int:id>/preview')
+@login_required
+@admin_required
+def email_template_preview(id):
+    """Preview an email template with sample or real customer data."""
+    from app.models import EmailTemplate
+    from app.services import get_email_template_service
+
+    template = EmailTemplate.query.get_or_404(id)
+    template_service = get_email_template_service()
+
+    # Optional: Kunde für echte Daten auswählen
+    kunde_id = request.args.get('kunde_id', type=int)
+    kunde = Kunde.query.get(kunde_id) if kunde_id else None
+
+    # Alle aktiven Kunden für Dropdown laden
+    kunden = Kunde.query.filter_by(aktiv=True).order_by(Kunde.firmierung).all()
+
+    # Context mit Kundendaten oder Beispieldaten
+    sample_context = {}
+    if kunde:
+        sample_context = {
+            'firmenname': kunde.firmierung or 'N/A',
+            'email': kunde.email or (kunde.user.email if kunde.user else 'N/A'),
+            'vorname': kunde.user.vorname if kunde.user else 'Max',
+            'nachname': kunde.user.nachname if kunde.user else 'Mustermann',
+        }
+
+    try:
+        rendered = template_service.preview(template.schluessel, sample_context)
+        return render_template(
+            'administration/email_template_preview.html',
+            template=template,
+            rendered=rendered,
+            kunden=kunden,
+            kunde=kunde
+        )
+    except Exception as e:
+        flash(f'Fehler bei der Vorschau: {str(e)}', 'danger')
+        return redirect(url_for('admin.email_template_edit', id=id))
+
+
+@admin_bp.route('/email-templates/<int:id>/send-test', methods=['POST'])
+@login_required
+@admin_required
+def email_template_send_test(id):
+    """Send a test email using this template."""
+    from app.models import EmailTemplate
+    from app.services import get_brevo_service
+
+    template = EmailTemplate.query.get_or_404(id)
+    brevo_service = get_brevo_service()
+
+    test_user_id = request.form.get('test_user_id', type=int)
+    if not test_user_id:
+        flash('Bitte einen Empfänger auswählen', 'warning')
+        return redirect(url_for('admin.email_template_edit', id=id))
+
+    user = User.query.get(test_user_id)
+    if not user:
+        flash('Benutzer nicht gefunden', 'danger')
+        return redirect(url_for('admin.email_template_edit', id=id))
+
+    # Sample context for test
+    context = {
+        'firmenname': 'Musterfirma GmbH',
+        'link': 'https://example.com/action',
+        'fragebogen_titel': 'Beispiel-Fragebogen',
+        'email': user.email,
+        'vorname': user.vorname,
+        'nachname': user.nachname,
+    }
+
+    result = brevo_service.send_with_template(
+        template_schluessel=template.schluessel,
+        to_email=user.email,
+        to_name=user.full_name,
+        context=context
+    )
+
+    if result.success:
+        flash(f'Test-E-Mail mit Template "{template.name}" an {user.email} gesendet', 'success')
+    else:
+        flash(f'Fehler: {result.error}', 'danger')
+
+    return redirect(url_for('admin.email_template_edit', id=id))
+
+
+# ============================================================================
 # Audit-Log
 # ============================================================================
 

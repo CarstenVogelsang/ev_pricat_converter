@@ -18,7 +18,7 @@ from app.models import (
     FragebogenStatus, TeilnahmeStatus
 )
 from app.services import get_fragebogen_service
-from app import db
+from app import db, csrf
 
 
 dialog_bp = Blueprint('dialog', __name__, url_prefix='/dialog')
@@ -129,7 +129,10 @@ def magic_link(token):
     """Access questionnaire via magic-link (no login required).
 
     Minimal UI, direct to questionnaire.
+    Uses wizard template for V2 frageboegen, flat template for V1.
     """
+    from datetime import date
+
     service = get_fragebogen_service()
     teilnahme = service.get_teilnahme_by_token(token)
 
@@ -155,14 +158,32 @@ def magic_link(token):
         return render_template('dialog/invalid.html',
                                error='Dieser Fragebogen ist noch nicht freigegeben.')
 
-    # Start if not yet started
+    # Start if not yet started and create prefill snapshot for V2
     if teilnahme.is_eingeladen:
         teilnahme.starten()
+        if fragebogen.is_v2:
+            service.create_prefill_snapshot(teilnahme)
         db.session.commit()
 
     # Get existing answers
     antworten = {a.frage_id: a.antwort_json for a in teilnahme.antworten}
 
+    # For V2: Merge prefilled values as initial answers
+    if fragebogen.is_v2:
+        initial = service.get_initial_antworten(fragebogen, teilnahme.kunde)
+        # Only use prefill for fields that don't have an answer yet
+        for frage_id, prefill_value in initial.items():
+            if frage_id not in antworten:
+                antworten[frage_id] = prefill_value
+
+        return render_template('dialog/fragebogen_wizard.html',
+                               fragebogen=fragebogen,
+                               teilnahme=teilnahme,
+                               token=token,
+                               antworten=antworten,
+                               today=date.today().isoformat())
+
+    # V1: Use flat template
     return render_template('dialog/fragebogen_magic.html',
                            fragebogen=fragebogen,
                            teilnahme=teilnahme,
@@ -171,6 +192,7 @@ def magic_link(token):
 
 
 @dialog_bp.route('/t/<token>/antwort', methods=['POST'])
+@csrf.exempt  # Magic-link token is already authentication
 def save_antwort(token):
     """Save an answer via AJAX (magic-link).
 
@@ -212,6 +234,7 @@ def save_antwort(token):
 
 
 @dialog_bp.route('/t/<token>/abschliessen', methods=['POST'])
+@csrf.exempt  # Magic-link token is already authentication
 def complete(token):
     """Complete the questionnaire participation (magic-link).
 

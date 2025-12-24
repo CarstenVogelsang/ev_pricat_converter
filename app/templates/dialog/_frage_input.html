@@ -1,0 +1,211 @@
+{# Partial template for rendering different question types #}
+{# Variables expected: frage, antworten (dict of frage_id -> answer) #}
+
+{% set answer = antworten.get(frage.id, {}) %}
+{% set value = answer.get('value', '') %}
+{% set values = answer.get('values', []) %}
+
+{% if frage.typ == 'single_choice' %}
+    {% for option in frage.optionen %}
+    <div class="form-check">
+        <input class="form-check-input" type="radio"
+               name="{{ frage.id }}" value="{{ option }}"
+               id="{{ frage.id }}_{{ loop.index }}"
+               {% if value == option %}checked{% endif %}
+               onchange="saveAnswer('{{ frage.id }}', {value: this.value})">
+        <label class="form-check-label" for="{{ frage.id }}_{{ loop.index }}">
+            {{ option }}
+        </label>
+    </div>
+    {% endfor %}
+
+{% elif frage.typ == 'multiple_choice' %}
+    {% for option in frage.optionen %}
+    <div class="form-check">
+        <input class="form-check-input" type="checkbox"
+               name="{{ frage.id }}" value="{{ option }}"
+               id="{{ frage.id }}_{{ loop.index }}"
+               {% if option in values %}checked{% endif %}
+               onchange="saveMultipleChoice('{{ frage.id }}')">
+        <label class="form-check-label" for="{{ frage.id }}_{{ loop.index }}">
+            {{ option }}
+        </label>
+    </div>
+    {% endfor %}
+
+{% elif frage.typ == 'dropdown' %}
+    <select class="form-select" name="{{ frage.id }}"
+            onchange="saveAnswer('{{ frage.id }}', {value: this.value})">
+        <option value="">Bitte wählen...</option>
+        {% for option in frage.optionen %}
+        <option value="{{ option }}" {% if value == option %}selected{% endif %}>
+            {{ option }}
+        </option>
+        {% endfor %}
+    </select>
+    {% if frage.freifeld %}
+    <div class="mt-2">
+        <input type="text" class="form-control" placeholder="Oder eigene Eingabe..."
+               id="{{ frage.id }}_freifeld"
+               {% if value and value not in frage.optionen %}value="{{ value }}"{% endif %}
+               onblur="if(this.value) { document.querySelector('select[name={{ frage.id }}]').value = ''; saveAnswer('{{ frage.id }}', {value: this.value}); }">
+    </div>
+    {% endif %}
+
+{% elif frage.typ == 'skala' %}
+    <div class="skala-container align-items-center">
+        {% if frage.labels and frage.labels[frage.min|string] %}
+        <small class="text-muted">{{ frage.labels[frage.min|string] }}</small>
+        {% endif %}
+        {% for i in range(frage.min, frage.max + 1) %}
+        <div class="form-check form-check-inline">
+            <input class="form-check-input" type="radio"
+                   name="{{ frage.id }}" value="{{ i }}"
+                   id="{{ frage.id }}_{{ i }}"
+                   {% if value|string == i|string %}checked{% endif %}
+                   onchange="saveAnswer('{{ frage.id }}', {value: parseInt(this.value)})">
+            <label class="form-check-label" for="{{ frage.id }}_{{ i }}">{{ i }}</label>
+        </div>
+        {% endfor %}
+        {% if frage.labels and frage.labels[frage.max|string] %}
+        <small class="text-muted">{{ frage.labels[frage.max|string] }}</small>
+        {% endif %}
+    </div>
+
+{% elif frage.typ == 'text' %}
+    {% if frage.multiline %}
+    <textarea class="form-control" name="{{ frage.id }}" rows="4"
+              onblur="saveAnswer('{{ frage.id }}', {value: this.value})"
+              >{{ value }}</textarea>
+    {% else %}
+    <input type="text" class="form-control" name="{{ frage.id }}"
+           value="{{ value }}"
+           onblur="saveAnswer('{{ frage.id }}', {value: this.value})">
+    {% endif %}
+
+{% elif frage.typ == 'ja_nein' %}
+    <div class="btn-group" role="group">
+        <input type="radio" class="btn-check" name="{{ frage.id }}" value="true"
+               id="{{ frage.id }}_ja"
+               {% if value == true %}checked{% endif %}
+               onchange="saveAnswer('{{ frage.id }}', {value: true})">
+        <label class="btn btn-outline-success" for="{{ frage.id }}_ja">
+            <i class="ti ti-check"></i> Ja
+        </label>
+
+        <input type="radio" class="btn-check" name="{{ frage.id }}" value="false"
+               id="{{ frage.id }}_nein"
+               {% if value == false %}checked{% endif %}
+               onchange="saveAnswer('{{ frage.id }}', {value: false})">
+        <label class="btn btn-outline-danger" for="{{ frage.id }}_nein">
+            <i class="ti ti-x"></i> Nein
+        </label>
+    </div>
+
+{% elif frage.typ == 'number' %}
+    <input type="number" class="form-control" name="{{ frage.id }}"
+           value="{{ value }}"
+           {% if frage.min is defined %}min="{{ frage.min }}"{% endif %}
+           {% if frage.max is defined %}max="{{ frage.max }}"{% endif %}
+           {% if frage.step is defined %}step="{{ frage.step }}"{% endif %}
+           onblur="saveAnswer('{{ frage.id }}', {value: this.value ? parseFloat(this.value) : null})">
+
+{% elif frage.typ == 'date' %}
+    <input type="date" class="form-control" name="{{ frage.id }}"
+           value="{{ value }}"
+           {% if frage.min_date == 'today' %}min="{{ today }}"{% elif frage.min_date %}min="{{ frage.min_date }}"{% endif %}
+           {% if frage.max_date %}max="{{ frage.max_date }}"{% endif %}
+           onchange="saveAnswer('{{ frage.id }}', {value: this.value})">
+
+{% elif frage.typ == 'url' %}
+    <input type="url" class="form-control" name="{{ frage.id }}"
+           value="{{ value }}"
+           placeholder="{{ frage.placeholder or 'https://...' }}"
+           onblur="saveAnswer('{{ frage.id }}', {value: this.value})">
+
+{% elif frage.typ == 'group' %}
+    <div class="group-fields">
+        {% set group_values = value if value is mapping else {} %}
+        {% for field in frage.fields %}
+        <div class="group-field" style="flex: {{ field.width|default('1') }};">
+            <label class="form-label small">{{ field.label }}</label>
+            {% if field.typ == 'text' %}
+            <input type="text" class="form-control" data-field-id="{{ field.id }}"
+                   value="{{ group_values.get(field.id, '') }}"
+                   onblur="saveGroupFields('{{ frage.id }}')">
+            {% elif field.typ == 'number' %}
+            <input type="number" class="form-control" data-field-id="{{ field.id }}"
+                   value="{{ group_values.get(field.id, '') }}"
+                   onblur="saveGroupFields('{{ frage.id }}')">
+            {% elif field.typ == 'dropdown' %}
+            <select class="form-select" data-field-id="{{ field.id }}"
+                    onchange="saveGroupFields('{{ frage.id }}')">
+                <option value="">Bitte wählen...</option>
+                {% for opt in field.optionen %}
+                <option value="{{ opt }}" {% if group_values.get(field.id) == opt %}selected{% endif %}>{{ opt }}</option>
+                {% endfor %}
+            </select>
+            {% endif %}
+        </div>
+        {% endfor %}
+    </div>
+
+{% elif frage.typ == 'table' %}
+    <div class="table-responsive">
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th></th>
+                    {% for col in frage.columns %}
+                    <th>{{ col.label }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% set table_values = value if value is mapping else {} %}
+                {% for row in frage.rows or [{'id': 'default', 'label': ''}] %}
+                <tr>
+                    <td><strong>{{ row.label }}</strong></td>
+                    {% for col in frage.columns %}
+                    <td>
+                        {% set cell_key = row.id ~ '_' ~ col.id %}
+                        {% set cell_value = table_values.get(cell_key, '') %}
+                        {% if col.typ == 'checkbox' %}
+                        <input type="checkbox" class="form-check-input"
+                               data-table-cell="{{ cell_key }}"
+                               {% if cell_value %}checked{% endif %}
+                               onchange="saveTableCell('{{ frage.id }}', '{{ cell_key }}', this.checked)">
+                        {% elif col.typ == 'text' %}
+                        <input type="text" class="form-control form-control-sm"
+                               data-table-cell="{{ cell_key }}"
+                               value="{{ cell_value }}"
+                               onblur="saveTableCell('{{ frage.id }}', '{{ cell_key }}', this.value)">
+                        {% elif col.typ == 'url' %}
+                        <input type="url" class="form-control form-control-sm"
+                               data-table-cell="{{ cell_key }}"
+                               value="{{ cell_value }}"
+                               placeholder="https://..."
+                               onblur="saveTableCell('{{ frage.id }}', '{{ cell_key }}', this.value)">
+                        {% elif col.typ == 'dropdown' %}
+                        <select class="form-select form-select-sm"
+                                data-table-cell="{{ cell_key }}"
+                                onchange="saveTableCell('{{ frage.id }}', '{{ cell_key }}', this.value)">
+                            <option value="">-</option>
+                            {% for opt in col.optionen %}
+                            <option value="{{ opt }}" {% if cell_value == opt %}selected{% endif %}>{{ opt }}</option>
+                            {% endfor %}
+                        </select>
+                        {% endif %}
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+{% else %}
+    <div class="alert alert-warning">
+        <i class="ti ti-alert-triangle"></i> Unbekannter Fragetyp: {{ frage.typ }}
+    </div>
+{% endif %}

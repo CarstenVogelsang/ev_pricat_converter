@@ -13,12 +13,18 @@
 
     <div class="d-flex justify-content-between align-items-start mb-4">
         <div>
-            <h1>{{ fragebogen.titel }}</h1>
+            <h1>
+                {{ fragebogen.titel }}
+                <span class="badge bg-primary fs-6 ms-2">V{{ fragebogen.version_nummer }}</span>
+            </h1>
             {% if fragebogen.beschreibung %}
             <p class="text-muted">{{ fragebogen.beschreibung }}</p>
             {% endif %}
         </div>
-        <div>
+        <div class="d-flex gap-2">
+            {% if fragebogen.is_archiviert %}
+            <span class="badge bg-warning text-dark fs-6"><i class="ti ti-archive"></i> Archiviert</span>
+            {% endif %}
             {% if fragebogen.is_entwurf %}
             <span class="badge bg-secondary fs-6">Entwurf</span>
             {% elif fragebogen.is_aktiv %}
@@ -28,6 +34,23 @@
             {% endif %}
         </div>
     </div>
+
+    {% if fragebogen.is_aktiv and fragebogen.teilnehmer_ohne_einladung > 0 %}
+    <div class="alert alert-warning d-flex align-items-center mb-4">
+        <i class="ti ti-alert-triangle fs-4 me-3"></i>
+        <div class="flex-grow-1">
+            <strong>{{ fragebogen.teilnehmer_ohne_einladung }} Teilnehmer</strong>
+            {% if fragebogen.teilnehmer_ohne_einladung == 1 %}
+            wartet noch auf die Einladungs-E-Mail.
+            {% else %}
+            warten noch auf ihre Einladungs-E-Mail.
+            {% endif %}
+        </div>
+        <a href="{{ url_for('dialog_admin.teilnehmer', id=fragebogen.id) }}" class="btn btn-warning">
+            <i class="ti ti-mail"></i> Einladungen senden
+        </a>
+    </div>
+    {% endif %}
 
     <div class="row">
         <div class="col-md-8">
@@ -95,6 +118,58 @@
                 </div>
             </div>
 
+            <!-- Version Card -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="ti ti-versions"></i> Version</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center mb-3">
+                        <span class="badge bg-primary fs-4 me-3">V{{ fragebogen.version_nummer }}</span>
+                        {% if not fragebogen.ist_neueste_version %}
+                        <span class="badge bg-secondary">Ältere Version</span>
+                        {% else %}
+                        <span class="badge bg-success">Aktuell</span>
+                        {% endif %}
+                    </div>
+
+                    {% if fragebogen.vorgaenger %}
+                    <div class="mb-2">
+                        <small class="text-muted d-block">Vorgänger:</small>
+                        <a href="{{ url_for('dialog_admin.detail', id=fragebogen.vorgaenger.id) }}"
+                           class="text-decoration-none">
+                            <i class="ti ti-arrow-left"></i>
+                            V{{ fragebogen.vorgaenger.version_nummer }} - {{ fragebogen.vorgaenger.titel }}
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    {% if fragebogen.nachfolger.first() %}
+                    <div class="mb-2">
+                        <small class="text-muted d-block">Nachfolger:</small>
+                        <a href="{{ url_for('dialog_admin.detail', id=fragebogen.nachfolger.first().id) }}"
+                           class="text-decoration-none">
+                            <i class="ti ti-arrow-right"></i>
+                            V{{ fragebogen.nachfolger.first().version_nummer }} - {{ fragebogen.nachfolger.first().titel }}
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    {% if fragebogen.version_kette|length > 2 %}
+                    <hr class="my-2">
+                    <small class="text-muted">Versionskette:</small>
+                    <div class="d-flex flex-wrap gap-1 mt-1">
+                        {% for v in fragebogen.version_kette %}
+                        <a href="{{ url_for('dialog_admin.detail', id=v.id) }}"
+                           class="badge {% if v.id == fragebogen.id %}bg-primary{% else %}bg-secondary{% endif %} text-decoration-none">
+                            V{{ v.version_nummer }}
+                        </a>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
             <div class="card mb-4">
                 <div class="card-header">
                     <h5 class="mb-0"><i class="ti ti-settings"></i> Aktionen</h5>
@@ -102,6 +177,7 @@
                 <div class="card-body">
                     {% if fragebogen.is_entwurf %}
                     <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="mb-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="aktivieren">
                         <button type="submit" class="btn btn-success w-100"
                                 {% if fragebogen.anzahl_fragen == 0 %}disabled{% endif %}>
@@ -115,10 +191,22 @@
 
                     {% if fragebogen.is_aktiv %}
                     <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="mb-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <input type="hidden" name="action" value="schliessen">
                         <button type="submit" class="btn btn-warning w-100"
                                 onclick="return confirm('Fragebogen wirklich schließen? Teilnehmer können dann keine Antworten mehr senden.')">
                             <i class="ti ti-lock"></i> Schließen
+                        </button>
+                    </form>
+                    {% endif %}
+
+                    {% if fragebogen.is_geschlossen %}
+                    <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="mb-2">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <input type="hidden" name="action" value="reaktivieren">
+                        <button type="submit" class="btn btn-success w-100"
+                                onclick="return confirm('Fragebogen reaktivieren? Teilnehmer können dann wieder antworten.')">
+                            <i class="ti ti-refresh"></i> Reaktivieren
                         </button>
                     </form>
                     {% endif %}
@@ -128,12 +216,100 @@
                     </a>
 
                     {% if fragebogen.anzahl_abgeschlossen > 0 %}
-                    <a href="{{ url_for('dialog_admin.auswertung', id=fragebogen.id) }}" class="btn btn-outline-info w-100">
+                    <a href="{{ url_for('dialog_admin.auswertung', id=fragebogen.id) }}" class="btn btn-outline-info w-100 mb-2">
                         <i class="ti ti-chart-bar"></i> Auswertung
                     </a>
                     {% endif %}
+
+                    <hr class="my-3">
+
+                    <!-- Neue Version erstellen (nur bei neuester Version) -->
+                    {% if fragebogen.ist_neueste_version %}
+                    <button type="button" class="btn btn-outline-secondary w-100 mb-2"
+                            data-bs-toggle="modal" data-bs-target="#duplicateModal">
+                        <i class="ti ti-copy"></i> Neue Version erstellen
+                    </button>
+                    {% else %}
+                    <button class="btn btn-outline-secondary w-100 mb-2" disabled
+                            title="Nur die neueste Version kann dupliziert werden">
+                        <i class="ti ti-copy"></i> Neue Version erstellen
+                    </button>
+                    <small class="text-muted d-block mb-2">
+                        <i class="ti ti-info-circle"></i>
+                        Nur V{{ fragebogen.nachfolger.first().version_nummer }} kann dupliziert werden.
+                    </small>
+                    {% endif %}
+
+                    <hr class="my-3">
+
+                    <!-- Archivieren / Wiederherstellen -->
+                    {% if fragebogen.is_archiviert %}
+                    <form method="post" action="{{ url_for('dialog_admin.dearchivieren', id=fragebogen.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-success w-100"
+                                onclick="return confirm('Fragebogen wiederherstellen?')">
+                            <i class="ti ti-archive-off"></i> Wiederherstellen
+                        </button>
+                    </form>
+                    {% else %}
+                    <form method="post" action="{{ url_for('dialog_admin.archivieren', id=fragebogen.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-danger w-100"
+                                onclick="return confirm('Fragebogen archivieren? Er wird nicht gelöscht, sondern nur aus der Liste ausgeblendet.')">
+                            <i class="ti ti-archive"></i> Archivieren
+                        </button>
+                    </form>
+                    {% endif %}
                 </div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal: Neue Version erstellen -->
+<div class="modal fade" id="duplicateModal" tabindex="-1" aria-labelledby="duplicateModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('dialog_admin.duplicate', id=fragebogen.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="duplicateModalLabel">
+                        <i class="ti ti-versions"></i> Neue Version erstellen
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="alert alert-primary mb-3">
+                        <i class="ti ti-info-circle"></i>
+                        Erstellt <strong>V{{ fragebogen.version_nummer + 1 }}</strong> basierend auf V{{ fragebogen.version_nummer }}
+                    </div>
+                    <div class="mb-3">
+                        <label for="titel" class="form-label">Titel der neuen Version</label>
+                        <input type="text" class="form-control" id="titel" name="titel"
+                               value="{{ fragebogen.titel }}" required>
+                        <small class="text-muted">Sie können den Titel anpassen oder gleich lassen.</small>
+                    </div>
+                    <div class="alert alert-secondary mb-0">
+                        <strong>Was wird übernommen:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Beschreibung</li>
+                            <li>Alle Fragen mit Optionen</li>
+                            <li>Verknüpfung zur Vorgänger-Version</li>
+                        </ul>
+                        <strong class="d-block mt-2">Was wird NICHT übernommen:</strong>
+                        <ul class="mb-0 mt-2">
+                            <li>Teilnehmer und deren Antworten</li>
+                            <li>Status (neue Version startet als Entwurf)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-versions"></i> V{{ fragebogen.version_nummer + 1 }} erstellen
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

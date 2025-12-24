@@ -141,6 +141,24 @@
                         {% endif %}
                     </dd>
 
+                    <dt class="col-sm-4">Telefon</dt>
+                    <dd class="col-sm-8">
+                        {% if kunde.telefon %}
+                        <a href="tel:{{ kunde.telefon }}">{{ kunde.telefon }}</a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">E-Mail</dt>
+                    <dd class="col-sm-8">
+                        {% if kunde.email %}
+                        <a href="mailto:{{ kunde.email }}">{{ kunde.email }}</a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </dd>
+
                     <dt class="col-sm-4">Status</dt>
                     <dd class="col-sm-8">
                         {% if kunde.aktiv %}
@@ -164,54 +182,81 @@
         </div>
         {% endif %}
 
-        <!-- User-Account Card (PRD-006) -->
+        <!-- User-Account Card (PRD-006) - 1:N Beziehung -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="ti ti-user"></i> Benutzer-Account</span>
+                <span><i class="ti ti-users-group"></i> Benutzer-Accounts</span>
+                <div class="btn-group btn-group-sm">
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                        <i class="ti ti-user-plus"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#assignUserModal">
+                        <i class="ti ti-link"></i>
+                    </button>
+                </div>
             </div>
             <div class="card-body">
-                {% if kunde.user %}
-                <!-- User existiert -->
-                <dl class="row mb-0">
-                    <dt class="col-sm-4">E-Mail</dt>
-                    <dd class="col-sm-8">{{ kunde.user.email }}</dd>
-                    <dt class="col-sm-4">Name</dt>
-                    <dd class="col-sm-8">{{ kunde.user.full_name }}</dd>
-                    <dt class="col-sm-4">Status</dt>
-                    <dd class="col-sm-8">
-                        {% if kunde.user.aktiv %}
-                        <span class="badge bg-success">Aktiv</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Inaktiv</span>
-                        {% endif %}
-                    </dd>
-                    <dt class="col-sm-4">Letzter Login</dt>
-                    <dd class="col-sm-8">
-                        {% if kunde.user.last_login %}
-                        {{ kunde.user.last_login.strftime('%d.%m.%Y %H:%M') }}
-                        {% else %}
-                        <span class="text-muted">Noch nie</span>
-                        {% endif %}
-                    </dd>
-                </dl>
+                {% if kunde.benutzer_zuordnungen %}
+                <div class="list-group list-group-flush">
+                    {% for zuo in kunde.benutzer_zuordnungen %}
+                    <div class="list-group-item px-0 d-flex justify-content-between align-items-start">
+                        <div>
+                            <strong>{{ zuo.user.full_name }}</strong>
+                            {% if zuo.ist_hauptbenutzer %}
+                            <span class="badge bg-primary ms-2">Hauptbenutzer</span>
+                            {% endif %}
+                            {% if not zuo.user.aktiv %}
+                            <span class="badge bg-secondary ms-1">Inaktiv</span>
+                            {% endif %}
+                            <br>
+                            <small class="text-muted">{{ zuo.user.email }}</small>
+                            {% if zuo.user.last_login %}
+                            <br><small class="text-muted">
+                                Login: {{ zuo.user.last_login.strftime('%d.%m.%Y %H:%M') }}
+                            </small>
+                            {% endif %}
+                        </div>
+                        <div class="btn-group btn-group-sm">
+                            {% if not zuo.ist_hauptbenutzer %}
+                            <button type="button" class="btn btn-outline-warning"
+                                    onclick="setHauptbenutzer_User({{ zuo.user.id }})"
+                                    title="Als Hauptbenutzer festlegen">
+                                <i class="ti ti-star"></i>
+                            </button>
+                            {% endif %}
+                            <button type="button" class="btn btn-outline-danger"
+                                    onclick="removeBenutzer({{ zuo.user.id }}, '{{ zuo.user.full_name }}')"
+                                    title="Zuordnung entfernen">
+                                <i class="ti ti-x"></i>
+                            </button>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% if kunde.hauptbenutzer %}
                 <hr>
-                <div class="d-flex gap-2">
+                <div class="d-flex gap-2 flex-wrap">
                     <button type="button" class="btn btn-outline-primary btn-sm" onclick="sendCredentials()">
-                        <i class="ti ti-mail"></i> Zugangsdaten senden
+                        <i class="ti ti-mail"></i> Zugangsdaten an Hauptbenutzer senden
                     </button>
                     <button type="button" class="btn btn-outline-warning btn-sm" onclick="createNewToken()">
                         <i class="ti ti-key"></i> Neues Passwort
                     </button>
                 </div>
+                {% endif %}
                 {% else %}
                 <!-- Kein User -->
                 <p class="text-muted mb-3">
                     <i class="ti ti-info-circle"></i> Dieser Kunde hat noch keinen Benutzer-Account.
-                    Erstellen Sie einen Account, um Zugangsdaten zum Kundenportal zu versenden.
                 </p>
-                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
-                    <i class="ti ti-user-plus"></i> Benutzer erstellen
-                </button>
+                <div class="d-flex gap-2 flex-wrap">
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createUserModal">
+                        <i class="ti ti-user-plus"></i> Neuen Benutzer erstellen
+                    </button>
+                    <button type="button" class="btn btn-outline-primary" data-bs-toggle="modal" data-bs-target="#assignUserModal">
+                        <i class="ti ti-link"></i> Bestehenden Benutzer zuweisen
+                    </button>
+                </div>
                 {% endif %}
             </div>
         </div>
@@ -605,8 +650,7 @@
 </div>
 {% endif %}
 
-<!-- PRD-006: User-Erstellung Modal -->
-{% if not kunde.user %}
+<!-- PRD-006: User-Erstellung Modal (immer verfügbar für 1:N) -->
 <div class="modal fade" id="createUserModal" tabindex="-1" aria-labelledby="createUserModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -655,7 +699,53 @@
         </div>
     </div>
 </div>
-{% endif %}
+
+<!-- Modal: Bestehenden Benutzer zuweisen -->
+<div class="modal fade" id="assignUserModal" tabindex="-1" aria-labelledby="assignUserModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="assignUserModalLabel">
+                    <i class="ti ti-link"></i> Bestehenden Benutzer zuweisen
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Wählen Sie einen bestehenden Benutzer aus, um ihn diesem Kunden zuzuweisen.
+                </p>
+
+                {% if kunde.email %}
+                <div class="alert alert-info small mb-3">
+                    <i class="ti ti-filter"></i> Benutzer mit Domain <strong>@{{ kunde.email.split('@')[1] if '@' in kunde.email else '' }}</strong> werden vorrangig angezeigt.
+                </div>
+                {% endif %}
+
+                <div class="mb-3">
+                    <label for="assignUserSelect" class="form-label">Benutzer auswählen *</label>
+                    <select class="form-select" id="assignUserSelect" required>
+                        <option value="">Wird geladen...</option>
+                    </select>
+                </div>
+
+                <div id="selectedUserInfo" class="d-none">
+                    <div class="card bg-light">
+                        <div class="card-body py-2">
+                            <strong id="selectedUserName"></strong><br>
+                            <small class="text-muted" id="selectedUserEmail"></small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" onclick="assignUser()" id="assignUserBtn" disabled>
+                    <i class="ti ti-link"></i> Benutzer zuweisen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -1070,6 +1160,174 @@ async function createNewToken() {
             showToast(data.error || 'Fehler', 'danger');
         }
     } catch (error) {
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+// ===== Bestehenden Benutzer zuweisen =====
+let availableUsers = [];
+
+// Modal-Event: Benutzer laden wenn Modal öffnet
+document.getElementById('assignUserModal')?.addEventListener('show.bs.modal', loadAvailableUsers);
+
+async function loadAvailableUsers() {
+    const select = document.getElementById('assignUserSelect');
+    select.innerHTML = '<option value="">Wird geladen...</option>';
+    document.getElementById('assignUserBtn').disabled = true;
+
+    try {
+        const response = await fetch(`/kunden/${kundeId}/available-users`, {
+            headers: { 'X-CSRFToken': csrfToken }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            availableUsers = data.users;
+
+            if (availableUsers.length === 0) {
+                select.innerHTML = '<option value="">Keine verfügbaren Benutzer</option>';
+                return;
+            }
+
+            // Gruppiere nach Domain-Match
+            const matchingDomain = data.matching_domain;
+            const matchingUsers = availableUsers.filter(u => u.domain_match);
+            const otherUsers = availableUsers.filter(u => !u.domain_match);
+
+            let html = '<option value="">-- Benutzer wählen --</option>';
+
+            if (matchingUsers.length > 0) {
+                html += `<optgroup label="Passende Domain (${matchingDomain})">`;
+                matchingUsers.forEach(u => {
+                    html += `<option value="${u.id}" data-name="${u.full_name}" data-email="${u.email}">
+                        ${u.full_name} (${u.email})
+                    </option>`;
+                });
+                html += '</optgroup>';
+            }
+
+            if (otherUsers.length > 0) {
+                html += '<optgroup label="Andere Benutzer">';
+                otherUsers.forEach(u => {
+                    html += `<option value="${u.id}" data-name="${u.full_name}" data-email="${u.email}">
+                        ${u.full_name} (${u.email})
+                    </option>`;
+                });
+                html += '</optgroup>';
+            }
+
+            select.innerHTML = html;
+
+            // Auto-select first matching user if exists
+            if (matchingUsers.length > 0) {
+                select.value = matchingUsers[0].id;
+                onUserSelected();
+            }
+        } else {
+            select.innerHTML = '<option value="">Fehler beim Laden</option>';
+        }
+    } catch (error) {
+        console.error('Error loading users:', error);
+        select.innerHTML = '<option value="">Verbindungsfehler</option>';
+    }
+}
+
+function onUserSelected() {
+    const select = document.getElementById('assignUserSelect');
+    const selectedOption = select.options[select.selectedIndex];
+    const infoDiv = document.getElementById('selectedUserInfo');
+    const btn = document.getElementById('assignUserBtn');
+
+    if (select.value) {
+        document.getElementById('selectedUserName').textContent = selectedOption.dataset.name;
+        document.getElementById('selectedUserEmail').textContent = selectedOption.dataset.email;
+        infoDiv.classList.remove('d-none');
+        btn.disabled = false;
+    } else {
+        infoDiv.classList.add('d-none');
+        btn.disabled = true;
+    }
+}
+
+// Event-Listener für Select
+document.getElementById('assignUserSelect')?.addEventListener('change', onUserSelected);
+
+async function assignUser() {
+    const userId = document.getElementById('assignUserSelect').value;
+    if (!userId) {
+        showToast('Bitte einen Benutzer auswählen', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/kunden/${kundeId}/user/assign`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ user_id: parseInt(userId) })
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            bootstrap.Modal.getInstance(document.getElementById('assignUserModal')).hide();
+            setTimeout(() => location.reload(), 1000);
+        } else {
+            showToast(data.error || 'Fehler beim Zuweisen', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+// ===== 1:N Benutzer-Verwaltung =====
+async function removeBenutzer(userId, userName) {
+    if (!confirm(`Benutzer "${userName}" wirklich von diesem Kunden entfernen?`)) return;
+
+    try {
+        const response = await fetch(`/kunden/${kundeId}/user/${userId}/remove`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.error || 'Fehler beim Entfernen', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        showToast('Verbindungsfehler', 'danger');
+    }
+}
+
+async function setHauptbenutzer_User(userId) {
+    try {
+        const response = await fetch(`/kunden/${kundeId}/user/${userId}/set-hauptbenutzer`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            showToast(data.message, 'success');
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.error || 'Fehler beim Setzen', 'danger');
+        }
+    } catch (error) {
+        console.error('Error:', error);
         showToast('Verbindungsfehler', 'danger');
     }
 }

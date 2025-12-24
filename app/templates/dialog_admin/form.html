@@ -59,14 +59,49 @@
 
                 <div class="alert alert-info">
                     <h6><i class="ti ti-info-circle"></i> JSON-Schema Hilfe</h6>
-                    <p class="mb-2">Unterstützte Fragetypen:</p>
-                    <ul class="mb-0 small">
-                        <li><code>single_choice</code> - Eine Auswahl (mit <code>optionen</code>)</li>
-                        <li><code>multiple_choice</code> - Mehrfachauswahl (mit <code>optionen</code>)</li>
-                        <li><code>skala</code> - Bewertungsskala (mit <code>min</code>, <code>max</code>, optional <code>labels</code>)</li>
-                        <li><code>text</code> - Freitext (optional <code>multiline: true</code>)</li>
-                        <li><code>ja_nein</code> - Ja/Nein Auswahl</li>
+
+                    <ul class="nav nav-tabs mb-3" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" data-bs-toggle="tab" data-bs-target="#schema-v1" type="button">V1 (Einfach)</button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" data-bs-toggle="tab" data-bs-target="#schema-v2" type="button">V2 (Wizard)</button>
+                        </li>
                     </ul>
+
+                    <div class="tab-content">
+                        <div class="tab-pane fade show active" id="schema-v1">
+                            <p class="mb-2"><strong>V1: Flache Fragen-Liste</strong></p>
+                            <pre class="bg-light p-2 small mb-2">{"fragen": [{"id": "q1", "typ": "...", "frage": "...", "pflicht": true}]}</pre>
+                            <p class="mb-2">Fragetypen V1:</p>
+                            <ul class="mb-0 small">
+                                <li><code>single_choice</code> - Eine Auswahl (mit <code>optionen</code>)</li>
+                                <li><code>multiple_choice</code> - Mehrfachauswahl (mit <code>optionen</code>)</li>
+                                <li><code>skala</code> - Bewertungsskala (mit <code>min</code>, <code>max</code>)</li>
+                                <li><code>text</code> - Freitext (optional <code>multiline: true</code>)</li>
+                                <li><code>ja_nein</code> - Ja/Nein Auswahl</li>
+                            </ul>
+                        </div>
+                        <div class="tab-pane fade" id="schema-v2">
+                            <p class="mb-2"><strong>V2: Mehrseitig mit Wizard</strong></p>
+                            <pre class="bg-light p-2 small mb-2">{"version": 2, "seiten": [{"id": "s1", "titel": "...", "hilfetext": "...", "fragen": [...]}]}</pre>
+                            <p class="mb-2">Zusätzliche Fragetypen V2:</p>
+                            <ul class="mb-2 small">
+                                <li><code>dropdown</code> - Dropdown-Auswahl (mit <code>optionen</code>, optional <code>freifeld: true</code>)</li>
+                                <li><code>date</code> - Datumswähler (optional <code>min_date: "today"</code>)</li>
+                                <li><code>number</code> - Zahleneingabe (optional <code>min</code>, <code>max</code>)</li>
+                                <li><code>url</code> - URL-Eingabe</li>
+                                <li><code>group</code> - Kombinierte Felder (mit <code>fields: [{id, label, typ, width}]</code>)</li>
+                                <li><code>table</code> - Tabellen-Layout (mit <code>columns</code>, <code>rows</code>)</li>
+                            </ul>
+                            <p class="mb-2">V2-Funktionen:</p>
+                            <ul class="mb-0 small">
+                                <li><code>hilfetext</code> - Bei Seiten und Fragen (Fragezeichen-Icon)</li>
+                                <li><code>prefill: "kunde.firmierung"</code> - Vorausfüllen aus Kundendaten</li>
+                                <li><code>show_if: {"frage_id": "x", "equals": true}</code> - Bedingte Anzeige</li>
+                            </ul>
+                        </div>
+                    </div>
                 </div>
 
                 <hr>

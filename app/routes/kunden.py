@@ -9,7 +9,7 @@ from sqlalchemy import func
 
 from app import db
 from app.models import Kunde, KundeCI, KundeApiNutzung, User, Branche, Verband, KundeBranche, KundeVerband
-from app.models import BranchenRolle, KundeBranchenRolle, PasswordToken
+from app.models import BranchenRolle, KundeBranchenRolle, PasswordToken, KundeBenutzer
 from app.services import FirecrawlService, get_password_service
 from app.services.logging_service import log_mittel
 from app.routes.auth import mitarbeiter_required
@@ -28,6 +28,8 @@ class KundeForm(FlaskForm):
     adresse = TextAreaField('Adresse (alt)', validators=[Optional()])
     website_url = StringField('Website URL', validators=[Optional(), URL()])
     shop_url = StringField('Online-Shop URL', validators=[Optional(), URL()])
+    telefon = StringField('Telefon', validators=[Optional()])
+    email = StringField('E-Mail', validators=[Optional()])
     notizen = TextAreaField('Notizen', validators=[Optional()])
     aktiv = BooleanField('Aktiv', default=True)
 
@@ -88,6 +90,8 @@ def neu():
             ort=form.ort.data,
             land=form.land.data or 'Deutschland',
             adresse=form.adresse.data,
+            telefon=form.telefon.data or None,
+            email=form.email.data or None,
             website_url=form.website_url.data or None,
             shop_url=form.shop_url.data or None,
             notizen=form.notizen.data,
@@ -168,6 +172,8 @@ def bearbeiten(id):
         kunde.ort = form.ort.data
         kunde.land = form.land.data or 'Deutschland'
         kunde.adresse = form.adresse.data
+        kunde.telefon = form.telefon.data or None
+        kunde.email = form.email.data or None
         kunde.website_url = form.website_url.data or None
         kunde.shop_url = form.shop_url.data or None
         kunde.notizen = form.notizen.data
@@ -583,15 +589,10 @@ def create_user(id):
         "nachname": "Mustermann"
     }
 
+    The first user created for a Kunde automatically becomes Hauptbenutzer.
     Returns JSON with user info and password token.
     """
     kunde = Kunde.query.get_or_404(id)
-
-    if kunde.user_id:
-        return jsonify({
-            'success': False,
-            'error': 'Kunde hat bereits einen User-Account'
-        }), 400
 
     data = request.get_json()
     if not data:
@@ -607,6 +608,13 @@ def create_user(id):
             'error': 'E-Mail, Vorname und Nachname erforderlich'
         }), 400
 
+    # Check if email is already in use
+    if User.query.filter_by(email=email.lower()).first():
+        return jsonify({
+            'success': False,
+            'error': 'Diese E-Mail-Adresse wird bereits verwendet'
+        }), 400
+
     service = get_password_service()
     result = service.create_user_for_kunde(kunde, email, vorname, nachname)
 
@@ -617,10 +625,12 @@ def create_user(id):
         }), 400
 
     # Log the event
+    is_hauptbenutzer = result.is_hauptbenutzer if hasattr(result, 'is_hauptbenutzer') else True
     log_mittel(
         modul='kunden',
         aktion='user_erstellt',
-        details=f'User-Account für Kunde "{kunde.firmierung}" erstellt: {email}',
+        details=f'User-Account für Kunde "{kunde.firmierung}" erstellt: {email}' +
+                (' (Hauptbenutzer)' if is_hauptbenutzer else ''),
         entity_type='Kunde',
         entity_id=id
     )
@@ -629,6 +639,7 @@ def create_user(id):
         'success': True,
         'user': result.user.to_dict(),
         'token_id': result.password_token.id,
+        'is_hauptbenutzer': is_hauptbenutzer,
         'message': f'User-Account für {email} erstellt'
     })
 
@@ -744,4 +755,238 @@ def create_new_token(id):
         'success': True,
         'token_id': password_token.id,
         'message': 'Neues Passwort erstellt. Zugangsdaten können jetzt gesendet werden.'
+    })
+
+
+@kunden_bp.route('/<int:id>/available-users')
+@login_required
+@mitarbeiter_required
+def available_users(id):
+    """Get list of available users for assignment to a Kunde.
+
+    Returns users not already assigned to THIS Kunde, sorted by domain match.
+    If the Kunde has an email, users with matching domain are prioritized.
+    """
+    kunde = Kunde.query.get_or_404(id)
+
+    # Get IDs of users already assigned to THIS Kunde
+    already_assigned_ids = {kb.user_id for kb in kunde.benutzer_zuordnungen}
+
+    # Find active users who are not already assigned to this Kunde
+    available = User.query.filter(
+        User.aktiv == True,
+        ~User.id.in_(already_assigned_ids) if already_assigned_ids else True
+    ).all()
+
+    # Extract domain from Kunde email if available
+    matching_domain = None
+    if kunde.email and '@' in kunde.email:
+        matching_domain = kunde.email.split('@')[1].lower()
+
+    # Build user list with domain_match flag
+    user_list = []
+    for user in available:
+        user_domain = user.email.split('@')[1].lower() if '@' in user.email else ''
+        domain_match = matching_domain and user_domain == matching_domain
+
+        # Check if user is assigned to other Kunden
+        other_kunden = [zuo.kunde.firmierung for zuo in user.kunde_zuordnungen
+                        if zuo.kunde_id != id]
+
+        user_list.append({
+            'id': user.id,
+            'email': user.email,
+            'full_name': user.full_name,
+            'rolle': user.rolle,
+            'domain_match': domain_match,
+            'andere_kunden': other_kunden
+        })
+
+    # Sort: domain matches first, then by name
+    user_list.sort(key=lambda u: (not u['domain_match'], u['full_name'].lower()))
+
+    return jsonify({
+        'success': True,
+        'users': user_list,
+        'matching_domain': matching_domain,
+        'total': len(user_list)
+    })
+
+
+@kunden_bp.route('/<int:id>/user/assign', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def assign_user(id):
+    """Assign an existing user to a Kunde.
+
+    Expects JSON:
+    {
+        "user_id": 123
+    }
+
+    The first user assigned becomes Hauptbenutzer automatically.
+    """
+    kunde = Kunde.query.get_or_404(id)
+
+    data = request.get_json()
+    if not data or 'user_id' not in data:
+        return jsonify({'success': False, 'error': 'user_id erforderlich'}), 400
+
+    user_id = data['user_id']
+    user = User.query.get(user_id)
+
+    if not user:
+        return jsonify({'success': False, 'error': 'Benutzer nicht gefunden'}), 404
+
+    # Check if user is already assigned to THIS Kunde
+    existing = KundeBenutzer.query.filter_by(kunde_id=id, user_id=user_id).first()
+    if existing:
+        return jsonify({
+            'success': False,
+            'error': f'Benutzer ist diesem Kunden bereits zugewiesen'
+        }), 400
+
+    # First user becomes Hauptbenutzer
+    is_first_user = len(kunde.benutzer_zuordnungen) == 0
+    is_hauptbenutzer = is_first_user
+
+    # Create KundeBenutzer entry
+    kunde_benutzer = KundeBenutzer(
+        kunde_id=id,
+        user_id=user_id,
+        ist_hauptbenutzer=is_hauptbenutzer
+    )
+    db.session.add(kunde_benutzer)
+
+    # Also update legacy user_id for backward compatibility (if first user)
+    if is_first_user:
+        kunde.user_id = user_id
+
+    db.session.commit()
+
+    # Log the event
+    log_mittel(
+        modul='kunden',
+        aktion='user_zugewiesen',
+        details=f'Benutzer {user.full_name} ({user.email}) wurde Kunde "{kunde.firmierung}" zugewiesen' +
+                (' (Hauptbenutzer)' if is_hauptbenutzer else ''),
+        entity_type='Kunde',
+        entity_id=id
+    )
+
+    return jsonify({
+        'success': True,
+        'message': f'Benutzer {user.full_name} wurde zugewiesen',
+        'is_hauptbenutzer': is_hauptbenutzer,
+        'user': {
+            'id': user.id,
+            'email': user.email,
+            'full_name': user.full_name
+        }
+    })
+
+
+@kunden_bp.route('/<int:id>/user/<int:user_id>/remove', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def remove_user(id, user_id):
+    """Remove a user assignment from a Kunde.
+
+    If the removed user was Hauptbenutzer, the next user becomes Hauptbenutzer.
+    """
+    kunde = Kunde.query.get_or_404(id)
+    user = User.query.get_or_404(user_id)
+
+    # Find the assignment
+    zuordnung = KundeBenutzer.query.filter_by(kunde_id=id, user_id=user_id).first()
+    if not zuordnung:
+        return jsonify({
+            'success': False,
+            'error': 'Benutzer ist diesem Kunden nicht zugewiesen'
+        }), 404
+
+    was_hauptbenutzer = zuordnung.ist_hauptbenutzer
+
+    # Remove the assignment
+    db.session.delete(zuordnung)
+
+    # If was Hauptbenutzer, promote the next user
+    if was_hauptbenutzer:
+        remaining = KundeBenutzer.query.filter_by(kunde_id=id).first()
+        if remaining:
+            remaining.ist_hauptbenutzer = True
+            kunde.user_id = remaining.user_id  # Update legacy field
+        else:
+            kunde.user_id = None  # No users left
+
+    db.session.commit()
+
+    # Log the event
+    log_mittel(
+        modul='kunden',
+        aktion='user_entfernt',
+        details=f'Benutzer {user.full_name} ({user.email}) wurde von Kunde "{kunde.firmierung}" entfernt',
+        entity_type='Kunde',
+        entity_id=id
+    )
+
+    return jsonify({
+        'success': True,
+        'message': f'Benutzer {user.full_name} wurde entfernt',
+        'new_hauptbenutzer_id': kunde.hauptbenutzer.id if kunde.hauptbenutzer else None
+    })
+
+
+@kunden_bp.route('/<int:id>/user/<int:user_id>/set-hauptbenutzer', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def set_hauptbenutzer(id, user_id):
+    """Set a user as Hauptbenutzer for a Kunde.
+
+    Only one user can be Hauptbenutzer - the previous one is demoted.
+    """
+    kunde = Kunde.query.get_or_404(id)
+    user = User.query.get_or_404(user_id)
+
+    # Find the assignment
+    zuordnung = KundeBenutzer.query.filter_by(kunde_id=id, user_id=user_id).first()
+    if not zuordnung:
+        return jsonify({
+            'success': False,
+            'error': 'Benutzer ist diesem Kunden nicht zugewiesen'
+        }), 404
+
+    if zuordnung.ist_hauptbenutzer:
+        return jsonify({
+            'success': False,
+            'error': 'Benutzer ist bereits Hauptbenutzer'
+        }), 400
+
+    # Remove Hauptbenutzer flag from current
+    current_hauptbenutzer = KundeBenutzer.query.filter_by(
+        kunde_id=id, ist_hauptbenutzer=True
+    ).first()
+    if current_hauptbenutzer:
+        current_hauptbenutzer.ist_hauptbenutzer = False
+
+    # Set new Hauptbenutzer
+    zuordnung.ist_hauptbenutzer = True
+
+    # Update legacy user_id field
+    kunde.user_id = user_id
+
+    db.session.commit()
+
+    # Log the event
+    log_mittel(
+        modul='kunden',
+        aktion='hauptbenutzer_geaendert',
+        details=f'Benutzer {user.full_name} wurde Hauptbenutzer für Kunde "{kunde.firmierung}"',
+        entity_type='Kunde',
+        entity_id=id
+    )
+
+    return jsonify({
+        'success': True,
+        'message': f'{user.full_name} ist jetzt Hauptbenutzer'
     })

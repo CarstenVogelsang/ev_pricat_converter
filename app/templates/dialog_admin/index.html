@@ -6,9 +6,23 @@
 <div class="container py-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h1><i class="ti ti-messages"></i> Fragebögen</h1>
-        <a href="{{ url_for('dialog_admin.neu') }}" class="btn btn-primary">
-            <i class="ti ti-plus"></i> Neuer Fragebogen
-        </a>
+        <div class="d-flex gap-3 align-items-center">
+            <!-- Archiv-Toggle -->
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="showArchived"
+                       {% if show_archived %}checked{% endif %}
+                       onchange="window.location.href='?archived=' + (this.checked ? '1' : '0')">
+                <label class="form-check-label" for="showArchived">
+                    Archivierte anzeigen
+                    {% if archiviert_count > 0 %}
+                    <span class="badge bg-secondary">{{ archiviert_count }}</span>
+                    {% endif %}
+                </label>
+            </div>
+            <a href="{{ url_for('dialog_admin.neu') }}" class="btn btn-primary">
+                <i class="ti ti-plus"></i> Neuer Fragebogen
+            </a>
+        </div>
     </div>
 
     {% if entwuerfe %}
@@ -21,6 +35,7 @@
                 <thead>
                     <tr>
                         <th>Titel</th>
+                        <th class="text-center">V</th>
                         <th class="text-center">Fragen</th>
                         <th class="text-center">Teilnehmer</th>
                         <th>Erstellt</th>
@@ -29,10 +44,12 @@
                 </thead>
                 <tbody>
                     {% for fb in entwuerfe %}
-                    <tr>
+                    <tr {% if fb.is_archiviert %}class="table-warning"{% endif %}>
                         <td>
                             <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
+                            {% if fb.is_archiviert %}<span class="badge bg-warning text-dark ms-1"><i class="ti ti-archive"></i></span>{% endif %}
                         </td>
+                        <td class="text-center"><span class="badge bg-primary">{{ fb.version_nummer }}</span></td>
                         <td class="text-center">{{ fb.anzahl_fragen }}</td>
                         <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
                         <td>{{ fb.erstellt_am.strftime('%d.%m.%Y') }}</td>
@@ -59,6 +76,7 @@
                 <thead>
                     <tr>
                         <th>Titel</th>
+                        <th class="text-center">V</th>
                         <th class="text-center">Fragen</th>
                         <th class="text-center">Teilnehmer</th>
                         <th class="text-center">Abgeschlossen</th>
@@ -68,10 +86,12 @@
                 </thead>
                 <tbody>
                     {% for fb in aktive %}
-                    <tr>
+                    <tr {% if fb.is_archiviert %}class="table-warning"{% endif %}>
                         <td>
                             <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
+                            {% if fb.is_archiviert %}<span class="badge bg-warning text-dark ms-1"><i class="ti ti-archive"></i></span>{% endif %}
                         </td>
+                        <td class="text-center"><span class="badge bg-primary">{{ fb.version_nummer }}</span></td>
                         <td class="text-center">{{ fb.anzahl_fragen }}</td>
                         <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
                         <td class="text-center">
@@ -104,6 +124,7 @@
                 <thead>
                     <tr>
                         <th>Titel</th>
+                        <th class="text-center">V</th>
                         <th class="text-center">Teilnehmer</th>
                         <th class="text-center">Abgeschlossen</th>
                         <th>Geschlossen</th>
@@ -112,10 +133,12 @@
                 </thead>
                 <tbody>
                     {% for fb in geschlossene %}
-                    <tr class="text-muted">
+                    <tr class="{% if fb.is_archiviert %}table-warning{% else %}text-muted{% endif %}">
                         <td>
                             <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
+                            {% if fb.is_archiviert %}<span class="badge bg-warning text-dark ms-1"><i class="ti ti-archive"></i></span>{% endif %}
                         </td>
+                        <td class="text-center"><span class="badge bg-primary">{{ fb.version_nummer }}</span></td>
                         <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
                         <td class="text-center">{{ fb.anzahl_abgeschlossen }}</td>
                         <td>{{ fb.geschlossen_am.strftime('%d.%m.%Y') if fb.geschlossen_am else '-' }}</td>

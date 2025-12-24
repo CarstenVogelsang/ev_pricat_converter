@@ -3,6 +3,7 @@
 Uses Brevo (formerly Sendinblue) REST API for sending:
 - Zugangsdaten E-Mails (2 separate emails for security)
 - Fragebogen-Einladungen mit Magic-Link
+- Template-basierte E-Mails mit System-Branding
 
 Includes rate limiting for Brevo Free Plan (300 emails/day).
 """
@@ -11,7 +12,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import Optional
 
-from app.models import Config
+from app.models import Config, Kunde
 
 
 class QuotaExceededError(Exception):
@@ -47,10 +48,22 @@ class BrevoService:
 
     def _load_config(self):
         """Load configuration from database."""
+        from flask import current_app, request, has_request_context
+
         self._api_key = Config.get_value('brevo_api_key')
         self._sender_email = Config.get_value('brevo_sender_email', 'noreply@e-vendo.de')
         self._sender_name = Config.get_value('brevo_sender_name', 'e-vendo AG')
-        self._portal_base_url = Config.get_value('portal_base_url', 'https://portal.e-vendo.de')
+
+        # Portal URL: Dynamisch im Dev-Modus, Config im Prod-Modus
+        configured_url = Config.get_value('portal_base_url', '')
+
+        if current_app.debug and has_request_context():
+            # Im Dev-Modus: Aktuelle Request-URL verwenden (z.B. http://localhost:5000)
+            self._portal_base_url = request.host_url.rstrip('/')
+        elif configured_url:
+            self._portal_base_url = configured_url.rstrip('/')
+        else:
+            self._portal_base_url = 'https://portal.e-vendo.de'
 
     @property
     def is_configured(self) -> bool:
@@ -553,6 +566,226 @@ Ihr e-vendo System
                 'error': f'Netzwerkfehler: {str(e)}',
                 'configured': True
             }
+
+    # ==========================================================================
+    # Template-basierte E-Mail-Methoden (mit System-Branding)
+    # ==========================================================================
+
+    def _get_template_service(self):
+        """Lazy-load the EmailTemplateService to avoid circular imports."""
+        from app.services.email_template_service import get_email_template_service
+        return get_email_template_service()
+
+    def send_fragebogen_einladung_mit_template(
+        self,
+        to_email: str,
+        to_name: str,
+        fragebogen_titel: str,
+        magic_token: str,
+        kunde: Kunde = None
+    ) -> EmailResult:
+        """Send questionnaire invitation using database template with branding.
+
+        This method uses the 'fragebogen_einladung' template from the database,
+        which includes system branding (logo, colors) and customer footer.
+
+        Args:
+            to_email: Recipient email
+            to_name: Recipient name
+            fragebogen_titel: Title of the questionnaire
+            magic_token: Token for direct access (no login required)
+            kunde: Optional Kunde for footer customization
+
+        Returns:
+            EmailResult
+        """
+        self._load_config()
+
+        magic_url = f'{self._portal_base_url}/dialog/t/{magic_token}'
+
+        context = {
+            'fragebogen_titel': fragebogen_titel,
+            'link': magic_url,
+            'firmenname': kunde.firmierung if kunde else '',
+            'email': to_email,
+        }
+
+        try:
+            template_service = self._get_template_service()
+            rendered = template_service.render('fragebogen_einladung', context, kunde)
+
+            return self._send_email(
+                to_email=to_email,
+                to_name=to_name,
+                subject=rendered['subject'],
+                html_content=rendered['html'],
+                text_content=rendered.get('text')
+            )
+        except ValueError as e:
+            # Template not found - fall back to non-template method
+            return EmailResult(success=False, error=str(e))
+
+    def send_passwort_link(
+        self,
+        to_email: str,
+        to_name: str,
+        password_token: str,
+        vorname: str = None,
+        kunde: Kunde = None
+    ) -> EmailResult:
+        """Send password setup link for new users using database template.
+
+        Uses the 'passwort_zugangsdaten' template. The recipient can set
+        their password by clicking the link.
+
+        Args:
+            to_email: Recipient email
+            to_name: Recipient display name
+            password_token: Token for password setup
+            vorname: First name for personalized greeting
+            kunde: Optional Kunde for footer customization
+
+        Returns:
+            EmailResult
+        """
+        self._load_config()
+
+        password_url = f'{self._portal_base_url}/passwort/setzen/{password_token}'
+
+        context = {
+            'link': password_url,
+            'email': to_email,
+            'vorname': vorname,
+        }
+
+        try:
+            template_service = self._get_template_service()
+            rendered = template_service.render('passwort_zugangsdaten', context, kunde)
+
+            return self._send_email(
+                to_email=to_email,
+                to_name=to_name,
+                subject=rendered['subject'],
+                html_content=rendered['html'],
+                text_content=rendered.get('text')
+            )
+        except ValueError as e:
+            return EmailResult(success=False, error=str(e))
+
+    def send_passwort_reset(
+        self,
+        to_email: str,
+        to_name: str,
+        reset_token: str,
+        kunde: Kunde = None
+    ) -> EmailResult:
+        """Send password reset link using database template.
+
+        Uses the 'passwort_reset' template. The recipient can reset
+        their password by clicking the link.
+
+        Args:
+            to_email: Recipient email
+            to_name: Recipient display name
+            reset_token: Token for password reset
+            kunde: Optional Kunde for footer customization
+
+        Returns:
+            EmailResult
+        """
+        self._load_config()
+
+        reset_url = f'{self._portal_base_url}/passwort/reset/{reset_token}'
+
+        context = {
+            'link': reset_url,
+            'email': to_email,
+        }
+
+        try:
+            template_service = self._get_template_service()
+            rendered = template_service.render('passwort_reset', context, kunde)
+
+            return self._send_email(
+                to_email=to_email,
+                to_name=to_name,
+                subject=rendered['subject'],
+                html_content=rendered['html'],
+                text_content=rendered.get('text')
+            )
+        except ValueError as e:
+            return EmailResult(success=False, error=str(e))
+
+    def send_test_email_mit_template(
+        self,
+        to_email: str,
+        to_name: str
+    ) -> EmailResult:
+        """Send test email using database template with branding.
+
+        Uses the 'test_email' template to demonstrate the email configuration
+        and branding settings.
+
+        Args:
+            to_email: Recipient email
+            to_name: Recipient display name
+
+        Returns:
+            EmailResult
+        """
+        context = {
+            'email': to_email,
+        }
+
+        try:
+            template_service = self._get_template_service()
+            rendered = template_service.render('test_email', context)
+
+            return self._send_email(
+                to_email=to_email,
+                to_name=to_name,
+                subject=rendered['subject'],
+                html_content=rendered['html'],
+                text_content=rendered.get('text')
+            )
+        except ValueError as e:
+            return EmailResult(success=False, error=str(e))
+
+    def send_with_template(
+        self,
+        template_schluessel: str,
+        to_email: str,
+        to_name: str,
+        context: dict,
+        kunde: Kunde = None
+    ) -> EmailResult:
+        """Send email using any database template.
+
+        Generic method to send emails with any registered template.
+
+        Args:
+            template_schluessel: Template key (e.g., 'fragebogen_einladung')
+            to_email: Recipient email
+            to_name: Recipient display name
+            context: Variables for template rendering
+            kunde: Optional Kunde for footer customization
+
+        Returns:
+            EmailResult
+        """
+        try:
+            template_service = self._get_template_service()
+            rendered = template_service.render(template_schluessel, context, kunde)
+
+            return self._send_email(
+                to_email=to_email,
+                to_name=to_name,
+                subject=rendered['subject'],
+                html_content=rendered['html'],
+                text_content=rendered.get('text')
+            )
+        except ValueError as e:
+            return EmailResult(success=False, error=str(e))
 
 
 # Singleton instance

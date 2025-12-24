@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ fragebogen.titel }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='tabler-icons/tabler-icons.min.css') }}">
+    <style>
+        body {
+            background-color: #f8f9fa;
+            padding-top: 20px;
+            padding-bottom: 40px;
+        }
+        .fragebogen-card {
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        /* Progress Steps */
+        .wizard-steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .wizard-steps::before {
+            content: '';
+            position: absolute;
+            top: 16px;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #dee2e6;
+            z-index: 0;
+        }
+        .wizard-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            position: relative;
+            z-index: 1;
+            flex: 1;
+            cursor: pointer;
+        }
+        .wizard-step:first-child { align-items: flex-start; }
+        .wizard-step:last-child { align-items: flex-end; }
+        .step-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: #dee2e6;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            color: #6c757d;
+            transition: all 0.3s;
+        }
+        .wizard-step.active .step-circle {
+            background: #0d6efd;
+            color: white;
+        }
+        .wizard-step.completed .step-circle {
+            background: #198754;
+            color: white;
+        }
+        .wizard-step.disabled { cursor: not-allowed; opacity: 0.5; }
+        .step-label {
+            font-size: 0.8rem;
+            color: #6c757d;
+            margin-top: 5px;
+            max-width: 100px;
+            text-align: center;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .wizard-step.active .step-label { color: #0d6efd; font-weight: 500; }
+
+        /* Question Container */
+        .frage-container {
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            transition: opacity 0.3s, max-height 0.3s;
+        }
+        .frage-container.hidden {
+            display: none;
+        }
+        .frage-label {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+        .frage-label .help-btn {
+            cursor: pointer;
+            color: #6c757d;
+            padding: 0 5px;
+        }
+        .frage-label .help-btn:hover { color: #0d6efd; }
+
+        /* Seite (Page) */
+        .seite-container {
+            display: none;
+        }
+        .seite-container.active {
+            display: block;
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .seite-header {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            margin-bottom: 20px;
+        }
+        .seite-header .help-btn {
+            font-size: 1.2rem;
+            cursor: pointer;
+            color: #6c757d;
+        }
+        .seite-header .help-btn:hover { color: #0d6efd; }
+
+        /* Help Panel */
+        .help-panel {
+            position: fixed;
+            top: 0;
+            right: -350px;
+            width: 350px;
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1050;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+        .help-panel.open { right: 0; }
+        .help-panel-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .help-panel-body { padding: 20px; }
+        .help-panel-close { cursor: pointer; font-size: 1.5rem; }
+        .help-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.3);
+            z-index: 1040;
+            display: none;
+        }
+        .help-overlay.open { display: block; }
+
+        /* Skala */
+        .skala-container {
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .skala-container .form-check { flex: 0 0 auto; }
+
+        /* Group fields */
+        .group-fields {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .group-field { flex: 1; min-width: 100px; }
+
+        /* Navigation */
+        .wizard-nav {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px solid #dee2e6;
+        }
+
+        /* Prefilled indicator */
+        .prefilled-indicator {
+            font-size: 0.75rem;
+            color: #6c757d;
+            font-style: italic;
+        }
+
+        /* Mobile */
+        @media (max-width: 768px) {
+            .step-label { display: none; }
+            .wizard-steps { gap: 5px; }
+            .help-panel { width: 100%; right: -100%; }
+            .group-fields { flex-direction: column; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="fragebogen-card">
+            <!-- Header -->
+            <div class="text-center mb-4">
+                <h2>{{ fragebogen.titel }}</h2>
+                {% if fragebogen.beschreibung %}
+                <p class="text-muted">{{ fragebogen.beschreibung }}</p>
+                {% endif %}
+            </div>
+
+            <!-- Progress Steps -->
+            <div class="wizard-steps">
+                {% for seite in fragebogen.seiten %}
+                <div class="wizard-step {% if loop.first %}active{% else %}disabled{% endif %}"
+                     data-seite-index="{{ loop.index0 }}"
+                     onclick="goToSeite({{ loop.index0 }})">
+                    <div class="step-circle">{{ loop.index }}</div>
+                    <span class="step-label">{{ seite.titel|truncate(15, True) }}</span>
+                </div>
+                {% endfor %}
+            </div>
+
+            <form id="fragebogen-form">
+                {% for seite in fragebogen.seiten %}
+                <div class="seite-container {% if loop.first %}active{% endif %}"
+                     data-seite-id="{{ seite.id }}"
+                     data-seite-index="{{ loop.index0 }}">
+
+                    <!-- Seite Header -->
+                    <div class="seite-header">
+                        <div>
+                            <h4>{{ seite.titel }}</h4>
+                            {% if seite.beschreibung %}<p class="text-muted">{{ seite.beschreibung }}</p>{% endif %}
+                        </div>
+                        {% if seite.hilfetext %}
+                        <span class="help-btn" onclick="showHelp('{{ seite.titel }}', '{{ seite.hilfetext|e }}')">
+                            <i class="ti ti-help-circle"></i>
+                        </span>
+                        {% endif %}
+                    </div>
+
+                    <!-- Fragen -->
+                    {% for frage in seite.fragen %}
+                    <div class="frage-container"
+                         data-frage-id="{{ frage.id }}"
+                         {% if frage.show_if %}data-show-if='{{ frage.show_if|tojson }}'{% endif %}>
+
+                        <div class="frage-label">
+                            <label class="form-label fw-bold mb-0">
+                                {{ frage.frage }}
+                                {% if frage.pflicht %}<span class="text-danger">*</span>{% endif %}
+                                {% if frage.prefill %}
+                                <span class="prefilled-indicator">(vorausgefüllt)</span>
+                                {% endif %}
+                            </label>
+                            {% if frage.hilfetext %}
+                            <span class="help-btn" onclick="showHelp('{{ frage.frage|e }}', '{{ frage.hilfetext|e }}')">
+                                <i class="ti ti-help-circle"></i>
+                            </span>
+                            {% endif %}
+                        </div>
+
+                        {% include "dialog/_frage_input.html" %}
+
+                        <div class="save-status small text-muted mt-2" style="display: none;"></div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endfor %}
+
+                <!-- Navigation -->
+                <div class="wizard-nav">
+                    <button type="button" class="btn btn-outline-secondary" id="btn-prev" onclick="prevSeite()" style="visibility: hidden;">
+                        <i class="ti ti-arrow-left"></i> Zurück
+                    </button>
+                    <button type="button" class="btn btn-primary" id="btn-next" onclick="nextSeite()">
+                        Weiter <i class="ti ti-arrow-right"></i>
+                    </button>
+                    <button type="button" class="btn btn-success" id="btn-submit" onclick="submitFragebogen()" style="display: none;">
+                        <i class="ti ti-send"></i> Abschließen
+                    </button>
+                </div>
+            </form>
+
+            <div class="text-center mt-4 text-muted">
+                <small>Ihre Antworten werden automatisch gespeichert.</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Help Panel -->
+    <div class="help-overlay" onclick="closeHelp()"></div>
+    <div class="help-panel">
+        <div class="help-panel-header">
+            <strong id="help-title">Hilfe</strong>
+            <span class="help-panel-close" onclick="closeHelp()"><i class="ti ti-x"></i></span>
+        </div>
+        <div class="help-panel-body" id="help-content"></div>
+    </div>
+
+    <script>
+    const TEILNAHME_TOKEN = '{{ token }}';
+    const TOTAL_SEITEN = {{ fragebogen.seiten|length }};
+    let currentSeite = 0;
+    let visitedSeiten = new Set([0]);
+
+    // Initial answers from server (including prefilled values)
+    const initialAnswers = {{ antworten|tojson|safe }};
+
+    // Store current answers for show_if evaluation
+    let currentAnswers = {};
+    for (const [frageId, antwort] of Object.entries(initialAnswers)) {
+        currentAnswers[frageId] = antwort.value !== undefined ? antwort.value : antwort.values;
+    }
+
+    // Initialize visibility
+    document.addEventListener('DOMContentLoaded', function() {
+        updateAllVisibility();
+        updateNavButtons();
+        markAnsweredQuestions();
+    });
+
+    function updateAllVisibility() {
+        document.querySelectorAll('.frage-container[data-show-if]').forEach(container => {
+            const showIf = JSON.parse(container.dataset.showIf);
+            const visible = evaluateShowIf(showIf);
+            container.classList.toggle('hidden', !visible);
+        });
+    }
+
+    function evaluateShowIf(showIf) {
+        const refValue = currentAnswers[showIf.frage_id];
+
+        if ('equals' in showIf) {
+            return refValue === showIf.equals;
+        }
+        if ('not_equals' in showIf) {
+            return refValue !== showIf.not_equals;
+        }
+        if ('is_set' in showIf) {
+            return refValue !== null && refValue !== undefined && refValue !== '';
+        }
+        if ('is_not_set' in showIf) {
+            return refValue === null || refValue === undefined || refValue === '';
+        }
+        return true;
+    }
+
+    function goToSeite(index) {
+        const step = document.querySelector(`.wizard-step[data-seite-index="${index}"]`);
+        if (step.classList.contains('disabled')) return;
+
+        // Validate current page before moving forward
+        if (index > currentSeite && !validateCurrentSeite()) {
+            return;
+        }
+
+        showSeite(index);
+    }
+
+    function showSeite(index) {
+        // Hide all pages
+        document.querySelectorAll('.seite-container').forEach(s => s.classList.remove('active'));
+        document.querySelectorAll('.wizard-step').forEach(s => s.classList.remove('active'));
+
+        // Show target page
+        const seite = document.querySelector(`.seite-container[data-seite-index="${index}"]`);
+        seite.classList.add('active');
+
+        // Update step indicators
+        const step = document.querySelector(`.wizard-step[data-seite-index="${index}"]`);
+        step.classList.add('active');
+
+        // Mark visited
+        visitedSeiten.add(index);
+
+        // Enable visited steps
+        visitedSeiten.forEach(i => {
+            const s = document.querySelector(`.wizard-step[data-seite-index="${i}"]`);
+            s.classList.remove('disabled');
+            if (i < index) s.classList.add('completed');
+        });
+
+        currentSeite = index;
+        updateNavButtons();
+    }
+
+    function prevSeite() {
+        if (currentSeite > 0) {
+            showSeite(currentSeite - 1);
+        }
+    }
+
+    function nextSeite() {
+        if (!validateCurrentSeite()) {
+            return;
+        }
+
+        if (currentSeite < TOTAL_SEITEN - 1) {
+            showSeite(currentSeite + 1);
+        }
+    }
+
+    function validateCurrentSeite() {
+        const seite = document.querySelector(`.seite-container[data-seite-index="${currentSeite}"]`);
+        let valid = true;
+        let firstInvalid = null;
+
+        seite.querySelectorAll('.frage-container:not(.hidden)').forEach(container => {
+            const frageId = container.dataset.frageId;
+            const isPflicht = container.querySelector('[data-pflicht="true"]') ||
+                              container.querySelector('.text-danger');
+
+            if (isPflicht && !hasAnswer(frageId)) {
+                container.classList.add('border-danger');
+                valid = false;
+                if (!firstInvalid) firstInvalid = container;
+            } else {
+                container.classList.remove('border-danger');
+            }
+        });
+
+        if (!valid && firstInvalid) {
+            firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            showToast('Bitte beantworten Sie alle Pflichtfragen auf dieser Seite.', 'warning');
+        }
+
+        return valid;
+    }
+
+    function hasAnswer(frageId) {
+        const answer = currentAnswers[frageId];
+        if (answer === null || answer === undefined) return false;
+        if (Array.isArray(answer)) return answer.length > 0;
+        if (typeof answer === 'string') return answer.trim() !== '';
+        return true;
+    }
+
+    function updateNavButtons() {
+        document.getElementById('btn-prev').style.visibility = currentSeite > 0 ? 'visible' : 'hidden';
+
+        const isLast = currentSeite === TOTAL_SEITEN - 1;
+        document.getElementById('btn-next').style.display = isLast ? 'none' : 'inline-block';
+        document.getElementById('btn-submit').style.display = isLast ? 'inline-block' : 'none';
+    }
+
+    async function saveAnswer(frageId, antwort) {
+        const container = document.querySelector(`[data-frage-id="${frageId}"]`);
+        const status = container.querySelector('.save-status');
+
+        status.style.display = 'block';
+        status.innerHTML = '<i class="ti ti-loader ti-spin"></i> Speichern...';
+
+        // Update local state
+        currentAnswers[frageId] = antwort.value !== undefined ? antwort.value : antwort.values;
+        updateAllVisibility();
+
+        try {
+            const response = await fetch(`/dialog/t/${TEILNAHME_TOKEN}/antwort`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({frage_id: frageId, antwort: antwort})
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                status.innerHTML = '<i class="ti ti-check text-success"></i> Gespeichert';
+                container.classList.add('answered');
+            } else {
+                status.innerHTML = `<i class="ti ti-alert-circle text-danger"></i> ${data.error}`;
+            }
+        } catch (e) {
+            status.innerHTML = '<i class="ti ti-alert-circle text-danger"></i> Fehler';
+        }
+
+        setTimeout(() => { status.style.display = 'none'; }, 2000);
+    }
+
+    function saveMultipleChoice(frageId) {
+        const checkboxes = document.querySelectorAll(`input[name="${frageId}"]:checked`);
+        const values = Array.from(checkboxes).map(cb => cb.value);
+        saveAnswer(frageId, {values: values});
+    }
+
+    function saveGroupFields(frageId) {
+        const container = document.querySelector(`[data-frage-id="${frageId}"]`);
+        const fields = {};
+        container.querySelectorAll('[data-field-id]').forEach(input => {
+            fields[input.dataset.fieldId] = input.value;
+        });
+        saveAnswer(frageId, {value: fields});
+    }
+
+    function saveTableCell(frageId, cellKey, cellValue) {
+        const container = document.querySelector(`[data-frage-id="${frageId}"]`);
+        // Build table values from all cells
+        const tableValues = currentAnswers[frageId] || {};
+        if (typeof tableValues !== 'object') {
+            currentAnswers[frageId] = {};
+        }
+        currentAnswers[frageId][cellKey] = cellValue;
+
+        // Collect all cell values
+        const allCells = {};
+        container.querySelectorAll('[data-table-cell]').forEach(input => {
+            const key = input.dataset.tableCell;
+            if (input.type === 'checkbox') {
+                allCells[key] = input.checked;
+            } else {
+                allCells[key] = input.value;
+            }
+        });
+        saveAnswer(frageId, {value: allCells});
+    }
+
+    async function submitFragebogen() {
+        if (!validateCurrentSeite()) return;
+        if (!confirm('Möchten Sie den Fragebogen abschließen?')) return;
+
+        try {
+            const response = await fetch(`/dialog/t/${TEILNAHME_TOKEN}/abschliessen`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'}
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                window.location.href = data.redirect;
+            } else {
+                alert('Fehler: ' + data.error);
+            }
+        } catch (e) {
+            alert('Fehler beim Abschließen.');
+        }
+    }
+
+    function markAnsweredQuestions() {
+        document.querySelectorAll('.frage-container').forEach(container => {
+            const frageId = container.dataset.frageId;
+            if (hasAnswer(frageId)) {
+                container.classList.add('answered');
+            }
+        });
+    }
+
+    // Help Panel
+    function showHelp(title, content) {
+        document.getElementById('help-title').textContent = title;
+        document.getElementById('help-content').innerHTML = content;
+        document.querySelector('.help-panel').classList.add('open');
+        document.querySelector('.help-overlay').classList.add('open');
+    }
+
+    function closeHelp() {
+        document.querySelector('.help-panel').classList.remove('open');
+        document.querySelector('.help-overlay').classList.remove('open');
+    }
+
+    // Toast notification
+    function showToast(message, type = 'info') {
+        const toast = document.createElement('div');
+        toast.className = `alert alert-${type} position-fixed`;
+        toast.style.cssText = 'top: 20px; right: 20px; z-index: 2000; max-width: 350px;';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+    </script>
+</body>
+</html>

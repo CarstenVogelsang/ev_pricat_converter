@@ -16,6 +16,95 @@
         <i class="ti ti-chart-bar"></i> Auswertung: {{ fragebogen.titel }}
     </h1>
 
+    <!-- Teilnehmer-Filter -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-end">
+                <div class="col-md-6">
+                    <label for="teilnehmerFilter" class="form-label">
+                        <i class="ti ti-filter"></i> Teilnehmer filtern
+                    </label>
+                    <select class="form-select" id="teilnehmerFilter" onchange="filterTeilnehmer(this.value)">
+                        <option value="">Alle Teilnehmer (Gesamtstatistik)</option>
+                        {% for t in fragebogen.teilnahmen if t.is_abgeschlossen %}
+                        <option value="{{ t.id }}" {% if t.id == selected_teilnehmer_id %}selected{% endif %}>
+                            {{ t.kunde.firmierung }}
+                            {% set changes = t.get_geaenderte_felder() %}
+                            {% if changes|length > 0 %}
+                            <span class="text-muted">(✎ {{ changes|length }} Änderung{% if changes|length > 1 %}en{% endif %})</span>
+                            {% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    {% if selected_teilnehmer_id %}
+                    <a href="{{ url_for('dialog_admin.auswertung', id=fragebogen.id) }}" class="btn btn-outline-secondary">
+                        <i class="ti ti-x"></i> Filter zurücksetzen
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if einzelauswertung %}
+    <!-- Einzelauswertung eines Teilnehmers -->
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <div>
+                <h5 class="mb-0">
+                    <i class="ti ti-building"></i> {{ einzelauswertung.kunde.firmierung }}
+                </h5>
+                <small class="text-muted">
+                    Abgeschlossen am {{ einzelauswertung.abgeschlossen_am.strftime('%d.%m.%Y %H:%M') if einzelauswertung.abgeschlossen_am else '—' }}
+                </small>
+            </div>
+            {% if einzelauswertung.aenderungen_count > 0 %}
+            <span class="badge bg-warning text-dark">
+                <i class="ti ti-pencil"></i> {{ einzelauswertung.aenderungen_count }} Änderung{% if einzelauswertung.aenderungen_count > 1 %}en{% endif %} an Prefill-Daten
+            </span>
+            {% endif %}
+        </div>
+        <div class="card-body">
+            {% for antwort in einzelauswertung.antworten %}
+            <div class="mb-3 p-3 border rounded {% if antwort.wurde_geaendert %}border-warning bg-warning bg-opacity-10{% endif %}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <strong>{{ loop.index }}. {{ antwort.frage }}</strong>
+                    <div>
+                        {% if antwort.hat_prefill %}
+                        <span class="badge bg-secondary" title="Feld mit Prefill">
+                            <i class="ti ti-database"></i> Prefill
+                        </span>
+                        {% endif %}
+                        {% if antwort.wurde_geaendert %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="ti ti-pencil"></i> Geändert
+                        </span>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="mt-2">
+                    {% if antwort.wurde_geaendert and antwort.prefill_original %}
+                    <div class="text-muted small mb-1">
+                        <del>{{ antwort.prefill_original }}</del>
+                        <i class="ti ti-arrow-right mx-1"></i>
+                    </div>
+                    {% endif %}
+                    <div class="{% if antwort.antwort == '—' %}text-muted{% endif %}">
+                        {% if antwort.typ == 'text' and antwort.antwort != '—' %}
+                        <i class="ti ti-quote text-muted"></i>
+                        {% endif %}
+                        {{ antwort.antwort }}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Gesamtstatistik -->
     <div class="row mb-4">
         <div class="col-md-3">
             <div class="card text-center">
@@ -61,6 +150,42 @@
         Noch keine abgeschlossenen Teilnahmen vorhanden.
     </div>
     {% else %}
+
+    <!-- Änderungsübersicht für V2 Fragebögen mit Prefill -->
+    {% if stats.aenderungen %}
+    <div class="card mb-4 border-warning">
+        <div class="card-header bg-warning bg-opacity-10">
+            <h5 class="mb-0">
+                <i class="ti ti-pencil"></i> Änderungen an Prefill-Daten
+                <span class="badge bg-warning text-dark ms-2">
+                    {{ stats.aenderungen.total_mit_aenderungen }} von {{ stats.teilnehmer_abgeschlossen }} Teilnehmern
+                </span>
+            </h5>
+        </div>
+        <div class="card-body">
+            {% for frage_id, field_stats in stats.aenderungen.felder.items() %}
+            {% if field_stats.anzahl_geaendert > 0 %}
+            <div class="mb-3">
+                <div class="d-flex justify-content-between">
+                    <span><strong>{{ field_stats.frage }}</strong></span>
+                    <span class="text-muted">{{ field_stats.anzahl_geaendert }}x geändert</span>
+                </div>
+                {% if field_stats.beispiele %}
+                <div class="small text-muted mt-1">
+                    {% for beispiel in field_stats.beispiele[:2] %}
+                    <div>
+                        <i class="ti ti-building"></i> {{ beispiel.kunde }}:
+                        <del>{{ beispiel.original }}</del> → {{ beispiel.neu }}
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     {% for frage in stats.fragen %}
     <div class="card mb-4">
@@ -143,5 +268,16 @@
     {% endfor %}
 
     {% endif %}
+    {% endif %}
 </div>
+
+<script>
+function filterTeilnehmer(id) {
+    if (id) {
+        window.location.href = '{{ url_for("dialog_admin.auswertung", id=fragebogen.id) }}?teilnehmer=' + id;
+    } else {
+        window.location.href = '{{ url_for("dialog_admin.auswertung", id=fragebogen.id) }}';
+    }
+}
+</script>
 {% endblock %}

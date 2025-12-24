@@ -74,6 +74,17 @@
                                     {% endif %}
                                 </td>
                                 <td class="text-end">
+                                    {% if fragebogen.is_aktiv and not teilnahme.is_abgeschlossen %}
+                                    {# Resend-Button: für Teilnehmer die bereits Einladung haben, aber nicht abgeschlossen sind #}
+                                    <form method="post" action="{{ url_for('dialog_admin.resend_einladung', id=fragebogen.id, tid=teilnahme.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-primary"
+                                                title="Einladung erneut senden"
+                                                onclick="return confirm('Einladung erneut an {{ teilnahme.kunde.firmierung }} senden?')">
+                                            <i class="ti ti-mail-forward"></i>
+                                        </button>
+                                    </form>
+                                    {% endif %}
                                     {% if teilnahme.is_eingeladen and not teilnahme.einladung_gesendet_am %}
                                     <form method="post" action="{{ url_for('dialog_admin.remove_teilnehmer', id=fragebogen.id, tid=teilnahme.id) }}" class="d-inline">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

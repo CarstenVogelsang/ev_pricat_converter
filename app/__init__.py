@@ -65,6 +65,7 @@ def create_app(config_name=None):
     from app.routes.passwort import passwort_bp
     from app.routes.dialog import dialog_bp
     from app.routes.dialog_admin import dialog_admin_bp
+    from app.routes.benutzer import benutzer_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
@@ -77,6 +78,8 @@ def create_app(config_name=None):
     app.register_blueprint(passwort_bp)
     app.register_blueprint(dialog_bp)
     app.register_blueprint(dialog_admin_bp)
+    # Benutzer-Administration
+    app.register_blueprint(benutzer_bp)
 
     # Initialize Flask-Admin (under /db-admin, requires admin role)
     from app.admin import init_admin
@@ -398,6 +401,385 @@ Die Analyse nutzt die Firecrawl API.
                 db.session.add(help_text)
                 click.echo(f'Created HelpText: {schluessel}')
 
+        # Create default Email Templates for transactional emails
+        from app.models import EmailTemplate
+
+        email_templates_data = [
+            {
+                'schluessel': 'fragebogen_einladung',
+                'name': 'Fragebogen Einladung',
+                'beschreibung': 'E-Mail für Einladung zur Fragebogen-Teilnahme',
+                'betreff': 'Einladung: {{ fragebogen_titel }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: {{ primary_color }}; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">Einladung zur Teilnahme</h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                                Guten Tag,
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                                Sie sind eingeladen, an der Befragung <strong style="color: #333333;">{{ fragebogen_titel }}</strong> teilzunehmen.
+                            </p>
+                            <!-- Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 30px auto;">
+                                <tr>
+                                    <td style="background-color: {{ primary_color }}; border-radius: 6px;">
+                                        <a href="{{ link }}" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">
+                                            Jetzt teilnehmen
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 0;">
+                                Oder kopieren Sie diesen Link:<br>
+                                <a href="{{ link }}" style="color: {{ primary_color }}; word-break: break-all;">{{ link }}</a>
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''Einladung zur Teilnahme
+
+Guten Tag,
+
+Sie sind eingeladen, an der Befragung "{{ fragebogen_titel }}" teilzunehmen.
+
+Bitte nutzen Sie folgenden Link zur Teilnahme:
+{{ link }}
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
+            {
+                'schluessel': 'passwort_zugangsdaten',
+                'name': 'Zugangsdaten',
+                'beschreibung': 'E-Mail mit Passwort-Link für neuen Benutzer',
+                'betreff': 'Ihre Zugangsdaten für {{ portal_name }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: {{ primary_color }}; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">Willkommen bei {{ portal_name }}</h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                                Guten Tag{% if vorname %} {{ vorname }}{% endif %},
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Für Sie wurde ein Benutzerkonto erstellt. Bitte vergeben Sie jetzt Ihr persönliches Passwort.
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                                <strong>Ihre E-Mail-Adresse:</strong> {{ email }}
+                            </p>
+                            <!-- Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 30px auto;">
+                                <tr>
+                                    <td style="background-color: {{ primary_color }}; border-radius: 6px;">
+                                        <a href="{{ link }}" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">
+                                            Passwort festlegen
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="color: #dc3545; font-size: 14px; line-height: 1.6; margin: 0 0 15px 0;">
+                                <strong>Wichtig:</strong> Dieser Link ist nur 24 Stunden gültig.
+                            </p>
+                            <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 0;">
+                                Falls der Button nicht funktioniert, kopieren Sie diesen Link:<br>
+                                <a href="{{ link }}" style="color: {{ primary_color }}; word-break: break-all;">{{ link }}</a>
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''Willkommen bei {{ portal_name }}
+
+Guten Tag{% if vorname %} {{ vorname }}{% endif %},
+
+Für Sie wurde ein Benutzerkonto erstellt. Bitte vergeben Sie jetzt Ihr persönliches Passwort.
+
+Ihre E-Mail-Adresse: {{ email }}
+
+Klicken Sie auf folgenden Link, um Ihr Passwort festzulegen:
+{{ link }}
+
+WICHTIG: Dieser Link ist nur 24 Stunden gültig.
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
+            {
+                'schluessel': 'passwort_reset',
+                'name': 'Passwort zurücksetzen',
+                'beschreibung': 'E-Mail für Passwort-Reset-Anforderung',
+                'betreff': 'Neues Passwort für {{ portal_name }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: {{ primary_color }}; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">Passwort zurücksetzen</h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                                Guten Tag,
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                                Sie haben ein neues Passwort für Ihr Konto bei {{ portal_name }} angefordert.
+                            </p>
+                            <!-- Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 30px auto;">
+                                <tr>
+                                    <td style="background-color: {{ primary_color }}; border-radius: 6px;">
+                                        <a href="{{ link }}" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">
+                                            Neues Passwort festlegen
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="color: #dc3545; font-size: 14px; line-height: 1.6; margin: 0 0 15px 0;">
+                                <strong>Wichtig:</strong> Dieser Link ist nur 1 Stunde gültig.
+                            </p>
+                            <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 0 0 15px 0;">
+                                Falls der Button nicht funktioniert, kopieren Sie diesen Link:<br>
+                                <a href="{{ link }}" style="color: {{ primary_color }}; word-break: break-all;">{{ link }}</a>
+                            </p>
+                            <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 0;">
+                                Falls Sie diese Anforderung nicht gestellt haben, ignorieren Sie diese E-Mail. Ihr Passwort bleibt unverändert.
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''Passwort zurücksetzen
+
+Guten Tag,
+
+Sie haben ein neues Passwort für Ihr Konto bei {{ portal_name }} angefordert.
+
+Klicken Sie auf folgenden Link, um ein neues Passwort festzulegen:
+{{ link }}
+
+WICHTIG: Dieser Link ist nur 1 Stunde gültig.
+
+Falls Sie diese Anforderung nicht gestellt haben, ignorieren Sie diese E-Mail. Ihr Passwort bleibt unverändert.
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
+            {
+                'schluessel': 'test_email',
+                'name': 'Test E-Mail',
+                'beschreibung': 'Test-E-Mail aus Systemeinstellungen',
+                'betreff': 'Test E-Mail von {{ portal_name }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: {{ primary_color }}; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">✅ E-Mail-Konfiguration erfolgreich</h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                                Dies ist eine Test-E-Mail von {{ portal_name }}.
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Wenn Sie diese E-Mail erhalten haben, ist die Brevo-Integration korrekt konfiguriert.
+                            </p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="10" style="background-color: #f8f9fa; border-radius: 6px; margin: 20px 0;">
+                                <tr>
+                                    <td style="color: #666666; font-size: 14px;">
+                                        <strong>Branding-Test:</strong><br>
+                                        • Primärfarbe: {{ primary_color }}<br>
+                                        • Sekundärfarbe: {{ secondary_color }}<br>
+                                        • Portal-Name: {{ portal_name }}<br>
+                                        • Logo: {% if logo_url %}Konfiguriert{% else %}Nicht konfiguriert{% endif %}
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''E-Mail-Konfiguration erfolgreich
+
+Dies ist eine Test-E-Mail von {{ portal_name }}.
+
+Wenn Sie diese E-Mail erhalten haben, ist die Brevo-Integration korrekt konfiguriert.
+
+Branding-Test:
+- Primärfarbe: {{ primary_color }}
+- Sekundärfarbe: {{ secondary_color }}
+- Portal-Name: {{ portal_name }}
+- Logo: {% if logo_url %}Konfiguriert{% else %}Nicht konfiguriert{% endif %}
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
+        ]
+
+        for template_data in email_templates_data:
+            existing = EmailTemplate.query.filter_by(schluessel=template_data['schluessel']).first()
+            if not existing:
+                template = EmailTemplate(
+                    schluessel=template_data['schluessel'],
+                    name=template_data['name'],
+                    beschreibung=template_data['beschreibung'],
+                    betreff=template_data['betreff'],
+                    body_html=template_data['body_html'],
+                    body_text=template_data.get('body_text'),
+                    aktiv=True
+                )
+                db.session.add(template)
+                click.echo(f"Created EmailTemplate: {template_data['schluessel']}")
+            else:
+                click.echo(f"EmailTemplate already exists: {template_data['schluessel']}")
+
         # Create Module (unified module management - replaces SubApp)
         from app.models import Modul, ModulZugriff, ModulTyp
         # Format: (code, name, beschreibung, icon, color, color_hex, route_endpoint, sort_order, typ, zeige_dashboard)
@@ -471,6 +853,263 @@ Die Analyse nutzt die Firecrawl API.
                             access = ModulZugriff(modul_id=modul.id, rolle_id=rolle.id)
                             db.session.add(access)
                             click.echo(f'Created ModulZugriff: {code} -> {role_name}')
+
+        # PRD-006: Create example V2 questionnaire "Kunden-Anforderungen"
+        from app.models import Fragebogen, FragebogenStatus, User
+
+        # Find an admin user for creating the fragebogen (use first admin or skip)
+        admin_rolle = roles.get('admin')
+        admin_user = User.query.filter_by(rolle_id=admin_rolle.id).first() if admin_rolle else None
+
+        kunden_anforderungen_json = {
+            "version": 2,
+            "seiten": [
+                {
+                    "id": "s1",
+                    "titel": "1. Allgemeine Fragen zum Unternehmen",
+                    "hilfetext": "Diese Informationen helfen uns, Ihr Unternehmen besser kennenzulernen.",
+                    "fragen": [
+                        {
+                            "id": "firmierung",
+                            "typ": "text",
+                            "frage": "Firmierung",
+                            "pflicht": True,
+                            "prefill": "kunde.firmierung"
+                        },
+                        {
+                            "id": "rechtsform",
+                            "typ": "dropdown",
+                            "frage": "Rechtsform",
+                            "optionen": ["GmbH", "GmbH & Co. KG", "AG", "e.K.", "OHG", "KG", "Einzelunternehmen", "Sonstige"],
+                            "pflicht": True
+                        },
+                        {
+                            "id": "adresse",
+                            "typ": "group",
+                            "frage": "Adresse",
+                            "fields": [
+                                {"id": "strasse", "label": "Straße", "typ": "text", "width": "70%", "prefill": "kunde.strasse"},
+                                {"id": "hausnummer", "label": "Nr.", "typ": "text", "width": "30%", "prefill": "kunde.hausnummer"}
+                            ]
+                        },
+                        {
+                            "id": "plz_ort",
+                            "typ": "group",
+                            "frage": "",
+                            "fields": [
+                                {"id": "plz", "label": "PLZ", "typ": "text", "width": "30%", "prefill": "kunde.plz"},
+                                {"id": "ort", "label": "Ort", "typ": "text", "width": "70%", "prefill": "kunde.ort"}
+                            ]
+                        },
+                        {
+                            "id": "ansprechpartner",
+                            "typ": "group",
+                            "frage": "Ansprechpartner",
+                            "fields": [
+                                {"id": "vorname", "label": "Vorname", "typ": "text", "width": "50%"},
+                                {"id": "nachname", "label": "Nachname", "typ": "text", "width": "50%"}
+                            ]
+                        },
+                        {
+                            "id": "telefon",
+                            "typ": "text",
+                            "frage": "Telefon",
+                            "prefill": "kunde.telefon"
+                        },
+                        {
+                            "id": "email",
+                            "typ": "text",
+                            "frage": "E-Mail",
+                            "prefill": "kunde.email"
+                        },
+                        {
+                            "id": "branche",
+                            "typ": "dropdown",
+                            "frage": "Haupt-Branche",
+                            "optionen": ["Spielwaren", "Schreibwaren", "Haushaltswaren", "Sonstige"],
+                            "freifeld": True,
+                            "hilfetext": "Wählen Sie Ihre Hauptbranche oder geben Sie eine eigene ein"
+                        },
+                        {
+                            "id": "verbaende",
+                            "typ": "multiple_choice",
+                            "frage": "Mitglied in Einkaufsverbänden",
+                            "optionen": ["VEDES", "EK/servicegroup", "Spielwaren Ring", "Keiner"],
+                            "hilfetext": "Mehrfachauswahl möglich"
+                        },
+                        {
+                            "id": "anzahl_mitarbeiter",
+                            "typ": "number",
+                            "frage": "Anzahl Mitarbeiter",
+                            "min": 1
+                        },
+                        {
+                            "id": "anzahl_pc",
+                            "typ": "number",
+                            "frage": "Anzahl PC Arbeitsplätze",
+                            "min": 1
+                        },
+                        {
+                            "id": "startdatum",
+                            "typ": "date",
+                            "frage": "Gewünschtes Startdatum",
+                            "min_date": "today"
+                        },
+                        {
+                            "id": "aktuelle_wawi",
+                            "typ": "dropdown",
+                            "frage": "Aktuelle Warenwirtschaft",
+                            "optionen": ["Keine", "JTL", "plentymarkets", "Sage", "SAP", "Andere"],
+                            "freifeld": True
+                        }
+                    ]
+                },
+                {
+                    "id": "s2",
+                    "titel": "2. Geschäftstyp",
+                    "hilfetext": "Beschreiben Sie Ihre Vertriebskanäle.",
+                    "fragen": [
+                        {
+                            "id": "verkauf_stationaer",
+                            "typ": "ja_nein",
+                            "frage": "Verkauf stationär?"
+                        },
+                        {
+                            "id": "anzahl_filialen",
+                            "typ": "number",
+                            "frage": "Anzahl Filialen",
+                            "show_if": {"frage_id": "verkauf_stationaer", "equals": True},
+                            "min": 1
+                        },
+                        {
+                            "id": "kassen_info",
+                            "typ": "group",
+                            "frage": "Kasseninformationen",
+                            "show_if": {"frage_id": "verkauf_stationaer", "equals": True},
+                            "fields": [
+                                {"id": "anzahl_kassen", "label": "Anzahl Kassen", "typ": "number", "width": "50%"},
+                                {"id": "verkauefe_tag", "label": "Verkäufe/Tag", "typ": "number", "width": "50%"}
+                            ]
+                        },
+                        {
+                            "id": "anmeldung",
+                            "typ": "single_choice",
+                            "frage": "Kassenanmeldung",
+                            "show_if": {"frage_id": "verkauf_stationaer", "equals": True},
+                            "optionen": ["Dummy-User", "Konkreter Mitarbeiter"]
+                        },
+                        {
+                            "id": "ma_wechsel",
+                            "typ": "ja_nein",
+                            "frage": "MA-Wechsel an Kasse",
+                            "show_if": {"frage_id": "verkauf_stationaer", "equals": True}
+                        },
+                        {
+                            "id": "ec_terminals",
+                            "typ": "ja_nein",
+                            "frage": "EC-Terminals angebunden",
+                            "show_if": {"frage_id": "verkauf_stationaer", "equals": True}
+                        },
+                        {
+                            "id": "kundendisplay",
+                            "typ": "ja_nein",
+                            "frage": "Kundendisplay angebunden",
+                            "show_if": {"frage_id": "verkauf_stationaer", "equals": True}
+                        },
+                        {
+                            "id": "verkauf_online",
+                            "typ": "ja_nein",
+                            "frage": "Verkauf online?"
+                        },
+                        {
+                            "id": "onlineshop_system",
+                            "typ": "dropdown",
+                            "frage": "Onlineshop-System",
+                            "show_if": {"frage_id": "verkauf_online", "equals": True},
+                            "optionen": ["Shopware", "WooCommerce", "Magento", "Shopify", "Andere"],
+                            "freifeld": True
+                        },
+                        {
+                            "id": "marktplaetze",
+                            "typ": "multiple_choice",
+                            "frage": "Aktive Marktplätze",
+                            "show_if": {"frage_id": "verkauf_online", "equals": True},
+                            "optionen": ["Amazon", "eBay", "Otto", "Kaufland", "Keine"],
+                            "hilfetext": "Wählen Sie alle genutzten Marktplätze"
+                        },
+                        {
+                            "id": "website_url",
+                            "typ": "url",
+                            "frage": "Website-URL",
+                            "placeholder": "https://www.ihre-website.de"
+                        },
+                        {
+                            "id": "shop_url",
+                            "typ": "url",
+                            "frage": "Onlineshop-URL",
+                            "show_if": {"frage_id": "verkauf_online", "equals": True},
+                            "placeholder": "https://shop.ihre-website.de"
+                        }
+                    ]
+                },
+                {
+                    "id": "s3",
+                    "titel": "3. Weitere Informationen",
+                    "hilfetext": "Optionale Zusatzinformationen für eine bessere Beratung.",
+                    "fragen": [
+                        {
+                            "id": "besondere_anforderungen",
+                            "typ": "text",
+                            "frage": "Besondere Anforderungen oder Wünsche",
+                            "multiline": True,
+                            "hilfetext": "Beschreiben Sie hier, was Ihnen besonders wichtig ist"
+                        },
+                        {
+                            "id": "zeitrahmen",
+                            "typ": "single_choice",
+                            "frage": "Gewünschter Zeitrahmen für Umsetzung",
+                            "optionen": ["Sofort", "In 1-3 Monaten", "In 3-6 Monaten", "In 6-12 Monaten", "Flexibel"]
+                        },
+                        {
+                            "id": "budget_rahmen",
+                            "typ": "single_choice",
+                            "frage": "Budgetrahmen",
+                            "optionen": ["Unter 5.000 €", "5.000 - 15.000 €", "15.000 - 50.000 €", "Über 50.000 €", "Noch unklar"],
+                            "hilfetext": "Eine grobe Einschätzung hilft uns bei der Planung"
+                        },
+                        {
+                            "id": "kontakt_praeferenz",
+                            "typ": "single_choice",
+                            "frage": "Bevorzugte Kontaktaufnahme",
+                            "optionen": ["Telefon", "E-Mail", "Videocall", "Persönliches Treffen"]
+                        },
+                        {
+                            "id": "datenschutz_akzeptiert",
+                            "typ": "ja_nein",
+                            "frage": "Ich stimme der Verarbeitung meiner Daten gemäß Datenschutzerklärung zu",
+                            "pflicht": True
+                        }
+                    ]
+                }
+            ]
+        }
+
+        existing_fb = Fragebogen.query.filter_by(titel='Kunden-Anforderungen').first()
+        if not existing_fb:
+            if admin_user:
+                fragebogen = Fragebogen(
+                    titel='Kunden-Anforderungen',
+                    beschreibung='Erfassung der Anforderungen für neue Kunden - inkl. Unternehmensinfo, Vertriebskanäle und Projektwünsche.',
+                    definition_json=kunden_anforderungen_json,
+                    status=FragebogenStatus.ENTWURF.value,
+                    erstellt_von_id=admin_user.id
+                )
+                db.session.add(fragebogen)
+                click.echo('Created Fragebogen: Kunden-Anforderungen (V2 mit 3 Seiten)')
+            else:
+                click.echo('Skipped Fragebogen: No admin user exists yet. Run "flask seed-users" first.')
+        else:
+            click.echo('Fragebogen already exists: Kunden-Anforderungen')
 
         db.session.commit()
         click.echo('Database seeded successfully!')

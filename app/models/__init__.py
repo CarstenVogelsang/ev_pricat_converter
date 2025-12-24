@@ -6,6 +6,7 @@ from app.models.config import Config
 from app.models.rolle import Rolle
 from app.models.user import User
 from app.models.kunde import Kunde, KundeCI
+from app.models.kunde_benutzer import KundeBenutzer
 from app.models.api_nutzung import KundeApiNutzung
 from app.models.branche import Branche
 from app.models.verband import Verband
@@ -29,10 +30,13 @@ from app.models.fragebogen import (
     FragebogenStatus, TeilnahmeStatus
 )
 
+# Email Templates
+from app.models.email_template import EmailTemplate
+
 __all__ = [
     'Lieferant', 'Hersteller', 'Marke', 'Config',
     'Rolle', 'User',
-    'Kunde', 'KundeCI',
+    'Kunde', 'KundeCI', 'KundeBenutzer',
     'KundeApiNutzung',
     'Branche', 'Verband',
     'KundeBranche', 'KundeVerband',
@@ -45,4 +49,6 @@ __all__ = [
     'PasswordToken',
     'Fragebogen', 'FragebogenTeilnahme', 'FragebogenAntwort',
     'FragebogenStatus', 'TeilnahmeStatus',
+    # Email Templates
+    'EmailTemplate',
 ]
