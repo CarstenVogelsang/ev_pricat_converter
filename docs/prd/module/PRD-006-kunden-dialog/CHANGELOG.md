@@ -4,6 +4,73 @@ Alle Änderungen am Modul "Kunden-Dialog" werden hier dokumentiert.
 
 Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
+## [Unreleased]
+
+### Added
+
+- **Hilfetexte für Dialog-Modul:** 8 neue Hilfetext-Einträge (PRD-005 Pattern)
+  - `dialog.index.uebersicht` - Fragebogen-Übersicht
+  - `dialog.detail.fragen` - Fragenübersicht
+  - `dialog.detail.version` - Versionierung erklärt
+  - `dialog.detail.teilnehmer` - Teilnehmer-Status
+  - `dialog.form.fragen_editor` - Fragen-Editor Hilfe
+  - `dialog.teilnehmer.liste` - Teilnehmer-Liste
+  - `dialog.teilnehmer.einladung` - Einladungen versenden
+  - `dialog.auswertung.uebersicht` - Auswertung erklärt
+
+### Changed
+
+- **Aktionen horizontal positioniert:** Neue UI-Konvention für Detail-Seite
+  - Aktionen-Card aus Sidebar entfernt
+  - Horizontale Aktionsleiste unter dem Seitentitel
+  - Primäre Aktionen (Bearbeiten, Aktivieren, Teilnehmer) als einzelne Buttons
+  - Sekundäre Aktionen (Neue Version, Archivieren) im Dropdown "Weitere"
+  - Bessere Sichtbarkeit und schnellerer Zugriff
+  - Datei: `dialog_admin/detail.html`
+
+---
+
+## [1.4.1] - 2025-12-24
+
+### Changed
+
+- **Anrede-Refactoring:** Anrede vom Kunden zum User verschoben (personenbezogen)
+  - `anrede` (herr/frau/divers) ist jetzt am **User** statt am Kunden
+  - `kommunikation_stil` am User kann den Kunde-Standard überschreiben
+  - Neue Property: `kunde.effektiver_kommunikation_stil` (User-Präferenz > Kunde-Default)
+  - Briefanrede-Logik nutzt jetzt `hauptbenutzer.anrede`
+  - Fallback "firma" wenn kein User/Anrede gesetzt
+  - Migration: `941599ad1756` (anrede, kommunikation_stil zu User)
+
+### Fixed
+
+- **Preview-Bug:** Briefanrede in E-Mail-Template-Vorschau zeigt jetzt korrekte Kundendaten
+  - Problem: sample_context-Werte wurden von Defaults überschrieben
+  - Lösung: Dict-Merge-Reihenfolge korrigiert (Defaults zuerst, context zuletzt)
+
+---
+
+## [1.4.0] - 2025-12-24
+
+### Added
+
+- **Anrede/Briefanrede-System:** Personalisierte Anreden für E-Mail-Templates
+  - Neues Model: `LookupWert` - Generische Key-Value-Tabelle für erweiterbare Konfiguration
+  - Kunde-Feld: `kommunikation_stil` (förmlich/locker) als Firmen-Standard
+  - Neue Properties: `briefanrede`, `briefanrede_foermlich`, `briefanrede_locker`
+  - Unterschiedliche Namenslogik pro Anrede-Typ:
+    - Herr/Frau: Nachname → "Sehr geehrter Herr Müller"
+    - Divers: Vorname → "Hallo Alex" / "Guten Tag Alex Müller"
+    - Firma: Neutral → "Sehr geehrte Damen und Herren"
+  - Neue E-Mail-Platzhalter: `{{ briefanrede }}`, `{{ briefanrede_foermlich }}`, `{{ briefanrede_locker }}`
+  - Kunde-Formular: Kommunikationsstil-Dropdown (Firmen-Standard)
+  - Benutzer-Formular: Anrede + Kommunikationsstil (User-spezifisch)
+  - E-Mail-Template-Vorschau: Zeigt Briefanrede mit echten Kundendaten
+  - Seed-Daten: 8 Anrede-Patterns (4 förmlich + 4 locker)
+  - Migration: `fcd085ac4338` (LookupWert-Tabelle, kommunikation_stil zu Kunde)
+
+---
+
 ## [1.3.0] - 2025-12-23
 
 ### Added

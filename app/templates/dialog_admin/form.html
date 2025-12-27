@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/help.html" import help_icon with context %}
 
 {% block title %}{% if fragebogen %}Fragebogen bearbeiten{% else %}Neuer Fragebogen{% endif %} - {{ super() }}{% endblock %}
 
@@ -20,9 +21,9 @@
         <div class="card-header">
             <h4 class="mb-0">
                 {% if fragebogen %}
-                <i class="ti ti-edit"></i> Fragebogen bearbeiten
+                <i class="ti ti-edit"></i> Fragebogen bearbeiten {{ help_icon('dialog.form.fragen_editor') }}
                 {% else %}
-                <i class="ti ti-plus"></i> Neuer Fragebogen
+                <i class="ti ti-plus"></i> Neuer Fragebogen {{ help_icon('dialog.form.fragen_editor') }}
                 {% endif %}
             </h4>
         </div>

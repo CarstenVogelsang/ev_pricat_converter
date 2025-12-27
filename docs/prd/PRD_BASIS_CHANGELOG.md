@@ -12,6 +12,66 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Added
 
+- **UI-Konvention: Aktionen-Positionierung:** Dokumentiert in PRD_BASIS_MVP.md
+  - Aktionen horizontal unter dem Seitentitel statt in Sidebar
+  - Primäre Aktionen als einzelne Buttons
+  - Sekundäre/destruktive Aktionen im Dropdown-Menü
+  - Pattern für alle Detail-Seiten der Plattform
+
+### Changed
+
+- **Test-E-Mail Button in Vorschaumodus verschoben:** Verbesserter Workflow
+  - Button von Bearbeitungsmodus in Vorschaumodus verschoben
+  - Test-E-Mail nur verfügbar wenn Kunde für Vorschau ausgewählt
+  - Empfänger wählbar: An Kunden senden oder an sich selbst (Admin)
+  - Verwendet echte Kundendaten statt Beispieldaten für Platzhalter
+  - Dateien: `email_template_form.html`, `email_template_preview.html`, `admin.py`
+
+### Added
+
+- **System-Fonts für E-Mail-Kompatibilität:** Arial, Times New Roman, Courier New
+  - 3 System-Fonts hinzugefügt, die in E-Mail-Clients zuverlässig funktionieren
+  - System-Fonts mit ✉-Symbol im Quill-Dropdown markiert (z.B. "Courier New ✉")
+  - `is_system` Flag in Font-Konfiguration unterscheidet Web-/System-Fonts
+  - System-Fonts werden nicht von Google Fonts geladen (sind lokal verfügbar)
+  - Font-CSS wird automatisch in E-Mail-Templates injiziert
+  - BrandingService: Neue Methode `get_font_css_for_email()` generiert CSS für Quill-Klassen
+  - Kompakte Zeilenabstände: CSS-Fix für `<p>`-Margins in E-Mail-Signaturen
+  - Dateien: `branding_service.py`, `betreiber.html`, `email_template_service.py`
+
+- **Dual-Font-System für Branding:** Sekundär-Font für Überschriften und Akzente
+  - Neues Dropdown für Sekundär-Font in Betreiber/Branding (optional)
+  - Quill-Editor zeigt nur ausgewählte Fonts (Primär + Sekundär) – nicht alle 10 Fonts
+  - Dynamische Font-Whitelist erzwingt Corporate Identity in Rich-Text-Inhalten
+  - Neue Config-Keys: `brand_secondary_font_family`, `brand_secondary_font_weights`
+  - BrandingService: Neue Methode `get_selected_fonts()` liefert ausgewählte Fonts
+  - Multi-Font-Support in `get_google_fonts_url()` – lädt beide Fonts gleichzeitig
+  - Hilfetext: `admin.betreiber.branding.secondary_font`
+  - Dateien: `branding_service.py`, `admin.py`, `betreiber.html`
+
+- **Google Fonts für Branding:** Systemweite Schriftarten-Auswahl in Betreiber/Branding
+  - 7 Google Fonts verfügbar: Inter, Poppins, Roboto, Open Sans, Lato, Merriweather, JetBrains Mono
+  - Live-Vorschau mit verschiedenen Font-Gewichten (Normal, Medium, Semibold, Bold)
+  - Dynamisches Laden via Google Fonts CDN
+  - Global auf gesamtes Portal angewendet (html/body)
+  - Quill-Editor: Font-Auswahl in E-Mail-Signatur-Toolbar
+  - Neue Config-Keys: `brand_font_family`, `brand_font_weights`
+  - BrandingService: Neue Methode `get_google_fonts_url()`
+  - Hilfetext: `admin.betreiber.branding.font`
+  - Dateien: `branding_service.py`, `admin.py`, `betreiber.html`, `base.html`
+
+- **Betreiber / Branding System:** Erweiterte Branding-Seite mit Betreiber-Konzept
+  - Sidebar umbenannt: "Branding" → "Betreiber / Branding"
+  - Neues Konzept: Ein Kunde als "Betreiber" (Systemkunde) liefert CI für das gesamte Portal
+  - Dropdown-Auswahl: Kunde mit CI-Daten als Betreiber festlegen
+  - Live-CI-Vorschau: Logo, Farben beim Auswählen eines Kunden
+  - "Als Betreiber übernehmen" setzt `ist_systemkunde=True` und übernimmt CI
+  - E-Mail-Signatur-Editor: WYSIWYG (TinyMCE) für `Kunde.email_footer`
+  - Platzhalter `{{ footer | safe }}` nutzt Betreiber-Footer in E-Mail-Templates
+  - Neue Routes: `GET/POST /admin/betreiber`, `POST /admin/betreiber/set`, `POST /admin/betreiber/footer`
+  - Backwards-Kompatibilität: `/admin/branding` leitet auf `/admin/betreiber` weiter
+  - Audit-Logging: `betreiber_gesetzt`, `email_footer_gespeichert`
+
 - **E-Mail-Template-System:** Datenbankgestützte E-Mail-Templates mit CI/Branding
   - Neues Model `EmailTemplate` mit Jinja2-Platzhaltern (`{{ firmenname }}`, `{{ link }}`, etc.)
   - `EmailTemplateService` für Template-Rendering mit BrandingService-Integration
@@ -131,6 +191,8 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Changed
 
+- **Hilfetexte-System (PRD-005):** Icon-Optimierung und Kontrast-Verbesserungen
+  - Details siehe: `docs/prd/module/PRD-005-hilfetexte/CHANGELOG.md`
 - PRD_BASIS_MVP.md enthält jetzt Tech-Stack, Projektstruktur, Basis-DB-Schema
 - PRD_BASIS_MVP.md: Rollen-Abschnitt gekürzt, Verweis auf PRD_BASIS_RECHTEVERWALTUNG.md
 - PRD_BASIS_MODULVERWALTUNG.md: Rechteverwaltungs-Referenz hinzugefügt

@@ -211,6 +211,43 @@ Alle Benutzer-Feedback-Meldungen werden als **Bootstrap Toast-Meldungen** angeze
 | warning | `text-bg-warning` | Warnung/Hinweis |
 | info | `text-bg-info` | Information |
 
+### Aktionen-Positionierung
+
+Auf Detail-Seiten (z.B. Fragebogen-Detail) werden Aktionen **horizontal** unter dem Seitentitel positioniert:
+
+```html
+<!-- Titel -->
+<h1>{{ titel }}</h1>
+
+<!-- Horizontale Aktionsleiste -->
+<div class="d-flex flex-wrap gap-2 mb-4">
+    <!-- Primäre Aktionen als einzelne Buttons -->
+    <a href="..." class="btn btn-primary">Bearbeiten</a>
+    <button class="btn btn-success">Aktivieren</button>
+
+    <!-- Sekundäre Aktionen im Dropdown -->
+    <div class="dropdown">
+        <button class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown">
+            <i class="ti ti-dots"></i> Weitere
+        </button>
+        <ul class="dropdown-menu">
+            <li><button class="dropdown-item">Neue Version</button></li>
+            <li><hr class="dropdown-divider"></li>
+            <li><button class="dropdown-item text-danger">Archivieren</button></li>
+        </ul>
+    </div>
+</div>
+
+<!-- Seiteninhalt -->
+<div class="row">...</div>
+```
+
+**Begründung:**
+
+- Aktionen sind sofort sichtbar (nicht in Sidebar versteckt)
+- Konsistentes Pattern für alle Detail-Seiten
+- Sekundäre/destruktive Aktionen im Dropdown reduzieren visuelle Komplexität
+
 ### Weitere Konventionen
 
 - **Tabellen:** Bootstrap `table-hover` für interaktive Listen

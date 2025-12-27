@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/help.html" import help_icon with context %}
 
 {% block title %}Auswertung - {{ fragebogen.titel }} - {{ super() }}{% endblock %}
 
@@ -13,7 +14,7 @@
     </nav>
 
     <h1 class="mb-4">
-        <i class="ti ti-chart-bar"></i> Auswertung: {{ fragebogen.titel }}
+        <i class="ti ti-chart-bar"></i> Auswertung: {{ fragebogen.titel }} {{ help_icon('dialog.auswertung.uebersicht') }}
     </h1>
 
     <!-- Teilnehmer-Filter -->

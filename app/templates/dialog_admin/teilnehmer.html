@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/help.html" import help_icon with context %}
 
 {% block title %}Teilnehmer - {{ fragebogen.titel }} - {{ super() }}{% endblock %}
 
@@ -13,7 +14,7 @@
     </nav>
 
     <h1 class="mb-4">
-        <i class="ti ti-users"></i> Teilnehmer: {{ fragebogen.titel }}
+        <i class="ti ti-users"></i> Teilnehmer: {{ fragebogen.titel }} {{ help_icon('dialog.teilnehmer.liste') }}
     </h1>
 
     <div class="row">
@@ -112,7 +113,7 @@
         <div class="col-md-4">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="ti ti-user-plus"></i> Teilnehmer hinzufügen</h5>
+                    <h5 class="mb-0"><i class="ti ti-user-plus"></i> Teilnehmer hinzufügen {{ help_icon('dialog.teilnehmer.einladung') }}</h5>
                 </div>
                 <div class="card-body">
                     {% if verfuegbare_kunden %}

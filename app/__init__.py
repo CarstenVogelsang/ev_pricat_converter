@@ -388,6 +388,267 @@ Die Analyse nutzt die Firecrawl API.
 
 **Hinweis**: Die Analyse kostet Credits.'''
             ),
+            # Betreiber / Branding Hilfetexte
+            (
+                'admin.betreiber.modul',
+                'Betreiber & Branding',
+                '''Auf dieser Seite verwalten Sie das **Erscheinungsbild** (Branding) des gesamten Portals.
+
+**Was können Sie hier tun?**
+
+1. **Betreiber auswählen** – Wählen Sie einen Kunden als "Betreiber", dessen Corporate Identity (Logo, Farben) wird für das Portal übernommen
+
+2. **Branding anpassen** – Passen Sie Logo, Farben und App-Titel nach Ihren Wünschen an
+
+3. **E-Mail-Signatur** – Definieren Sie die Signatur, die unter allen System-E-Mails erscheint
+
+**Wann brauche ich das?**
+
+- Beim erstmaligen Einrichten des Portals
+- Wenn Sie das Portal für einen anderen Kunden "umbranden" möchten
+- Um die E-Mail-Signatur zu aktualisieren'''
+            ),
+            (
+                'admin.betreiber.auswahl',
+                'Betreiber auswählen',
+                '''Der **Betreiber** ist der Kunde, dessen Corporate Identity (CI) für das gesamte Portal verwendet wird.
+
+**Was wird übernommen?**
+
+- **Logo**: Wird im Header angezeigt
+- **Farben**: Primär- und Sekundärfarbe für das Portal-Design
+- **E-Mail-Signatur**: Wird in allen System-E-Mails als Footer verwendet
+
+**Voraussetzung**: Der Kunde muss eine analysierte CI haben. Diese kann über die Kundendetailseite mit "Website-Analyse" erstellt werden.'''
+            ),
+            (
+                'admin.betreiber.branding',
+                'Branding-Einstellungen',
+                '''Hier können Sie das Portal-Branding anpassen:
+
+- **Logo**: Das Firmenlogo im Header
+- **App-Titel**: Name der Anwendung
+- **Farben**: Primär- und Sekundärfarbe
+- **Copyright**: Footer-Informationen
+
+Die Einstellungen werden automatisch vom gewählten Betreiber übernommen, können aber hier manuell angepasst werden.'''
+            ),
+            (
+                'admin.betreiber.branding.logo',
+                'Logo hochladen',
+                '''Das Logo wird im Header der Anwendung angezeigt.
+
+**Erlaubte Formate:**
+
+- **PNG** (empfohlen für transparenten Hintergrund)
+- **JPG/JPEG**
+- **GIF**
+- **SVG** (für skalierbare Grafiken)
+
+**Empfehlung**: Maximale Höhe ca. 80px für optimale Darstellung.'''
+            ),
+            (
+                'admin.betreiber.branding.titel',
+                'App-Titel',
+                '''Der App-Titel wird an folgenden Stellen angezeigt:
+
+- **Header**: Neben dem Logo
+- **Browser-Tab**: Als Seitentitel
+- **Dokumenten-Titel**: In der Titelzeile
+
+**Standard**: ev247'''
+            ),
+            (
+                'admin.betreiber.branding.farben',
+                'Farbeinstellungen',
+                '''**Primärfarbe** – Die Hauptfarbe des Portals:
+- Header-Hintergrund
+- Primäre Buttons
+- Links und Akzente
+
+**Sekundärfarbe** – Für sekundäre Elemente:
+- Sekundäre Buttons
+- Badges und Labels
+- Hover-Effekte
+
+**Tipp**: Wählen Sie Farben mit gutem Kontrast für bessere Lesbarkeit.'''
+            ),
+            (
+                'admin.betreiber.branding.copyright',
+                'Copyright & Website',
+                '''**Copyright-Text**: Erscheint im Footer der Anwendung.
+**Beispiel**: © 2025 Musterfirma GmbH
+
+**Link zur Website**: Falls vorhanden, wird die URL aus den Kunden-Daten übernommen. Sie kann hier überschrieben werden.
+
+**Hinweis**: Bei Wechsel des Betreibers wird die URL aus den Kundendaten neu übernommen.'''
+            ),
+            (
+                'admin.betreiber.signatur',
+                'E-Mail-Signatur',
+                '''Die Signatur erscheint **automatisch am Ende** aller System-E-Mails wie Einladungen, Passwort-Zurücksetzen oder Benachrichtigungen.
+
+**Was sollte enthalten sein?**
+- Firmenname und Adresse
+- Kontaktdaten: Telefon, E-Mail
+- Website-Link
+- Optional: Rechtliche Hinweise, Social Media
+
+**Editor-Funktionen**: Nutzen Sie die Toolbar für Fett, Kursiv, Farben, Links und Aufzählungen.
+
+**Hinweis**: Änderungen wirken sich sofort auf alle zukünftigen E-Mails aus.'''
+            ),
+            (
+                'admin.betreiber.branding.font',
+                'Schriftart',
+                '''Die Schriftart wird aus **Google Fonts** geladen und auf das gesamte Portal angewendet.
+
+**Verfügbare Fonts:**
+- **Inter** – Modern, sehr gut lesbar (Standard)
+- **Poppins** – Geometrisch, freundlich
+- **Roboto** – Google-Standardschrift
+- **Open Sans** – Neutral, professionell
+- **Lato** – Warm, humanistisch
+
+Alle Fonts unterstützen deutsche Umlaute (ä, ö, ü, ß).
+
+**Tipp**: Wählen Sie eine gut lesbare Schrift, die zu Ihrer Corporate Identity passt.'''
+            ),
+            (
+                'admin.betreiber.branding.secondary_font',
+                'Sekundär-Font',
+                '''Der Sekundär-Font kann für **Überschriften** oder besondere **Akzente** in Rich-Text-Inhalten verwendet werden.
+
+**Wichtig:** In allen WYSIWYG-Editoren (z.B. E-Mail-Signatur) sind **nur** der Primär- und Sekundär-Font auswählbar – nicht alle verfügbaren Schriftarten.
+
+Falls kein Sekundär-Font gewählt wird, steht im Editor nur der Primär-Font zur Verfügung.
+
+**Empfehlung**: Für einen professionellen Look sollten Primär- und Sekundär-Font gut zueinander passen. Beliebte Kombinationen:
+- **Inter** (Fließtext) + **Poppins** (Überschriften)
+- **Roboto** (Fließtext) + **Merriweather** (Überschriften)'''
+            ),
+            # Dialog-Modul Hilfetexte (PRD-006)
+            (
+                'dialog.index.uebersicht',
+                'Fragebogen-Übersicht',
+                '''## Fragebogen-Verwaltung
+
+Hier sehen Sie alle Fragebögen, gruppiert nach Status:
+
+- **Entwürfe**: Noch in Bearbeitung, können geändert werden
+- **Aktiv**: Teilnehmer können antworten
+- **Geschlossen**: Keine Antworten mehr möglich
+
+**Tipp**: Klicken Sie auf einen Fragebogen, um Details zu sehen.'''
+            ),
+            (
+                'dialog.detail.fragen',
+                'Fragen des Fragebogens',
+                '''## Fragenübersicht
+
+Alle Fragen des Fragebogens mit Typ und Optionen.
+
+**Fragetypen:**
+- **Text**: Freitext-Antwort
+- **Auswahl**: Eine Option wählen
+- **Mehrfach**: Mehrere Optionen möglich
+- **Skala**: Bewertung auf einer Skala
+
+**Hinweis**: Fragen können nur im Entwurf-Status bearbeitet werden.'''
+            ),
+            (
+                'dialog.detail.version',
+                'Versionierung',
+                '''## Fragebogen-Versionierung
+
+Fragebögen werden versioniert: **V1 → V2 → V3**
+
+**Warum Versionierung?**
+- Änderungen dokumentieren
+- Alte Antworten bleiben erhalten
+- Vergleich zwischen Versionen möglich
+
+**Neue Version erstellen:**
+1. Nur die **neueste Version** kann dupliziert werden
+2. Alle Fragen werden übernommen
+3. Teilnehmer müssen neu zugeordnet werden'''
+            ),
+            (
+                'dialog.detail.teilnehmer',
+                'Teilnehmer-Status',
+                '''## Teilnehmer-Übersicht
+
+Zeigt den Fortschritt der Teilnehmer:
+
+- **X / Y abgeschlossen**: X Teilnehmer haben alle Fragen beantwortet
+- **Einladungen ausstehend**: Teilnehmer ohne gesendete Einladungs-E-Mail
+
+**Teilnehmer verwalten**: Klicken Sie auf den Link, um Teilnehmer hinzuzufügen oder Einladungen zu senden.'''
+            ),
+            (
+                'dialog.form.fragen_editor',
+                'Fragen-Editor',
+                '''## Fragen erstellen und bearbeiten
+
+**Neue Frage hinzufügen:**
+1. Klicken Sie auf "Frage hinzufügen"
+2. Wählen Sie den Fragetyp
+3. Geben Sie die Frage ein
+4. Bei Auswahl-Fragen: Optionen definieren
+
+**Reihenfolge ändern:**
+Ziehen Sie Fragen per Drag & Drop in die gewünschte Reihenfolge.
+
+**Pflichtfragen:**
+Markieren Sie wichtige Fragen als Pflicht – Teilnehmer müssen diese beantworten.'''
+            ),
+            (
+                'dialog.teilnehmer.liste',
+                'Teilnehmer-Liste',
+                '''## Teilnehmer verwalten
+
+**Status-Bedeutung:**
+- 🔴 **Offen**: Noch keine Einladung gesendet
+- 🟡 **Eingeladen**: Einladung gesendet, noch nicht beantwortet
+- 🟢 **Abgeschlossen**: Alle Fragen beantwortet
+
+**Aktionen:**
+- **Einladung senden**: E-Mail mit Link zum Fragebogen
+- **Erinnerung senden**: Bei überfälligen Teilnehmern
+- **Entfernen**: Teilnehmer aus dem Fragebogen löschen'''
+            ),
+            (
+                'dialog.teilnehmer.einladung',
+                'Einladungen versenden',
+                '''## Einladungs-E-Mails
+
+Teilnehmer erhalten eine personalisierte E-Mail mit:
+- Link zum Fragebogen
+- Persönlicher Anrede
+- Informationen zum Fragebogen
+
+**Wichtig:**
+- E-Mails werden über Brevo versendet
+- Prüfen Sie die E-Mail-Adresse vor dem Versand
+- Einladungen können wiederholt gesendet werden'''
+            ),
+            (
+                'dialog.auswertung.uebersicht',
+                'Auswertung',
+                '''## Fragebogen-Auswertung
+
+Analysiert alle eingegangenen Antworten:
+
+**Statistiken:**
+- Anzahl Teilnehmer / Antworten
+- Antwortquote in Prozent
+- Durchschnittliche Bewertungen
+
+**Export:**
+Die Auswertung kann als CSV oder Excel exportiert werden.
+
+**Tipp**: Für aussagekräftige Ergebnisse sollten mindestens 5 Antworten vorliegen.'''
+            ),
         ]
         for schluessel, titel, inhalt in hilfetexte_data:
             existing = HelpText.query.filter_by(schluessel=schluessel).first()
@@ -400,6 +661,16 @@ Die Analyse nutzt die Firecrawl API.
                 )
                 db.session.add(help_text)
                 click.echo(f'Created HelpText: {schluessel}')
+            else:
+                # Update existing entry if content is empty or different
+                if not existing.inhalt_markdown or existing.inhalt_markdown.strip() == '':
+                    existing.titel = titel
+                    existing.inhalt_markdown = inhalt
+                    click.echo(f'Updated empty HelpText: {schluessel}')
+                elif existing.inhalt_markdown != inhalt:
+                    existing.titel = titel
+                    existing.inhalt_markdown = inhalt
+                    click.echo(f'Updated HelpText: {schluessel}')
 
         # Create default Email Templates for transactional emails
         from app.models import EmailTemplate
@@ -779,6 +1050,42 @@ Branding-Test:
                 click.echo(f"Created EmailTemplate: {template_data['schluessel']}")
             else:
                 click.echo(f"EmailTemplate already exists: {template_data['schluessel']}")
+
+        # Create LookupWert entries for Anrede patterns (Briefanrede system)
+        from app.models import LookupWert
+
+        # Format: (kategorie, schluessel, wert, sortierung)
+        # {vorname} and {nachname} are placeholders replaced by Kunde.briefanrede properties
+        anrede_patterns = [
+            # Formelle Anreden (Sie-Form)
+            ('anrede_foermlich', 'herr', 'Sehr geehrter Herr {nachname}', 1),
+            ('anrede_foermlich', 'frau', 'Sehr geehrte Frau {nachname}', 2),
+            ('anrede_foermlich', 'divers', 'Guten Tag {vorname} {nachname}', 3),
+            ('anrede_foermlich', 'firma', 'Sehr geehrte Damen und Herren', 4),
+            # Lockere Anreden (Du-Form)
+            ('anrede_locker', 'herr', 'Lieber Herr {nachname}', 1),
+            ('anrede_locker', 'frau', 'Liebe Frau {nachname}', 2),
+            ('anrede_locker', 'divers', 'Hallo {vorname}', 3),
+            ('anrede_locker', 'firma', 'Hallo zusammen', 4),
+        ]
+
+        for kategorie, schluessel, wert, sortierung in anrede_patterns:
+            existing = LookupWert.query.filter_by(
+                kategorie=kategorie,
+                schluessel=schluessel
+            ).first()
+            if not existing:
+                lookup_entry = LookupWert(
+                    kategorie=kategorie,
+                    schluessel=schluessel,
+                    wert=wert,
+                    sortierung=sortierung,
+                    aktiv=True
+                )
+                db.session.add(lookup_entry)
+                click.echo(f"Created LookupWert: {kategorie}.{schluessel}")
+            else:
+                click.echo(f"LookupWert already exists: {kategorie}.{schluessel}")
 
         # Create Module (unified module management - replaces SubApp)
         from app.models import Modul, ModulZugriff, ModulTyp

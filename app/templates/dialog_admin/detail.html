@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/help.html" import help_icon with context %}
 
 {% block title %}{{ fragebogen.titel }} - {{ super() }}{% endblock %}
 
@@ -35,6 +36,101 @@
         </div>
     </div>
 
+    <!-- Horizontale Aktionsleiste -->
+    <div class="d-flex flex-wrap gap-2 mb-4">
+        {% if fragebogen.is_entwurf %}
+        <a href="{{ url_for('dialog_admin.edit', id=fragebogen.id) }}" class="btn btn-primary">
+            <i class="ti ti-edit"></i> Bearbeiten
+        </a>
+        <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="aktivieren">
+            <button type="submit" class="btn btn-success"
+                    {% if fragebogen.anzahl_fragen == 0 %}disabled title="Mindestens eine Frage erforderlich"{% endif %}>
+                <i class="ti ti-player-play"></i> Aktivieren
+            </button>
+        </form>
+        {% endif %}
+
+        {% if fragebogen.is_aktiv %}
+        <a href="{{ url_for('dialog_admin.teilnehmer', id=fragebogen.id) }}" class="btn btn-primary">
+            <i class="ti ti-users"></i> Teilnehmer verwalten
+        </a>
+        <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="schliessen">
+            <button type="submit" class="btn btn-warning"
+                    onclick="return confirm('Fragebogen wirklich schließen? Teilnehmer können dann keine Antworten mehr senden.')">
+                <i class="ti ti-lock"></i> Schließen
+            </button>
+        </form>
+        {% endif %}
+
+        {% if fragebogen.is_geschlossen %}
+        <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="d-inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="reaktivieren">
+            <button type="submit" class="btn btn-success"
+                    onclick="return confirm('Fragebogen reaktivieren? Teilnehmer können dann wieder antworten.')">
+                <i class="ti ti-refresh"></i> Reaktivieren
+            </button>
+        </form>
+        <a href="{{ url_for('dialog_admin.teilnehmer', id=fragebogen.id) }}" class="btn btn-outline-primary">
+            <i class="ti ti-users"></i> Teilnehmer
+        </a>
+        {% endif %}
+
+        {% if fragebogen.anzahl_abgeschlossen > 0 %}
+        <a href="{{ url_for('dialog_admin.auswertung', id=fragebogen.id) }}" class="btn btn-outline-info">
+            <i class="ti ti-chart-bar"></i> Auswertung
+        </a>
+        {% endif %}
+
+        <!-- Sekundäre Aktionen (Dropdown) -->
+        <div class="dropdown">
+            <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                <i class="ti ti-dots"></i> Weitere
+            </button>
+            <ul class="dropdown-menu">
+                {% if fragebogen.ist_neueste_version %}
+                <li>
+                    <button class="dropdown-item" type="button" data-bs-toggle="modal" data-bs-target="#duplicateModal">
+                        <i class="ti ti-copy"></i> Neue Version erstellen
+                    </button>
+                </li>
+                {% else %}
+                <li>
+                    <span class="dropdown-item disabled" title="Nur die neueste Version kann dupliziert werden">
+                        <i class="ti ti-copy"></i> Neue Version erstellen
+                    </span>
+                </li>
+                {% endif %}
+                <li><hr class="dropdown-divider"></li>
+                {% if fragebogen.is_archiviert %}
+                <li>
+                    <form method="post" action="{{ url_for('dialog_admin.dearchivieren', id=fragebogen.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="dropdown-item text-success"
+                                onclick="return confirm('Fragebogen wiederherstellen?')">
+                            <i class="ti ti-archive-off"></i> Wiederherstellen
+                        </button>
+                    </form>
+                </li>
+                {% else %}
+                <li>
+                    <form method="post" action="{{ url_for('dialog_admin.archivieren', id=fragebogen.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="dropdown-item text-danger"
+                                onclick="return confirm('Fragebogen archivieren? Er wird nicht gelöscht, sondern nur aus der Liste ausgeblendet.')">
+                            <i class="ti ti-archive"></i> Archivieren
+                        </button>
+                    </form>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+
     {% if fragebogen.is_aktiv and fragebogen.teilnehmer_ohne_einladung > 0 %}
     <div class="alert alert-warning d-flex align-items-center mb-4">
         <i class="ti ti-alert-triangle fs-4 me-3"></i>
@@ -55,13 +151,8 @@
     <div class="row">
         <div class="col-md-8">
             <div class="card mb-4">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <h5 class="mb-0"><i class="ti ti-list-check"></i> Fragen ({{ fragebogen.anzahl_fragen }})</h5>
-                    {% if fragebogen.is_entwurf %}
-                    <a href="{{ url_for('dialog_admin.edit', id=fragebogen.id) }}" class="btn btn-sm btn-outline-primary">
-                        <i class="ti ti-edit"></i> Bearbeiten
-                    </a>
-                    {% endif %}
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="ti ti-list-check"></i> Fragen ({{ fragebogen.anzahl_fragen }}) {{ help_icon('dialog.detail.fragen') }}</h5>
                 </div>
                 <div class="list-group list-group-flush">
                     {% for frage in fragebogen.fragen %}
@@ -121,7 +212,7 @@
             <!-- Version Card -->
             <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0"><i class="ti ti-versions"></i> Version</h5>
+                    <h5 class="mb-0"><i class="ti ti-versions"></i> Version {{ help_icon('dialog.detail.version') }}</h5>
                 </div>
                 <div class="card-body">
                     <div class="d-flex align-items-center mb-3">
@@ -170,98 +261,6 @@
                 </div>
             </div>
 
-            <div class="card mb-4">
-                <div class="card-header">
-                    <h5 class="mb-0"><i class="ti ti-settings"></i> Aktionen</h5>
-                </div>
-                <div class="card-body">
-                    {% if fragebogen.is_entwurf %}
-                    <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="mb-2">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="action" value="aktivieren">
-                        <button type="submit" class="btn btn-success w-100"
-                                {% if fragebogen.anzahl_fragen == 0 %}disabled{% endif %}>
-                            <i class="ti ti-player-play"></i> Aktivieren
-                        </button>
-                    </form>
-                    {% if fragebogen.anzahl_fragen == 0 %}
-                    <small class="text-muted d-block mb-3">Mindestens eine Frage erforderlich</small>
-                    {% endif %}
-                    {% endif %}
-
-                    {% if fragebogen.is_aktiv %}
-                    <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="mb-2">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="action" value="schliessen">
-                        <button type="submit" class="btn btn-warning w-100"
-                                onclick="return confirm('Fragebogen wirklich schließen? Teilnehmer können dann keine Antworten mehr senden.')">
-                            <i class="ti ti-lock"></i> Schließen
-                        </button>
-                    </form>
-                    {% endif %}
-
-                    {% if fragebogen.is_geschlossen %}
-                    <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="mb-2">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <input type="hidden" name="action" value="reaktivieren">
-                        <button type="submit" class="btn btn-success w-100"
-                                onclick="return confirm('Fragebogen reaktivieren? Teilnehmer können dann wieder antworten.')">
-                            <i class="ti ti-refresh"></i> Reaktivieren
-                        </button>
-                    </form>
-                    {% endif %}
-
-                    <a href="{{ url_for('dialog_admin.teilnehmer', id=fragebogen.id) }}" class="btn btn-outline-primary w-100 mb-2">
-                        <i class="ti ti-users"></i> Teilnehmer verwalten
-                    </a>
-
-                    {% if fragebogen.anzahl_abgeschlossen > 0 %}
-                    <a href="{{ url_for('dialog_admin.auswertung', id=fragebogen.id) }}" class="btn btn-outline-info w-100 mb-2">
-                        <i class="ti ti-chart-bar"></i> Auswertung
-                    </a>
-                    {% endif %}
-
-                    <hr class="my-3">
-
-                    <!-- Neue Version erstellen (nur bei neuester Version) -->
-                    {% if fragebogen.ist_neueste_version %}
-                    <button type="button" class="btn btn-outline-secondary w-100 mb-2"
-                            data-bs-toggle="modal" data-bs-target="#duplicateModal">
-                        <i class="ti ti-copy"></i> Neue Version erstellen
-                    </button>
-                    {% else %}
-                    <button class="btn btn-outline-secondary w-100 mb-2" disabled
-                            title="Nur die neueste Version kann dupliziert werden">
-                        <i class="ti ti-copy"></i> Neue Version erstellen
-                    </button>
-                    <small class="text-muted d-block mb-2">
-                        <i class="ti ti-info-circle"></i>
-                        Nur V{{ fragebogen.nachfolger.first().version_nummer }} kann dupliziert werden.
-                    </small>
-                    {% endif %}
-
-                    <hr class="my-3">
-
-                    <!-- Archivieren / Wiederherstellen -->
-                    {% if fragebogen.is_archiviert %}
-                    <form method="post" action="{{ url_for('dialog_admin.dearchivieren', id=fragebogen.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-outline-success w-100"
-                                onclick="return confirm('Fragebogen wiederherstellen?')">
-                            <i class="ti ti-archive-off"></i> Wiederherstellen
-                        </button>
-                    </form>
-                    {% else %}
-                    <form method="post" action="{{ url_for('dialog_admin.archivieren', id=fragebogen.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-outline-danger w-100"
-                                onclick="return confirm('Fragebogen archivieren? Er wird nicht gelöscht, sondern nur aus der Liste ausgeblendet.')">
-                            <i class="ti ti-archive"></i> Archivieren
-                        </button>
-                    </form>
-                    {% endif %}
-                </div>
-            </div>
         </div>
     </div>
 </div>
