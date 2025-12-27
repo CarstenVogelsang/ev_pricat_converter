@@ -542,6 +542,22 @@ Hier sehen Sie alle Fragebögen, gruppiert nach Status:
 **Tipp**: Klicken Sie auf einen Fragebogen, um Details zu sehen.'''
             ),
             (
+                'dialog.detail.uebersicht',
+                'Fragebogen-Detail',
+                '''## Fragebogen-Detailansicht
+
+Hier sehen Sie alle Informationen zu diesem Fragebogen:
+
+**Aktionen** (je nach Status):
+- **Bearbeiten**: Fragen ändern (nur im Entwurf)
+- **Aktivieren**: Fragebogen für Teilnehmer freischalten
+- **Teilnehmer verwalten**: Kunden einladen
+- **Auswertung**: Antworten analysieren
+
+**Versionierung:**
+Über "Neue Version erstellen" können Sie eine Kopie anfertigen, um Änderungen vorzunehmen ohne die Original-Antworten zu verlieren.'''
+            ),
+            (
                 'dialog.detail.fragen',
                 'Fragen des Fragebogens',
                 '''## Fragenübersicht

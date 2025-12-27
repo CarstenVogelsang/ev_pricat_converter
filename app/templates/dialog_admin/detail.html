@@ -17,6 +17,7 @@
             <h1>
                 {{ fragebogen.titel }}
                 <span class="badge bg-primary fs-6 ms-2">V{{ fragebogen.version_nummer }}</span>
+                {{ help_icon('dialog.detail.uebersicht') }}
             </h1>
             {% if fragebogen.beschreibung %}
             <p class="text-muted">{{ fragebogen.beschreibung }}</p>
