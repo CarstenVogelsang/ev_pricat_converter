@@ -50,7 +50,15 @@
                             <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
                             {% if fb.is_archiviert %}<span class="badge bg-warning text-dark ms-1"><i class="ti ti-archive"></i></span>{% endif %}
                         </td>
-                        <td class="text-center"><span class="badge bg-primary">{{ fb.version_nummer }}</span></td>
+                        <td class="text-center">
+                            <span class="badge bg-primary">{{ fb.version_nummer }}</span>
+                            {% if fb.vorgaenger %}
+                            <a href="{{ url_for('dialog_admin.detail', id=fb.vorgaenger.id) }}"
+                               class="text-muted ms-1" title="Abgeleitet von V{{ fb.vorgaenger.version_nummer }}">
+                                <i class="ti ti-arrow-back-up"></i>
+                            </a>
+                            {% endif %}
+                        </td>
                         <td class="text-center">{{ fb.anzahl_fragen }}</td>
                         <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
                         <td>{{ fb.erstellt_am.strftime('%d.%m.%Y') }}</td>
@@ -92,7 +100,15 @@
                             <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
                             {% if fb.is_archiviert %}<span class="badge bg-warning text-dark ms-1"><i class="ti ti-archive"></i></span>{% endif %}
                         </td>
-                        <td class="text-center"><span class="badge bg-primary">{{ fb.version_nummer }}</span></td>
+                        <td class="text-center">
+                            <span class="badge bg-primary">{{ fb.version_nummer }}</span>
+                            {% if fb.vorgaenger %}
+                            <a href="{{ url_for('dialog_admin.detail', id=fb.vorgaenger.id) }}"
+                               class="text-muted ms-1" title="Abgeleitet von V{{ fb.vorgaenger.version_nummer }}">
+                                <i class="ti ti-arrow-back-up"></i>
+                            </a>
+                            {% endif %}
+                        </td>
                         <td class="text-center">{{ fb.anzahl_fragen }}</td>
                         <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
                         <td class="text-center">
@@ -139,7 +155,15 @@
                             <a href="{{ url_for('dialog_admin.detail', id=fb.id) }}">{{ fb.titel }}</a>
                             {% if fb.is_archiviert %}<span class="badge bg-warning text-dark ms-1"><i class="ti ti-archive"></i></span>{% endif %}
                         </td>
-                        <td class="text-center"><span class="badge bg-primary">{{ fb.version_nummer }}</span></td>
+                        <td class="text-center">
+                            <span class="badge bg-primary">{{ fb.version_nummer }}</span>
+                            {% if fb.vorgaenger %}
+                            <a href="{{ url_for('dialog_admin.detail', id=fb.vorgaenger.id) }}"
+                               class="text-muted ms-1" title="Abgeleitet von V{{ fb.vorgaenger.version_nummer }}">
+                                <i class="ti ti-arrow-back-up"></i>
+                            </a>
+                            {% endif %}
+                        </td>
                         <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
                         <td class="text-center">{{ fb.anzahl_abgeschlossen }}</td>
                         <td>{{ fb.geschlossen_am.strftime('%d.%m.%Y') if fb.geschlossen_am else '-' }}</td>
