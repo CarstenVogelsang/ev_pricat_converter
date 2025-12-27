@@ -1,0 +1,73 @@
+{% extends "administration/base.html" %}
+{% from "macros/admin_tile.html" import admin_tile %}
+
+{% block title %}Einstellungen - Administration{% endblock %}
+
+{% block admin_content %}
+<h4 class="mb-4"><i class="ti ti-adjustments me-2"></i>Einstellungen</h4>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
+        'Modulverwaltung',
+        'Module aktivieren und konfigurieren',
+        'ti-apps',
+        url_for('admin.module'),
+        color_hex='#0d6efd'
+    ) }}
+    {{ admin_tile(
+        'Systemeinstellungen',
+        'API-Keys, Brevo, FTP-Verbindungen',
+        'ti-adjustments',
+        url_for('admin.settings'),
+        color_hex='#6c757d'
+    ) }}
+    {{ admin_tile(
+        'Betreiber / Branding',
+        'Firmenlogo, Farben und Kontaktdaten',
+        'ti-building',
+        url_for('admin.betreiber'),
+        color_hex='#198754'
+    ) }}
+    {{ admin_tile(
+        'Hilfetexte',
+        'Kontextsensitive Hilfetexte verwalten',
+        'ti-help',
+        url_for('admin.hilfetexte'),
+        color_hex='#0dcaf0'
+    ) }}
+    {{ admin_tile(
+        'E-Mail-Templates',
+        'Transaktionale E-Mail-Vorlagen',
+        'ti-mail',
+        url_for('admin.email_templates'),
+        color_hex='#fd7e14'
+    ) }}
+    {{ admin_tile(
+        'Audit-Log',
+        'Systemereignisse und Benutzeraktionen',
+        'ti-list-search',
+        url_for('admin.logs'),
+        color_hex='#6f42c1'
+    ) }}
+    {{ admin_tile(
+        'DB Admin',
+        'Direkter Datenbankzugriff (Flask-Admin)',
+        'ti-database',
+        url_for('dbadmin.index'),
+        color_hex='#dc3545'
+    ) }}
+</div>
+
+<style>
+    .admin-tile {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .admin-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .admin-tile .card-body {
+        min-height: 120px;
+    }
+</style>
+{% endblock %}

@@ -1,106 +1,42 @@
 {% extends "base.html" %}
 
 {% block content %}
-<style>
-    /* Sidebar Navigation: Icon links, Text rechts daneben (auch bei Umbruch) */
-    .admin-sidebar .list-group-item-action {
-        display: flex;
-        align-items: flex-start;
-        gap: 0.5rem;
-    }
-    .admin-sidebar .list-group-item-action i {
-        flex-shrink: 0;
-        line-height: 1.5;
-    }
-    .admin-sidebar .list-group-item-action span {
-        flex: 1;
-    }
-</style>
-<div class="row">
-    <!-- Sidebar -->
-    <div class="col-md-3 col-lg-2">
-        <div class="card admin-sidebar">
-            <div class="card-header">
-                <h6 class="mb-0"><i class="ti ti-settings"></i> Administration</h6>
-            </div>
-            <div class="list-group list-group-flush">
-                <a href="{{ url_for('admin.index') }}"
-                   class="list-group-item list-group-item-action{% if request.endpoint == 'admin.index' %} active{% endif %}">
-                    <i class="ti ti-dashboard"></i><span>System</span>
-                </a>
-                <div class="list-group-item text-muted small py-2">Module</div>
-                <a href="{{ url_for('admin.pricat') }}"
-                   class="list-group-item list-group-item-action{% if 'pricat' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-route-square"></i><span>PRICAT Converter</span>
-                </a>
-                <a href="{{ url_for('admin.kunden_report') }}"
-                   class="list-group-item list-group-item-action{% if 'kunden_report' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-users"></i><span>Lead & Kundenreport</span>
-                </a>
-                <a href="{{ url_for('admin.lieferanten_auswahl') }}"
-                   class="list-group-item list-group-item-action{% if 'lieferanten_auswahl' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-truck"></i><span>Meine Lieferanten</span>
-                </a>
-                <a href="{{ url_for('admin.content_generator') }}"
-                   class="list-group-item list-group-item-action{% if 'content_generator' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-writing"></i><span>Content Generator</span>
-                </a>
-                <a href="{{ url_for('dialog_admin.index') }}"
-                   class="list-group-item list-group-item-action{% if 'dialog_admin' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-messages"></i><span>Kunden-Dialog</span>
-                </a>
-                <div class="list-group-item text-muted small py-2">Stammdaten</div>
-                <a href="{{ url_for('benutzer.index') }}"
-                   class="list-group-item list-group-item-action{% if 'benutzer' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-users-group"></i><span>Benutzer</span>
-                </a>
-                <a href="{{ url_for('admin.branchen') }}"
-                   class="list-group-item list-group-item-action{% if request.endpoint == 'admin.branchen' %} active{% endif %}">
-                    <i class="ti ti-category"></i><span>Branchen</span>
-                </a>
-                <a href="{{ url_for('admin.branchenrollen') }}"
-                   class="list-group-item list-group-item-action{% if 'branchenrollen' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-tags"></i><span>BranchenRollen</span>
-                </a>
-                <a href="{{ url_for('admin.verbaende') }}"
-                   class="list-group-item list-group-item-action{% if 'verbaende' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-building-community"></i><span>Verbände</span>
-                </a>
-                <div class="list-group-item text-muted small py-2">Einstellungen</div>
-                <a href="{{ url_for('admin.module') }}"
-                   class="list-group-item list-group-item-action{% if request.endpoint == 'admin.module' %} active{% endif %}">
-                    <i class="ti ti-apps"></i><span>Modulverwaltung</span>
-                </a>
-                <a href="{{ url_for('admin.settings') }}"
-                   class="list-group-item list-group-item-action{% if 'settings' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-adjustments"></i><span>Systemeinstellungen</span>
-                </a>
-                <a href="{{ url_for('admin.branding') }}"
-                   class="list-group-item list-group-item-action{% if 'branding' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-palette"></i><span>Branding</span>
-                </a>
-                <a href="{{ url_for('admin.hilfetexte') }}"
-                   class="list-group-item list-group-item-action{% if 'hilfetexte' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-help"></i><span>Hilfetexte</span>
-                </a>
-                <a href="{{ url_for('admin.email_templates') }}"
-                   class="list-group-item list-group-item-action{% if 'email_template' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-mail"></i><span>E-Mail-Templates</span>
-                </a>
-                <a href="{{ url_for('admin.logs') }}"
-                   class="list-group-item list-group-item-action{% if 'logs' in request.endpoint %} active{% endif %}">
-                    <i class="ti ti-list-search"></i><span>Audit-Log</span>
-                </a>
-                <a href="{{ url_for('dbadmin.index') }}"
-                   class="list-group-item list-group-item-action">
-                    <i class="ti ti-database"></i><span>DB Admin</span>
-                </a>
-            </div>
-        </div>
+<div class="container-fluid py-4">
+    <!-- Header -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2><i class="ti ti-settings"></i> Administration</h2>
     </div>
 
+    <!-- Tab Navigation -->
+    <ul class="nav nav-tabs nav-fill mb-4">
+        <li class="nav-item">
+            <a class="nav-link{% if admin_tab == 'system' or request.endpoint == 'admin.index' %} active{% endif %}"
+               href="{{ url_for('admin.index') }}">
+                <i class="ti ti-dashboard me-2"></i>System
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link{% if admin_tab == 'module' %} active{% endif %}"
+               href="{{ url_for('admin.module_uebersicht') }}">
+                <i class="ti ti-apps me-2"></i>Module
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link{% if admin_tab == 'stammdaten' %} active{% endif %}"
+               href="{{ url_for('admin.stammdaten_uebersicht') }}">
+                <i class="ti ti-database me-2"></i>Stammdaten
+            </a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link{% if admin_tab == 'einstellungen' %} active{% endif %}"
+               href="{{ url_for('admin.einstellungen_uebersicht') }}">
+                <i class="ti ti-adjustments me-2"></i>Einstellungen
+            </a>
+        </li>
+    </ul>
+
     <!-- Content -->
-    <div class="col-md-9 col-lg-10">
+    <div class="tab-content">
         {% block admin_content %}{% endblock %}
     </div>
 </div>

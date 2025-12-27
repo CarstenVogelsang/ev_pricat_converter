@@ -1,0 +1,52 @@
+{% extends "administration/base.html" %}
+{% from "macros/admin_tile.html" import admin_tile %}
+
+{% block title %}Stammdaten - Administration{% endblock %}
+
+{% block admin_content %}
+<h4 class="mb-4"><i class="ti ti-database me-2"></i>Stammdaten verwalten</h4>
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
+        'Benutzer',
+        'Benutzerkonten und Zugriffsrechte verwalten',
+        'ti-users-group',
+        url_for('benutzer.index'),
+        color_hex='#6f42c1'
+    ) }}
+    {{ admin_tile(
+        'Branchen',
+        'Branchenkatalog für Kundenzuordnung',
+        'ti-category',
+        url_for('admin.branchen'),
+        color_hex='#fd7e14'
+    ) }}
+    {{ admin_tile(
+        'Branchenrollen',
+        'Rollen wie Händler, Hersteller, etc.',
+        'ti-tags',
+        url_for('admin.branchenrollen'),
+        color_hex='#20c997'
+    ) }}
+    {{ admin_tile(
+        'Verbände',
+        'Verbandszugehörigkeiten verwalten',
+        'ti-building-community',
+        url_for('admin.verbaende'),
+        color_hex='#0d6efd'
+    ) }}
+</div>
+
+<style>
+    .admin-tile {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .admin-tile:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .admin-tile .card-body {
+        min-height: 120px;
+    }
+</style>
+{% endblock %}

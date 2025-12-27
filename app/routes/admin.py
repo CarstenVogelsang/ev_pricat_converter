@@ -4,7 +4,7 @@ import os
 import sys
 from datetime import datetime
 from flask import Blueprint, render_template, jsonify, flash, redirect, url_for, request, Response, current_app, make_response
-from flask_login import login_required
+from flask_login import login_required, current_user
 from werkzeug.utils import secure_filename
 import flask
 
@@ -99,6 +99,7 @@ def index():
 
     return render_template(
         'administration/index.html',
+        admin_tab='system',
         db_status=db_status,
         user_count=user_count,
         kunde_count=kunde_count,
@@ -108,6 +109,34 @@ def index():
         flask_version=flask.__version__,
         environment=environment
     )
+
+
+# ============================================================================
+# Tab-Übersichtsseiten (NEU)
+# ============================================================================
+
+@admin_bp.route('/module-uebersicht')
+@login_required
+@admin_required
+def module_uebersicht():
+    """Module administration overview with tiles."""
+    return render_template('administration/module_uebersicht.html', admin_tab='module')
+
+
+@admin_bp.route('/stammdaten-uebersicht')
+@login_required
+@admin_required
+def stammdaten_uebersicht():
+    """Stammdaten administration overview with tiles."""
+    return render_template('administration/stammdaten_uebersicht.html', admin_tab='stammdaten')
+
+
+@admin_bp.route('/einstellungen-uebersicht')
+@login_required
+@admin_required
+def einstellungen_uebersicht():
+    """Einstellungen administration overview with tiles."""
+    return render_template('administration/einstellungen_uebersicht.html', admin_tab='einstellungen')
 
 
 # ============================================================================
@@ -379,59 +408,174 @@ def api_health():
 
 
 # ============================================================================
-# Branding Settings
+# Betreiber / Branding Settings
 # ============================================================================
 
+@admin_bp.route('/betreiber', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def betreiber():
+    """Betreiber / Branding settings page.
+
+    Der Betreiber ist der Kunde, dessen CI für das Portal verwendet wird.
+    - Dropdown zur Auswahl des Betreibers
+    - CI-Vorschau
+    - E-Mail-Signatur-Editor (WYSIWYG)
+    """
+    branding_service = BrandingService()
+
+    if request.method == 'POST':
+        action = request.form.get('action', 'save_branding')
+
+        if action == 'save_branding':
+            # Handle logo upload
+            if 'logo' in request.files:
+                file = request.files['logo']
+                if file and file.filename and allowed_file(file.filename):
+                    filename = secure_filename(file.filename)
+                    # Add timestamp to prevent caching issues
+                    name, ext = os.path.splitext(filename)
+                    filename = f"logo_{int(datetime.now().timestamp())}{ext}"
+
+                    upload_path = os.path.join(
+                        current_app.static_folder, 'uploads', filename
+                    )
+                    file.save(upload_path)
+
+                    # Save to config
+                    _update_config('brand_logo', filename)
+                    flash('Logo erfolgreich hochgeladen', 'success')
+
+            # Handle text fields
+            _update_config('brand_app_title', request.form.get('app_title', ''))
+            _update_config('brand_primary_color', request.form.get('primary_color', '#0d6efd'))
+            _update_config('brand_secondary_color', request.form.get('secondary_color', '#6c757d'))
+            _update_config('copyright_text', request.form.get('copyright_text', ''))
+            _update_config('copyright_url', request.form.get('copyright_url', ''))
+
+            # Handle font settings
+            _update_config('brand_font_family', request.form.get('font_family', 'Inter'))
+            _update_config('brand_font_weights', request.form.get('font_weights', '400,500,600,700'))
+
+            # Handle secondary font settings
+            _update_config('brand_secondary_font_family', request.form.get('secondary_font_family', ''))
+            _update_config('brand_secondary_font_weights', request.form.get('secondary_font_weights', ''))
+
+            db.session.commit()
+            flash('Branding-Einstellungen gespeichert', 'success')
+            return redirect(url_for('admin.betreiber'))
+
+    # GET request
+    # Get current Betreiber (Systemkunde)
+    betreiber_kunde = Kunde.query.filter_by(ist_systemkunde=True).first()
+
+    # Load Kunden with CI data for Betreiber selection
+    kunden_mit_ci = Kunde.query.filter(Kunde.ci != None).order_by(Kunde.firmierung).all()
+
+    branding_config = branding_service.get_branding()
+    selected_fonts = branding_service.get_selected_fonts()
+    return render_template(
+        'administration/betreiber.html',
+        branding=branding_config,
+        current_logo=Config.get_value('brand_logo', ''),
+        kunden_mit_ci=kunden_mit_ci,
+        betreiber=betreiber_kunde,
+        available_fonts=BrandingService.AVAILABLE_FONTS,
+        selected_fonts=selected_fonts
+    )
+
+
+# Keep old route for backwards compatibility
 @admin_bp.route('/branding', methods=['GET', 'POST'])
 @login_required
 @admin_required
 def branding():
-    """Branding settings page."""
-    branding_service = BrandingService()
+    """Redirect to betreiber page (backwards compatibility)."""
+    return redirect(url_for('admin.betreiber'))
 
-    if request.method == 'POST':
-        # Handle logo upload
-        if 'logo' in request.files:
-            file = request.files['logo']
-            if file and file.filename and allowed_file(file.filename):
-                filename = secure_filename(file.filename)
-                # Add timestamp to prevent caching issues
-                name, ext = os.path.splitext(filename)
-                filename = f"logo_{int(datetime.now().timestamp())}{ext}"
 
-                upload_path = os.path.join(
-                    current_app.static_folder, 'uploads', filename
-                )
-                file.save(upload_path)
+@admin_bp.route('/betreiber/set', methods=['POST'])
+@login_required
+@admin_required
+def set_betreiber():
+    """Set a Kunde as the Betreiber (Systemkunde) and adopt their CI."""
+    from app.services import log_mittel
 
-                # Save to config
-                _update_config('brand_logo', filename)
-                flash('Logo erfolgreich hochgeladen', 'success')
+    kunde_id = request.form.get('kunde_id', type=int)
+    if not kunde_id:
+        flash('Bitte einen Kunden auswählen', 'warning')
+        return redirect(url_for('admin.betreiber'))
 
-        # Handle text fields
-        _update_config('brand_app_title', request.form.get('app_title', ''))
-        _update_config('brand_primary_color', request.form.get('primary_color', '#0d6efd'))
-        _update_config('brand_secondary_color', request.form.get('secondary_color', '#6c757d'))
-        _update_config('copyright_text', request.form.get('copyright_text', ''))
-        _update_config('copyright_url', request.form.get('copyright_url', ''))
+    kunde = Kunde.query.get_or_404(kunde_id)
 
-        db.session.commit()
-        flash('Branding-Einstellungen gespeichert', 'success')
-        return redirect(url_for('admin.branding'))
+    # Remove current Betreiber flag
+    Kunde.query.filter_by(ist_systemkunde=True).update({'ist_systemkunde': False})
 
-    # GET request - load Kunden with CI data for import feature
-    kunden_mit_ci = Kunde.query.filter(Kunde.ci != None).order_by(Kunde.firmierung).all()
+    # Set new Betreiber
+    kunde.ist_systemkunde = True
 
-    branding_config = branding_service.get_branding()
-    return render_template(
-        'administration/branding.html',
-        branding=branding_config,
-        current_logo=Config.get_value('brand_logo', ''),
-        kunden_mit_ci=kunden_mit_ci
+    # Adopt CI if available
+    if kunde.ci:
+        ci = kunde.ci
+        if ci.logo_url:
+            _update_config('brand_logo_url', ci.logo_url)
+            _update_config('brand_logo', '')  # Clear local logo
+        if ci.primary_color:
+            _update_config('brand_primary_color', ci.primary_color)
+        if ci.secondary_color:
+            _update_config('brand_secondary_color', ci.secondary_color)
+
+    # Set copyright from Firmierung
+    _update_config('copyright_text', f'© {datetime.now().year} {kunde.firmierung}')
+    if kunde.website_url:
+        _update_config('copyright_url', kunde.website_url)
+
+    db.session.commit()
+
+    log_mittel(
+        modul='system',
+        aktion='betreiber_gesetzt',
+        details=f'"{kunde.firmierung}" als Betreiber gesetzt',
+        entity_type='Kunde',
+        entity_id=kunde.id
     )
+    db.session.commit()
+
+    flash(f'"{kunde.firmierung}" ist jetzt Betreiber. CI wurde übernommen.', 'success')
+    return redirect(url_for('admin.betreiber'))
 
 
-@admin_bp.route('/branding/delete-logo', methods=['POST'])
+@admin_bp.route('/betreiber/footer', methods=['POST'])
+@login_required
+@admin_required
+def save_footer():
+    """Save the E-Mail footer/signature for the Betreiber."""
+    from app.services import log_mittel
+
+    betreiber = Kunde.query.filter_by(ist_systemkunde=True).first()
+    if not betreiber:
+        flash('Kein Betreiber ausgewählt. Bitte zuerst einen Betreiber festlegen.', 'warning')
+        return redirect(url_for('admin.betreiber'))
+
+    footer_html = request.form.get('email_footer', '').strip()
+    betreiber.email_footer = footer_html if footer_html else None
+
+    db.session.commit()
+
+    log_mittel(
+        modul='system',
+        aktion='email_footer_gespeichert',
+        details=f'E-Mail-Signatur für Betreiber "{betreiber.firmierung}" aktualisiert',
+        entity_type='Kunde',
+        entity_id=betreiber.id
+    )
+    db.session.commit()
+
+    flash('E-Mail-Signatur gespeichert', 'success')
+    return redirect(url_for('admin.betreiber'))
+
+
+@admin_bp.route('/betreiber/delete-logo', methods=['POST'])
 @login_required
 @admin_required
 def delete_logo():
@@ -448,19 +592,19 @@ def delete_logo():
         db.session.commit()
         flash('Logo gelöscht', 'success')
 
-    return redirect(url_for('admin.branding'))
+    return redirect(url_for('admin.betreiber'))
 
 
 @admin_bp.route('/branding/apply-kunde/<int:kunde_id>', methods=['POST'])
 @login_required
 @admin_required
 def apply_kunde_branding(kunde_id):
-    """Apply branding from Kunde CI data."""
+    """Apply branding from Kunde CI data (legacy route, use set_betreiber instead)."""
     kunde = Kunde.query.get_or_404(kunde_id)
 
     if not kunde.ci:
         flash('Kunde hat keine CI-Daten', 'warning')
-        return redirect(url_for('admin.branding'))
+        return redirect(url_for('admin.betreiber'))
 
     ci = kunde.ci
 
@@ -485,7 +629,7 @@ def apply_kunde_branding(kunde_id):
 
     db.session.commit()
     flash(f'Branding von "{kunde.firmierung}" übernommen', 'success')
-    return redirect(url_for('admin.branding'))
+    return redirect(url_for('admin.betreiber'))
 
 
 def _update_config(key: str, value: str):
@@ -1477,6 +1621,9 @@ def email_template_edit(id):
         ('{{ firmenname }}', 'Firmenname des Kunden'),
         ('{{ link }}', 'Aktions-Link (Magic-Link, Passwort-Link, etc.)'),
         ('{{ fragebogen_titel }}', 'Titel des Fragebogens'),
+        ('{{ briefanrede }}', 'Automatische Anrede (basierend auf Kundenstil)'),
+        ('{{ briefanrede_foermlich }}', 'Formelle Anrede (Sehr geehrte/r...)'),
+        ('{{ briefanrede_locker }}', 'Lockere Anrede (Hallo/Liebe/r...)'),
         ('{{ email }}', 'E-Mail-Adresse des Empfängers'),
         ('{{ vorname }}', 'Vorname des Empfängers'),
         ('{{ nachname }}', 'Nachname des Empfängers'),
@@ -1525,6 +1672,10 @@ def email_template_preview(id):
             'email': kunde.email or (kunde.user.email if kunde.user else 'N/A'),
             'vorname': kunde.user.vorname if kunde.user else 'Max',
             'nachname': kunde.user.nachname if kunde.user else 'Mustermann',
+            # Briefanrede aus Kunde-Properties
+            'briefanrede': kunde.briefanrede,
+            'briefanrede_foermlich': kunde.briefanrede_foermlich,
+            'briefanrede_locker': kunde.briefanrede_locker,
         }
 
     try:
@@ -1545,46 +1696,86 @@ def email_template_preview(id):
 @login_required
 @admin_required
 def email_template_send_test(id):
-    """Send a test email using this template."""
+    """Send a test email using this template.
+
+    Supports two modes:
+    1. Preview mode (new): Uses kunde_id + recipient (kunde/self)
+    2. Legacy mode: Uses test_user_id (for backward compatibility)
+    """
     from app.models import EmailTemplate
     from app.services import get_brevo_service
 
     template = EmailTemplate.query.get_or_404(id)
     brevo_service = get_brevo_service()
 
-    test_user_id = request.form.get('test_user_id', type=int)
-    if not test_user_id:
-        flash('Bitte einen Empfänger auswählen', 'warning')
-        return redirect(url_for('admin.email_template_edit', id=id))
+    # Check for new preview mode (kunde_id)
+    kunde_id = request.form.get('kunde_id', type=int)
+    recipient = request.form.get('recipient', 'self')
 
-    user = User.query.get(test_user_id)
-    if not user:
-        flash('Benutzer nicht gefunden', 'danger')
-        return redirect(url_for('admin.email_template_edit', id=id))
+    if kunde_id:
+        # New preview mode: Use real customer data
+        kunde = Kunde.query.get_or_404(kunde_id)
 
-    # Sample context for test
-    context = {
-        'firmenname': 'Musterfirma GmbH',
-        'link': 'https://example.com/action',
-        'fragebogen_titel': 'Beispiel-Fragebogen',
-        'email': user.email,
-        'vorname': user.vorname,
-        'nachname': user.nachname,
-    }
+        # Determine recipient
+        if recipient == 'kunde' and kunde.email:
+            to_email = kunde.email
+            to_name = kunde.firmierung
+        else:
+            to_email = current_user.email
+            to_name = current_user.full_name
+
+        # Use real customer data for placeholders
+        context = {
+            'firmenname': kunde.firmierung,
+            'link': 'https://example.com/action',
+            'fragebogen_titel': 'Beispiel-Fragebogen',
+            'email': kunde.email or '',
+            'vorname': kunde.user.vorname if kunde.user else '',
+            'nachname': kunde.user.nachname if kunde.user else '',
+        }
+
+        redirect_url = url_for('admin.email_template_preview', id=id, kunde_id=kunde_id)
+
+    else:
+        # Legacy mode: Use test_user_id
+        test_user_id = request.form.get('test_user_id', type=int)
+        if not test_user_id:
+            flash('Bitte einen Empfänger auswählen', 'warning')
+            return redirect(url_for('admin.email_template_preview', id=id))
+
+        user = User.query.get(test_user_id)
+        if not user:
+            flash('Benutzer nicht gefunden', 'danger')
+            return redirect(url_for('admin.email_template_preview', id=id))
+
+        to_email = user.email
+        to_name = user.full_name
+
+        # Sample context for test
+        context = {
+            'firmenname': 'Musterfirma GmbH',
+            'link': 'https://example.com/action',
+            'fragebogen_titel': 'Beispiel-Fragebogen',
+            'email': user.email,
+            'vorname': user.vorname,
+            'nachname': user.nachname,
+        }
+
+        redirect_url = url_for('admin.email_template_preview', id=id)
 
     result = brevo_service.send_with_template(
         template_schluessel=template.schluessel,
-        to_email=user.email,
-        to_name=user.full_name,
+        to_email=to_email,
+        to_name=to_name,
         context=context
     )
 
     if result.success:
-        flash(f'Test-E-Mail mit Template "{template.name}" an {user.email} gesendet', 'success')
+        flash(f'Test-E-Mail mit Template "{template.name}" an {to_email} gesendet', 'success')
     else:
         flash(f'Fehler: {result.error}', 'danger')
 
-    return redirect(url_for('admin.email_template_edit', id=id))
+    return redirect(redirect_url)
 
 
 # ============================================================================
