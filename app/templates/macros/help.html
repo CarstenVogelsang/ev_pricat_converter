@@ -6,8 +6,14 @@
     Usage:
         {% from "macros/help.html" import help_icon with context %}
 
+        <!-- Standard (grau auf hellem Hintergrund) -->
         <div class="card-header">
             <span>Branchen {{ help_icon('kunden.detail.branchen') }}</span>
+        </div>
+
+        <!-- Auf farbigem Header (weiß auf dunklem Hintergrund) -->
+        <div class="card-header bg-primary text-white">
+            <span>Titel {{ help_icon('schluessel', light=true) }}</span>
         </div>
 
     IMPORTANT: You MUST use "with context" when importing this macro!
@@ -15,18 +21,19 @@
 
     Parameters:
         - schluessel: The unique key for the help text (e.g., 'kunden.detail.branchen')
+        - light: Set to true for light-colored icons on dark backgrounds (default: false)
 
     The help text is fetched from the database using the get_help_text() context processor.
     If no help text exists or it's inactive, nothing is rendered.
 #}
 
-{% macro help_icon(schluessel) %}
+{% macro help_icon(schluessel, light=false) %}
 {% set help = get_help_text(schluessel) %}
 {% if help and help.aktiv %}
-<button type="button" class="btn btn-sm btn-link p-0 ms-2 help-icon-btn"
+<button type="button" class="btn btn-sm btn-link text-decoration-none p-0 ms-2 help-icon-btn"
         data-bs-toggle="modal" data-bs-target="#helpModal_{{ schluessel|replace('.', '_') }}"
         title="Hilfe anzeigen">
-    <i class="ti ti-info-circle text-muted"></i>
+    <i class="ti ti-info-circle fs-5 {{ 'text-white-50' if light else 'text-muted' }}"></i>
 </button>
 
 <!-- Help Modal for {{ schluessel }} -->
@@ -35,7 +42,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="ti ti-help-circle text-info"></i> {{ help.titel }}
+                    <i class="ti ti-info-circle text-info"></i> {{ help.titel }}
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
             </div>
@@ -45,6 +52,23 @@
         </div>
     </div>
 </div>
+
+<style>
+.help-icon-btn:hover i {
+    color: var(--tblr-info) !important;
+}
+/* Ensure help text is always readable and consistent */
+.help-content {
+    color: #212529 !important;
+    background-color: #fff !important;
+    font-size: 0.875rem !important; /* 14px - consistent across all help modals */
+    line-height: 1.5;
+}
+.help-content * {
+    color: inherit;
+    font-size: inherit;
+}
+</style>
 {% endif %}
 {% endmacro %}
 
@@ -71,7 +95,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h5 class="modal-title">
-                    <i class="ti ti-help-circle text-info"></i> {{ help.titel }}
+                    <i class="ti ti-info-circle text-info"></i> {{ help.titel }}
                 </h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
             </div>
@@ -81,5 +105,105 @@
         </div>
     </div>
 </div>
+{% endif %}
+{% endmacro %}
+
+
+{#
+    Help Icon with Support Button (PRD-007)
+    =======================================
+    Displays the help icon (i) plus a support button (headset) for creating support tickets.
+
+    Usage:
+        {% from "macros/help.html" import help_icon_with_support with context %}
+
+        <div class="card-header">
+            <span>Titel {{ help_icon_with_support('bereich.seite.element') }}</span>
+        </div>
+
+    The support button opens the global support modal (#supportQuickCreateModal) with
+    the hilfetext_schluessel pre-filled.
+#}
+
+{% macro help_icon_with_support(schluessel, light=false) %}
+{% set help = get_help_text(schluessel) %}
+<span class="d-inline-flex align-items-center gap-1">
+{% if help and help.aktiv %}
+<button type="button" class="btn btn-sm btn-link text-decoration-none p-0 help-icon-btn"
+        data-bs-toggle="modal" data-bs-target="#helpModal_{{ schluessel|replace('.', '_') }}"
+        title="Hilfe anzeigen">
+    <i class="ti ti-info-circle fs-5 {{ 'text-white-50' if light else 'text-muted' }}"></i>
+</button>
+
+<!-- Help Modal for {{ schluessel }} -->
+<div class="modal fade" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="ti ti-info-circle text-info"></i> {{ help.titel }}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+            </div>
+            <div class="modal-body help-content">
+                {{ help.inhalt_markdown|markdown }}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        data-bs-dismiss="modal"
+                        onclick="openSupportModal('{{ schluessel }}', '{{ help.titel }}')"
+                        title="Support-Anfrage stellen">
+                    <i class="ti ti-headset"></i> Support kontaktieren
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if current_user.is_authenticated %}
+<button type="button" class="btn btn-sm btn-link text-decoration-none p-0 support-icon-btn"
+        onclick="openSupportModal('{{ schluessel }}', '{{ help.titel if help else '' }}')"
+        title="Support-Anfrage stellen">
+    <i class="ti ti-headset fs-5 {{ 'text-white-50' if light else 'text-muted' }}"></i>
+</button>
+{% endif %}
+</span>
+
+<style>
+.help-icon-btn:hover i, .support-icon-btn:hover i {
+    color: var(--tblr-info) !important;
+}
+.help-content {
+    color: #212529 !important;
+    background-color: #fff !important;
+    font-size: 0.875rem !important;
+    line-height: 1.5;
+}
+.help-content * {
+    color: inherit;
+    font-size: inherit;
+}
+</style>
+{% endmacro %}
+
+
+{#
+    Support Icon Only (no help text required)
+    =========================================
+    For pages without help text that still want a support button.
+
+    Usage:
+        {% from "macros/help.html" import support_icon with context %}
+        {{ support_icon() }}
+#}
+
+{% macro support_icon(light=false) %}
+{% if current_user.is_authenticated %}
+<button type="button" class="btn btn-sm btn-link text-decoration-none p-0 support-icon-btn"
+        onclick="openSupportModal('', '')"
+        title="Support-Anfrage stellen">
+    <i class="ti ti-headset fs-5 {{ 'text-white-50' if light else 'text-muted' }}"></i>
+</button>
 {% endif %}
 {% endmacro %}

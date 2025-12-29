@@ -71,6 +71,11 @@
                     <small class="d-block mt-1 text-muted">
                         Platzhalter werden mit Daten von <strong>{{ kunde.firmierung }}</strong> befüllt.
                     </small>
+                    <hr class="my-3">
+                    <button type="button" class="btn btn-outline-primary btn-sm w-100"
+                            data-bs-toggle="modal" data-bs-target="#testEmailModal">
+                        <i class="ti ti-send"></i> Test-E-Mail senden
+                    </button>
                     {% else %}
                     <span class="badge bg-secondary">
                         <i class="ti ti-test-pipe"></i> Beispieldaten
@@ -122,6 +127,9 @@
                 <p class="text-muted small mb-2">Daten von <strong>{{ kunde.firmierung }}</strong>:</p>
                 <table class="table table-sm mb-0">
                     <tr><td><code>firmenname</code></td><td>{{ kunde.firmierung or 'N/A' }}</td></tr>
+                    <tr><td><code>briefanrede</code></td><td>{{ kunde.briefanrede }}</td></tr>
+                    <tr><td><code>briefanrede_foermlich</code></td><td>{{ kunde.briefanrede_foermlich }}</td></tr>
+                    <tr><td><code>briefanrede_locker</code></td><td>{{ kunde.briefanrede_locker }}</td></tr>
                     <tr><td><code>link</code></td><td class="text-muted">https://example.com/action</td></tr>
                     <tr><td><code>fragebogen_titel</code></td><td class="text-muted">Beispiel-Fragebogen</td></tr>
                     <tr><td><code>email</code></td><td>{{ kunde.email or (kunde.user.email if kunde.user else 'N/A') }}</td></tr>
@@ -132,6 +140,9 @@
                 <p class="text-muted small mb-2">Die Vorschau verwendet Testdaten:</p>
                 <table class="table table-sm mb-0">
                     <tr><td><code>firmenname</code></td><td>Musterfirma GmbH</td></tr>
+                    <tr><td><code>briefanrede</code></td><td>Sehr geehrte Damen und Herren</td></tr>
+                    <tr><td><code>briefanrede_foermlich</code></td><td>Sehr geehrte Damen und Herren</td></tr>
+                    <tr><td><code>briefanrede_locker</code></td><td>Hallo zusammen</td></tr>
                     <tr><td><code>link</code></td><td>https://example.com/action</td></tr>
                     <tr><td><code>fragebogen_titel</code></td><td>Beispiel-Fragebogen</td></tr>
                     <tr><td><code>email</code></td><td>beispiel@example.com</td></tr>
@@ -153,6 +164,40 @@
         </div>
     </div>
 </div>
+
+<!-- Test-E-Mail Modal -->
+{% if kunde %}
+<div class="modal fade" id="testEmailModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post" action="{{ url_for('admin.email_template_send_test', id=template.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="kunde_id" value="{{ kunde.id }}">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-send"></i> Test-E-Mail senden</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="text-muted mb-3">
+                        Sendet das Template mit den Daten von <strong>{{ kunde.firmierung }}</strong>.
+                    </p>
+                    <label class="form-label">Empfänger wählen</label>
+                    <select class="form-select" name="recipient" required>
+                        {% if kunde.email %}
+                        <option value="kunde">{{ kunde.email }} (Kunde)</option>
+                        {% endif %}
+                        <option value="self">{{ current_user.email }} (An mich selbst)</option>
+                    </select>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary"><i class="ti ti-send"></i> Senden</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <script>
 // Render HTML in iframe for isolation

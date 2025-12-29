@@ -1,21 +1,21 @@
 {% extends "base.html" %}
 
-{% block title %}Lieferanten - {{ branding.app_title }}{% endblock %}
+{% block title %}PRICAT Converter - {{ branding.app_title }}{% endblock %}
 
 {% block content %}
 <h2 class="mb-4">{{ titel }}</h2>
 
 <!-- Filter Buttons -->
 <div class="btn-group mb-3" role="group" aria-label="Lieferanten-Filter">
-    <a href="{{ url_for('main.lieferanten', filter='aktiv') }}"
+    <a href="{{ url_for('main.pricat_converter', filter='aktiv') }}"
        class="btn btn-{{ 'primary' if filter == 'aktiv' else 'outline-primary' }}">
         Aktiv
     </a>
-    <a href="{{ url_for('main.lieferanten', filter='inaktiv') }}"
+    <a href="{{ url_for('main.pricat_converter', filter='inaktiv') }}"
        class="btn btn-{{ 'primary' if filter == 'inaktiv' else 'outline-primary' }}">
         Inaktiv
     </a>
-    <a href="{{ url_for('main.lieferanten', filter='alle') }}"
+    <a href="{{ url_for('main.pricat_converter', filter='alle') }}"
        class="btn btn-{{ 'primary' if filter == 'alle' else 'outline-primary' }}">
         Alle
     </a>

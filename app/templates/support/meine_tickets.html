@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+{% from "macros/help.html" import help_icon with context %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Meine Support-Anfragen - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Meine Support-Anfragen', 'icon': 'ti-headset'}
+    ]) }}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>
+            <i class="ti ti-headset" style="color: #17a2b8;"></i>
+            Meine Support-Anfragen
+            {{ help_icon('support.tickets.liste') }}
+        </h2>
+        <a href="{{ url_for('support.ticket_erstellen') }}" class="btn btn-primary">
+            <i class="ti ti-plus"></i> Neue Anfrage
+        </a>
+    </div>
+
+    {% if not tickets %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="ti ti-inbox fs-1 text-muted mb-3 d-block"></i>
+            <h5 class="text-muted">Noch keine Anfragen</h5>
+            <p class="text-muted">Sie haben noch keine Support-Anfragen erstellt.</p>
+            <a href="{{ url_for('support.ticket_erstellen') }}" class="btn btn-primary">
+                <i class="ti ti-plus"></i> Erste Anfrage erstellen
+            </a>
+        </div>
+    </div>
+    {% else %}
+
+    <!-- Offene Tickets -->
+    {% if offene %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-clock"></i> Offene Anfragen ({{ offene|length }})
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nummer</th>
+                            <th>Betreff</th>
+                            <th>Typ</th>
+                            <th>Status</th>
+                            <th>Erstellt</th>
+                            <th>Letzte Aktivität</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ticket in offene %}
+                        <tr>
+                            <td>
+                                <a href="{{ url_for('support.ticket_detail', nummer=ticket.nummer) }}" class="fw-bold text-decoration-none">
+                                    {{ ticket.nummer_anzeige }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('support.ticket_detail', nummer=ticket.nummer) }}" class="text-decoration-none text-dark">
+                                    {{ ticket.titel|truncate(50) }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-dark">
+                                    <i class="{{ ticket.typ_icon }}"></i> {{ ticket.typ_label }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ ticket.status_color }}">{{ ticket.status_label }}</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ ticket.erstellt_am.strftime('%d.%m.%Y %H:%M') }}</small>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ ticket.letzte_aktivitaet.strftime('%d.%m.%Y %H:%M') }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Geschlossene Tickets -->
+    {% if geschlossene %}
+    <div class="card">
+        <div class="card-header">
+            <i class="ti ti-check"></i> Abgeschlossene Anfragen ({{ geschlossene|length }})
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Nummer</th>
+                            <th>Betreff</th>
+                            <th>Typ</th>
+                            <th>Status</th>
+                            <th>Erstellt</th>
+                            <th>Abgeschlossen</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for ticket in geschlossene %}
+                        <tr class="text-muted">
+                            <td>
+                                <a href="{{ url_for('support.ticket_detail', nummer=ticket.nummer) }}" class="text-decoration-none">
+                                    {{ ticket.nummer_anzeige }}
+                                </a>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('support.ticket_detail', nummer=ticket.nummer) }}" class="text-decoration-none text-muted">
+                                    {{ ticket.titel|truncate(50) }}
+                                </a>
+                            </td>
+                            <td>
+                                <span class="badge bg-light text-secondary">
+                                    <i class="{{ ticket.typ_icon }}"></i> {{ ticket.typ_label }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge bg-{{ ticket.status_color }}">{{ ticket.status_label }}</span>
+                            </td>
+                            <td>
+                                <small>{{ ticket.erstellt_am.strftime('%d.%m.%Y') }}</small>
+                            </td>
+                            <td>
+                                <small>{{ (ticket.geschlossen_am or ticket.geloest_am or ticket.aktualisiert_am).strftime('%d.%m.%Y') if (ticket.geschlossen_am or ticket.geloest_am or ticket.aktualisiert_am) else '-' }}</small>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% endif %}
+</div>
+{% endblock %}

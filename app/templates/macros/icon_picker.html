@@ -1,0 +1,148 @@
+{# Icon Picker Macro - Wiederverwendbare Tabler Icon Auswahl #}
+
+{% macro icon_input(name, value='', id=none, placeholder='ti-help', label=none, strip_prefix=false) %}
+{#
+   Erstellt ein Icon-Input-Feld mit Preview und Picker-Button.
+
+   Parameter:
+   - name: Formular-Feldname (required)
+   - value: Aktueller Icon-Wert (z.B. 'ti-bug' oder 'bug')
+   - id: HTML-ID (default: name)
+   - placeholder: Placeholder-Icon (mit 'ti-' Prefix)
+   - label: Optional - Label-Text
+   - strip_prefix: Wenn true, wird 'ti-' vom gewählten Wert entfernt (für Models die Icons ohne Prefix speichern)
+#}
+{% set field_id = id or name %}
+{# Normalize icon value for preview (add ti- if missing) #}
+{% set preview_icon = value if value.startswith('ti-') else ('ti-' ~ value if value else placeholder) %}
+{% if label %}
+<label class="form-label">{{ label }}</label>
+{% endif %}
+<div class="input-group icon-input-group">
+    <span class="input-group-text icon-preview" id="preview-{{ field_id }}">
+        <i class="ti {{ preview_icon }}"></i>
+    </span>
+    <input type="text"
+           class="form-control icon-input"
+           name="{{ name }}"
+           id="{{ field_id }}"
+           value="{{ value }}"
+           placeholder="{{ placeholder|replace('ti-', '') if strip_prefix else placeholder }}"
+           {% if strip_prefix %}data-strip-prefix="true"{% endif %}
+           onchange="updateIconPreviewFor('{{ field_id }}')">
+    <button type="button"
+            class="btn btn-outline-secondary"
+            onclick="openIconPicker('{{ field_id }}')"
+            title="Icon auswählen">
+        <i class="ti ti-search"></i>
+    </button>
+</div>
+{% endmacro %}
+
+
+{% macro icon_picker_offcanvas() %}
+{#
+   Offcanvas-Dialog für die Icon-Auswahl.
+   Muss einmal pro Seite eingebunden werden (am besten in base.html).
+#}
+<div class="offcanvas offcanvas-end" tabindex="-1" id="iconPickerOffcanvas" style="width: 450px;">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title">
+            <i class="ti ti-icons me-2"></i>Icon auswählen
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body p-0">
+        <!-- Suchfeld (sticky) -->
+        <div class="p-3 border-bottom bg-light sticky-top">
+            <div class="input-group">
+                <span class="input-group-text"><i class="ti ti-search"></i></span>
+                <input type="text"
+                       class="form-control"
+                       id="iconSearchInput"
+                       placeholder="Icon suchen..."
+                       oninput="filterIcons(this.value)">
+                <button type="button" class="btn btn-outline-secondary" onclick="clearIconSearch()">
+                    <i class="ti ti-x"></i>
+                </button>
+            </div>
+            <div class="mt-2 d-flex justify-content-between align-items-center">
+                <small class="text-muted">
+                    <span id="iconCount">0</span> Icons
+                </small>
+                <small class="text-muted" id="iconLoadingStatus"></small>
+            </div>
+        </div>
+
+        <!-- Icon Grid -->
+        <div id="iconGrid" class="p-3">
+            <div class="text-center text-muted py-5">
+                <i class="ti ti-loader ti-spin fs-1"></i>
+                <p class="mt-2">Icons werden geladen...</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+/* Icon Picker Offcanvas - über Modal (z-index 1055) */
+#iconPickerOffcanvas {
+    z-index: 1060 !important;
+}
+
+/* Icon Picker Styles */
+.icon-grid-item {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 48px;
+    margin: 4px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    background: white;
+}
+
+.icon-grid-item:hover {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+    transform: scale(1.1);
+}
+
+.icon-grid-item i {
+    font-size: 1.5rem;
+    color: #495057;
+}
+
+.icon-grid-item:hover i {
+    color: #0d6efd;
+}
+
+.icon-grid-item.selected {
+    border-color: #0d6efd;
+    background-color: #0d6efd;
+}
+
+.icon-grid-item.selected i {
+    color: white;
+}
+
+/* Spinner Animation */
+.ti-spin {
+    animation: ti-spin 1s linear infinite;
+}
+
+@keyframes ti-spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* Scrollable Grid */
+#iconGrid {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+}
+</style>
+{% endmacro %}

@@ -2,7 +2,7 @@
 from flask import Blueprint, render_template, redirect, url_for, flash, request, jsonify
 from flask_login import login_required, current_user
 from flask_wtf import FlaskForm
-from wtforms import StringField, TextAreaField, BooleanField
+from wtforms import StringField, TextAreaField, BooleanField, SelectField
 from wtforms.validators import DataRequired, URL, Optional
 
 from sqlalchemy import func
@@ -30,6 +30,13 @@ class KundeForm(FlaskForm):
     shop_url = StringField('Online-Shop URL', validators=[Optional(), URL()])
     telefon = StringField('Telefon', validators=[Optional()])
     email = StringField('E-Mail', validators=[Optional()])
+
+    # Kommunikationsstil (Firmen-Standard, Anrede ist jetzt am User)
+    kommunikation_stil = SelectField('Kommunikationsstil (Standard)', choices=[
+        ('foermlich', 'Förmlich (Sie)'),
+        ('locker', 'Locker (Du)'),
+    ], default='foermlich')
+
     notizen = TextAreaField('Notizen', validators=[Optional()])
     aktiv = BooleanField('Aktiv', default=True)
 
@@ -94,6 +101,7 @@ def neu():
             email=form.email.data or None,
             website_url=form.website_url.data or None,
             shop_url=form.shop_url.data or None,
+            kommunikation_stil=form.kommunikation_stil.data,
             notizen=form.notizen.data,
             aktiv=form.aktiv.data
         )
@@ -176,6 +184,7 @@ def bearbeiten(id):
         kunde.email = form.email.data or None
         kunde.website_url = form.website_url.data or None
         kunde.shop_url = form.shop_url.data or None
+        kunde.kommunikation_stil = form.kommunikation_stil.data
         kunde.notizen = form.notizen.data
         kunde.aktiv = form.aktiv.data
         db.session.commit()

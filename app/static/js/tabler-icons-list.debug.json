@@ -1,0 +1,301 @@
+[
+  {
+    "name": "ti-a-b",
+    "tags": [
+      "test",
+      "visual",
+      "user",
+      "programming",
+      "software",
+      "coding",
+      "technical",
+      "developer",
+      "a",
+      "b",
+      "Development"
+    ]
+  },
+  {
+    "name": "ti-a-b-2",
+    "tags": [
+      "test",
+      "visual",
+      "user",
+      "design",
+      "a",
+      "b",
+      "2",
+      "Text"
+    ]
+  },
+  {
+    "name": "ti-a-b-off",
+    "tags": [
+      "test",
+      "visual",
+      "user",
+      "off",
+      "disabled",
+      "inactive",
+      "a",
+      "b",
+      "Text"
+    ]
+  },
+  {
+    "name": "ti-abacus",
+    "tags": [
+      "abacus",
+      "math",
+      "counting",
+      "adding up",
+      "calculation",
+      "equation",
+      "mathematics",
+      "numeric",
+      "formula"
+    ]
+  },
+  {
+    "name": "ti-abacus-off",
+    "tags": [
+      "abacus",
+      "math",
+      "counting",
+      "adding up",
+      "off",
+      "calculation",
+      "equation",
+      "disabled",
+      "inactive",
+      "mathematics"
+    ]
+  },
+  {
+    "name": "ti-abc",
+    "tags": [
+      "letters",
+      "alphabet",
+      "latin",
+      "abc",
+      "text",
+      "characters",
+      "writing",
+      "language"
+    ]
+  },
+  {
+    "name": "ti-access-point",
+    "tags": [
+      "device",
+      "hosts",
+      "airwaves",
+      "wireless",
+      "network",
+      "access",
+      "point",
+      "hardware",
+      "technology",
+      "electronic",
+      "Devices"
+    ]
+  },
+  {
+    "name": "ti-access-point-off",
+    "tags": [
+      "device",
+      "hosts",
+      "airwaves",
+      "wireless",
+      "network",
+      "access",
+      "point",
+      "off",
+      "hardware",
+      "technology",
+      "Devices"
+    ]
+  },
+  {
+    "name": "ti-accessible",
+    "tags": [
+      "low-vision",
+      "blind",
+      "disability",
+      "handicapped",
+      "accessible",
+      "accessibility",
+      "inclusive",
+      "barrier-free",
+      "Health"
+    ]
+  },
+  {
+    "name": "ti-accessible-off",
+    "tags": [
+      "low-vision",
+      "blind",
+      "disability",
+      "handicapped",
+      "accessible",
+      "off",
+      "disabled",
+      "inactive",
+      "accessibility",
+      "inclusive",
+      "Health"
+    ]
+  },
+  {
+    "name": "ti-activity",
+    "tags": [
+      "pulse",
+      "motion",
+      "health",
+      "action",
+      "activity",
+      "movement",
+      "dynamic",
+      "active"
+    ]
+  },
+  {
+    "name": "ti-activity-heartbeat",
+    "tags": [
+      "pulse",
+      "lifeline",
+      "impuls",
+      "hospital",
+      "heartrate",
+      "activity",
+      "heartbeat",
+      "love",
+      "like",
+      "motion",
+      "Health"
+    ]
+  },
+  {
+    "name": "ti-ad",
+    "tags": [
+      "advert",
+      "advertisement",
+      "marketing",
+      "commercial",
+      "traffic",
+      "creative",
+      "artistic",
+      "ad",
+      "visual",
+      "aesthetic",
+      "Design"
+    ]
+  },
+  {
+    "name": "ti-ad-2",
+    "tags": [
+      "advert",
+      "advertisement",
+      "marketing",
+      "commercial",
+      "traffic",
+      "creative",
+      "artistic",
+      "ad",
+      "visual",
+      "aesthetic",
+      "Design"
+    ]
+  },
+  {
+    "name": "ti-ad-circle",
+    "tags": [
+      "marketing",
+      "promotion",
+      "advertisement",
+      "shape",
+      "circle",
+      "round",
+      "circular",
+      "ad",
+      "System"
+    ]
+  },
+  {
+    "name": "ti-ad-circle-off",
+    "tags": [
+      "marketing",
+      "promotion",
+      "advertisement",
+      "shape",
+      "circle",
+      "off",
+      "disabled",
+      "inactive",
+      "round",
+      "circular",
+      "System"
+    ]
+  },
+  {
+    "name": "ti-ad-off",
+    "tags": [
+      "advert",
+      "advertisement",
+      "marketing",
+      "commercial",
+      "traffic",
+      "off",
+      "creative",
+      "artistic",
+      "disabled",
+      "inactive",
+      "Design"
+    ]
+  },
+  {
+    "name": "ti-address-book",
+    "tags": [
+      "contact",
+      "contacts",
+      "phonebook",
+      "profile",
+      "resources",
+      "address",
+      "book",
+      "Communication"
+    ]
+  },
+  {
+    "name": "ti-address-book-off",
+    "tags": [
+      "contact",
+      "contacts",
+      "phonebook",
+      "profile",
+      "resources",
+      "address",
+      "book",
+      "off",
+      "disabled",
+      "inactive",
+      "Communication"
+    ]
+  },
+  {
+    "name": "ti-adjustments",
+    "tags": [
+      "equalizer",
+      "sliders",
+      "controls",
+      "settings",
+      "filter",
+      "adjustments",
+      "control",
+      "operation",
+      "function",
+      "interface",
+      "System"
+    ]
+  }
+]

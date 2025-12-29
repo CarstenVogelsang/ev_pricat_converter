@@ -1,0 +1,197 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ 'Team bearbeiten' if team else 'Neues Team' }} - Administration{% endblock %}
+
+{% block admin_content %}
+{% if team %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Support-Tickets', 'url': url_for('support_admin.dashboard'), 'icon': 'ti-headset'},
+    {'label': 'Teams', 'url': url_for('support_admin.teams'), 'icon': 'ti-users-group'},
+    {'label': team.name}
+]) }}
+{% else %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Support-Tickets', 'url': url_for('support_admin.dashboard'), 'icon': 'ti-headset'},
+    {'label': 'Teams', 'url': url_for('support_admin.teams'), 'icon': 'ti-users-group'},
+    {'label': 'Neues Team'}
+]) }}
+{% endif %}
+
+<div class="d-flex justify-content-between align-items-start mb-4">
+    <h4 class="mb-0">
+        <i class="ti ti-users me-2"></i>
+        {{ 'Team bearbeiten: ' + team.name if team else 'Neues Team erstellen' }}
+    </h4>
+</div>
+
+<div class="row">
+    <div class="col-lg-6">
+        <!-- Team-Daten -->
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="update">
+
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-info-circle"></i> Team-Daten</span>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="name" name="name"
+                               value="{{ team.name if team else '' }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="beschreibung" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="beschreibung" name="beschreibung"
+                                  rows="3">{{ team.beschreibung if team else '' }}</textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="email" class="form-label">Team-E-Mail</label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               value="{{ team.email if team else '' }}"
+                               placeholder="support@example.com">
+                        <div class="form-text">Optional: Zentrale E-Mail-Adresse für das Team</div>
+                    </div>
+                    {% if team %}
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" name="aktiv" value="1"
+                               id="aktiv" {{ 'checked' if team.aktiv else '' }}>
+                        <label class="form-check-label" for="aktiv">Team aktiv</label>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+
+        <!-- Löschen -->
+        {% if team %}
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <i class="ti ti-trash"></i> Gefahrenzone
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Das Team kann nur gelöscht werden, wenn keine Tickets zugeordnet sind.</p>
+                <form method="post" action="{{ url_for('support_admin.team_loeschen', team_id=team.id) }}"
+                      onsubmit="return confirm('Team wirklich löschen?')">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="ti ti-trash"></i> Team löschen
+                    </button>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Mitglieder (nur bei Bearbeitung) -->
+    {% if team %}
+    <div class="col-lg-6">
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="ti ti-users"></i> Mitglieder ({{ team.mitglieder|length }})
+            </div>
+            <div class="card-body p-0">
+                {% if team.mitglieder %}
+                <table class="table table-sm mb-0">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th class="text-center">Teamleiter</th>
+                            <th class="text-center">Benachrichtigung</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for mitglied in team.mitglieder %}
+                        <tr>
+                            <td>{{ mitglied.user.vorname }} {{ mitglied.user.nachname }}</td>
+                            <td class="text-center">
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="toggle_leader">
+                                    <input type="hidden" name="mitglied_id" value="{{ mitglied.id }}">
+                                    <button type="submit" class="btn btn-sm btn-link p-0">
+                                        {% if mitglied.ist_teamleiter %}
+                                        <i class="ti ti-star-filled text-warning"></i>
+                                        {% else %}
+                                        <i class="ti ti-star text-muted"></i>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                            <td class="text-center">
+                                <form method="post" class="d-inline">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="toggle_notification">
+                                    <input type="hidden" name="mitglied_id" value="{{ mitglied.id }}">
+                                    <button type="submit" class="btn btn-sm btn-link p-0">
+                                        {% if mitglied.benachrichtigung_aktiv %}
+                                        <i class="ti ti-bell-filled text-success"></i>
+                                        {% else %}
+                                        <i class="ti ti-bell-off text-muted"></i>
+                                        {% endif %}
+                                    </button>
+                                </form>
+                            </td>
+                            <td>
+                                <form method="post" class="d-inline"
+                                      onsubmit="return confirm('Mitglied entfernen?')">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                    <input type="hidden" name="action" value="remove_member">
+                                    <input type="hidden" name="mitglied_id" value="{{ mitglied.id }}">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                                        <i class="ti ti-x"></i>
+                                    </button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-users fs-3"></i>
+                    <p class="mt-2 mb-0">Noch keine Mitglieder</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Mitglied hinzufügen -->
+        {% if mitarbeiter_liste %}
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-user-plus"></i> Mitglied hinzufügen
+            </div>
+            <div class="card-body">
+                <form method="post">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="action" value="add_member">
+                    <div class="input-group">
+                        <select name="user_id" class="form-select" required>
+                            <option value="">Mitarbeiter auswählen...</option>
+                            {% for user in mitarbeiter_liste %}
+                            <option value="{{ user.id }}">
+                                {{ user.vorname }} {{ user.nachname }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-plus"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

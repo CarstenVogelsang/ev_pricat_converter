@@ -1,0 +1,554 @@
+{% extends "administration/base.html" %}
+{% from "macros/help.html" import help_icon with context %}
+
+{% block title %}Betreiber / Branding - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="ti ti-building"></i> Betreiber / Branding {{ help_icon('admin.betreiber.modul') }}</h2>
+</div>
+
+<!-- Betreiber-Auswahl Card -->
+<div class="card mb-4 border-primary">
+    <div class="card-header bg-primary text-white">
+        <i class="ti ti-building"></i> Betreiber auswählen {{ help_icon('admin.betreiber.auswahl', light=true) }}
+    </div>
+    <div class="card-body">
+        {% if kunden_mit_ci %}
+        <div class="row">
+            <div class="col-lg-6">
+                <form method="post" action="{{ url_for('admin.set_betreiber') }}" id="betreiberForm">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="kunde_id" class="form-label">Kunde als Betreiber festlegen</label>
+                        <select class="form-select" id="kunde_id" name="kunde_id" onchange="updateCIPreview()">
+                            <option value="">-- Kunde auswählen --</option>
+                            {% for kunde in kunden_mit_ci %}
+                            <option value="{{ kunde.id }}"
+                                    data-logo="{{ kunde.ci.logo_url or '' }}"
+                                    data-primary="{{ kunde.ci.primary_color or '#6c757d' }}"
+                                    data-secondary="{{ kunde.ci.secondary_color or '#6c757d' }}"
+                                    data-accent="{{ kunde.ci.accent_color or '' }}"
+                                    data-firmierung="{{ kunde.firmierung }}"
+                                    {{ 'selected' if betreiber and betreiber.id == kunde.id }}>
+                                {{ kunde.firmierung }}
+                                {% if betreiber and betreiber.id == kunde.id %} (aktueller Betreiber){% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <button type="submit" class="btn btn-primary" id="btnSetBetreiber">
+                        <i class="ti ti-check"></i> Als Betreiber übernehmen
+                    </button>
+                </form>
+            </div>
+            <div class="col-lg-6">
+                <div class="card h-100" id="ciPreviewCard">
+                    <div class="card-header">
+                        <i class="ti ti-eye"></i> CI-Vorschau
+                    </div>
+                    <div class="card-body text-center" id="ciPreview">
+                        {% if betreiber and betreiber.ci %}
+                        <div id="previewLogo" class="mb-3">
+                            {% if betreiber.ci.logo_url %}
+                            <img src="{{ betreiber.ci.logo_url }}" alt="Logo" style="max-height: 60px; max-width: 100%;">
+                            {% else %}
+                            <span class="text-muted">Kein Logo</span>
+                            {% endif %}
+                        </div>
+                        <div id="previewColors" class="d-flex justify-content-center gap-2 mb-3">
+                            <div style="width: 40px; height: 40px; background: {{ betreiber.ci.primary_color or '#6c757d' }}; border: 1px solid #ccc; border-radius: 5px;"
+                                 title="Primärfarbe" id="previewPrimary"></div>
+                            <div style="width: 40px; height: 40px; background: {{ betreiber.ci.secondary_color or '#6c757d' }}; border: 1px solid #ccc; border-radius: 5px;"
+                                 title="Sekundärfarbe" id="previewSecondary"></div>
+                            {% if betreiber.ci.accent_color %}
+                            <div style="width: 40px; height: 40px; background: {{ betreiber.ci.accent_color }}; border: 1px solid #ccc; border-radius: 5px;"
+                                 title="Akzentfarbe" id="previewAccent"></div>
+                            {% endif %}
+                        </div>
+                        <div id="previewName" class="fw-bold">{{ betreiber.firmierung }}</div>
+                        {% else %}
+                        <p class="text-muted mb-0" id="previewPlaceholder">Wählen Sie einen Kunden aus, um die CI-Vorschau anzuzeigen.</p>
+                        <div id="previewLogo" class="mb-3" style="display: none;"></div>
+                        <div id="previewColors" class="d-flex justify-content-center gap-2 mb-3" style="display: none;"></div>
+                        <div id="previewName" class="fw-bold" style="display: none;"></div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="alert alert-info">
+            <i class="ti ti-info-circle"></i>
+            Keine Kunden mit analysierter CI vorhanden. Analysieren Sie zunächst die CI eines Kunden über die Kundendetailseite.
+        </div>
+        {% endif %}
+
+        {% if betreiber %}
+        <hr class="my-4">
+        <div class="d-flex align-items-center">
+            <span class="badge bg-success me-2">Aktueller Betreiber</span>
+            <strong>{{ betreiber.firmierung }}</strong>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Branding-Einstellungen Card -->
+<form method="post" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="action" value="save_branding">
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="ti ti-palette"></i> Branding-Einstellungen {{ help_icon('admin.betreiber.branding') }}</span>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="ti ti-device-floppy"></i> Speichern
+            </button>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-8">
+                    <!-- Logo -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3"><i class="ti ti-photo"></i> Logo {{ help_icon('admin.betreiber.branding.logo') }}</h6>
+                        <div class="row">
+                            <div class="col-md-4">
+                                <div class="text-center mb-3">
+                                    <img src="{{ branding.logo_url }}" alt="Logo" class="img-fluid" style="max-height: 80px;">
+                                </div>
+                                {% if current_logo %}
+                                <div class="text-center">
+                                    <button type="button" class="btn btn-outline-danger btn-sm"
+                                            onclick="if(confirm('Logo wirklich löschen?')) document.getElementById('deleteLogoForm').submit();">
+                                        <i class="ti ti-trash"></i> Logo löschen
+                                    </button>
+                                </div>
+                                {% endif %}
+                            </div>
+                            <div class="col-md-8">
+                                <label for="logo" class="form-label">Neues Logo hochladen</label>
+                                <input type="file" class="form-control" id="logo" name="logo" accept="image/*">
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+
+                    <!-- App-Titel -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3"><i class="ti ti-heading"></i> App-Titel {{ help_icon('admin.betreiber.branding.titel') }}</h6>
+                        <label for="app_title" class="form-label">Titel</label>
+                        <input type="text" class="form-control" id="app_title" name="app_title"
+                               value="{{ branding.app_title }}" placeholder="ev247">
+                    </div>
+                    <hr>
+
+                    <!-- Schriftart -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3"><i class="ti ti-typography"></i> Schriftarten {{ help_icon('admin.betreiber.branding.font') }}</h6>
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <label for="font_family" class="form-label">Primär-Font</label>
+                                <select class="form-select" id="font_family" name="font_family" onchange="updateFontPreview()">
+                                    {% for font in available_fonts %}
+                                    <option value="{{ font.name }}" data-weights="{{ font.weights }}"
+                                            {{ 'selected' if branding.font_family == font.name }}>
+                                        {{ font.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Wird portal-weit für alle Texte verwendet</div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="secondary_font_family" class="form-label">Sekundär-Font {{ help_icon('admin.betreiber.branding.secondary_font') }}</label>
+                                <select class="form-select" id="secondary_font_family" name="secondary_font_family" onchange="updateSecondaryFontPreview()">
+                                    <option value="">– Kein Sekundär-Font –</option>
+                                    {% for font in available_fonts %}
+                                    <option value="{{ font.name }}" data-weights="{{ font.weights }}"
+                                            {{ 'selected' if branding.secondary_font_family == font.name }}>
+                                        {{ font.name }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                                <div class="form-text">Optional, für Überschriften oder Akzente</div>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label class="form-label">Primär-Vorschau</label>
+                                <div id="fontPreview" class="border rounded p-3 bg-white" style="font-family: '{{ branding.font_family }}', sans-serif;">
+                                    <span style="font-weight: 400;">Normal</span> |
+                                    <span style="font-weight: 500;">Medium</span> |
+                                    <span style="font-weight: 600;">Semibold</span> |
+                                    <span style="font-weight: 700;">Bold</span>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label class="form-label">Sekundär-Vorschau</label>
+                                <div id="secondaryFontPreview" class="border rounded p-3 bg-white" style="font-family: '{{ branding.secondary_font_family or branding.font_family }}', sans-serif;">
+                                    {% if branding.secondary_font_family %}
+                                    <span style="font-weight: 400;">Normal</span> |
+                                    <span style="font-weight: 700;">Bold</span>
+                                    {% else %}
+                                    <span class="text-muted">Kein Sekundär-Font ausgewählt</span>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                        <input type="hidden" id="font_weights" name="font_weights" value="{{ branding.font_weights }}">
+                        <input type="hidden" id="secondary_font_weights" name="secondary_font_weights" value="{{ branding.secondary_font_weights }}">
+                    </div>
+                    <hr>
+
+                    <!-- Farben -->
+                    <div class="mb-4">
+                        <h6 class="text-muted mb-3"><i class="ti ti-color-swatch"></i> Farben {{ help_icon('admin.betreiber.branding.farben') }}</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <label for="primary_color" class="form-label">Primärfarbe</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" id="primary_color_picker"
+                                           value="{{ branding.primary_color }}" title="Primärfarbe wählen"
+                                           onchange="document.getElementById('primary_color').value = this.value">
+                                    <input type="text" class="form-control" id="primary_color" name="primary_color"
+                                           value="{{ branding.primary_color }}" pattern="^#[0-9A-Fa-f]{6}$"
+                                           onchange="document.getElementById('primary_color_picker').value = this.value">
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="secondary_color" class="form-label">Sekundärfarbe</label>
+                                <div class="input-group">
+                                    <input type="color" class="form-control form-control-color" id="secondary_color_picker"
+                                           value="{{ branding.secondary_color }}" title="Sekundärfarbe wählen"
+                                           onchange="document.getElementById('secondary_color').value = this.value">
+                                    <input type="text" class="form-control" id="secondary_color" name="secondary_color"
+                                           value="{{ branding.secondary_color }}" pattern="^#[0-9A-Fa-f]{6}$"
+                                           onchange="document.getElementById('secondary_color_picker').value = this.value">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <hr>
+
+                    <!-- Copyright -->
+                    <div>
+                        <h6 class="text-muted mb-3"><i class="ti ti-copyright"></i> Copyright {{ help_icon('admin.betreiber.branding.copyright') }}</h6>
+                        <div class="mb-3">
+                            <label for="copyright_text" class="form-label">Copyright-Text</label>
+                            <input type="text" class="form-control" id="copyright_text" name="copyright_text"
+                                   value="{{ branding.copyright_text }}" placeholder="© 2025 e-vendo AG">
+                        </div>
+                        <div class="mb-0">
+                            <label for="copyright_url" class="form-label">Link zur Website</label>
+                            <input type="url" class="form-control" id="copyright_url" name="copyright_url"
+                                   value="{{ branding.copyright_url }}" placeholder="https://www.e-vendo.de">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Preview Sidebar -->
+                <div class="col-lg-4">
+                    <div class="card bg-light sticky-top" style="top: 1rem;">
+                        <div class="card-header">
+                            <i class="ti ti-eye"></i> Vorschau
+                        </div>
+                        <div class="card-body">
+                            <div class="border rounded mb-3" style="background-color: var(--preview-primary, {{ branding.primary_color }});">
+                                <div class="d-flex align-items-center p-2">
+                                    <img src="{{ branding.logo_url }}" alt="Logo" style="height: 30px;" class="me-2">
+                                    <span class="text-white fw-bold">{{ branding.app_title }}</span>
+                                </div>
+                            </div>
+                            <div class="border rounded p-3 mb-3 text-center bg-white">
+                                <small class="text-muted">Seiteninhalt</small>
+                            </div>
+                            <div class="border rounded p-2 text-center bg-white">
+                                <small class="text-muted">{{ branding.copyright_text }}</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+
+<!-- Hidden form for logo deletion -->
+{% if current_logo %}
+<form method="post" action="{{ url_for('admin.delete_logo') }}" id="deleteLogoForm" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}
+
+<!-- E-Mail-Signatur Card (am Ende der Seite) -->
+{% if betreiber %}
+<form method="post" action="{{ url_for('admin.save_footer') }}" id="footerForm">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="card mb-4 border-info">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <span><i class="ti ti-mail"></i> E-Mail-Signatur {{ help_icon('admin.betreiber.signatur', light=true) }}</span>
+            <button type="submit" class="btn btn-light btn-sm">
+                <i class="ti ti-device-floppy"></i> Speichern
+            </button>
+        </div>
+        <div class="card-body">
+            <!-- Quill Editor Container -->
+            <div id="email_footer_editor" style="height: 200px; background: white;">{{ betreiber.email_footer|safe if betreiber.email_footer else '' }}</div>
+            <!-- Hidden textarea for form submission -->
+            <textarea id="email_footer" name="email_footer" style="display:none;">{{ betreiber.email_footer or '' }}</textarea>
+        </div>
+    </div>
+</form>
+{% else %}
+<div class="card mb-4 border-info">
+    <div class="card-header bg-info text-white">
+        <i class="ti ti-mail"></i> E-Mail-Signatur
+    </div>
+    <div class="card-body">
+        <div class="alert alert-warning mb-0">
+            <i class="ti ti-alert-triangle"></i>
+            Bitte wählen Sie zuerst einen Betreiber aus, um die E-Mail-Signatur zu bearbeiten.
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<!-- Quill Editor (Open Source, BSD-Lizenz) -->
+<link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
+<!-- Google Fonts for Quill Editor -->
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Poppins:wght@400;500;600;700&family=Roboto:wght@400;500;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700&family=Merriweather:wght@400;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* === System Fonts (work in emails) === */
+.ql-font-arial { font-family: 'Arial', sans-serif; }
+.ql-font-timesnewroman { font-family: 'Times New Roman', serif; }
+.ql-font-couriernew { font-family: 'Courier New', monospace; }
+
+/* === Web Fonts (Google Fonts) === */
+/* Quill Font Families - Sans-Serif */
+.ql-font-inter { font-family: 'Inter', sans-serif; }
+.ql-font-poppins { font-family: 'Poppins', sans-serif; }
+.ql-font-roboto { font-family: 'Roboto', sans-serif; }
+.ql-font-opensans { font-family: 'Open Sans', sans-serif; }
+.ql-font-lato { font-family: 'Lato', sans-serif; }
+/* Quill Font Families - Serif */
+.ql-font-merriweather { font-family: 'Merriweather', serif; }
+/* Quill Font Families - Monospace */
+.ql-font-jetbrainsmono { font-family: 'JetBrains Mono', monospace; }
+
+/* Quill editor also needs these for the content */
+/* System Fonts */
+#email_footer_editor .ql-font-arial { font-family: 'Arial', sans-serif; }
+#email_footer_editor .ql-font-timesnewroman { font-family: 'Times New Roman', serif; }
+#email_footer_editor .ql-font-couriernew { font-family: 'Courier New', monospace; }
+/* Web Fonts */
+#email_footer_editor .ql-font-inter { font-family: 'Inter', sans-serif; }
+#email_footer_editor .ql-font-poppins { font-family: 'Poppins', sans-serif; }
+#email_footer_editor .ql-font-roboto { font-family: 'Roboto', sans-serif; }
+#email_footer_editor .ql-font-opensans { font-family: 'Open Sans', sans-serif; }
+#email_footer_editor .ql-font-lato { font-family: 'Lato', sans-serif; }
+#email_footer_editor .ql-font-merriweather { font-family: 'Merriweather', serif; }
+#email_footer_editor .ql-font-jetbrainsmono { font-family: 'JetBrains Mono', monospace; }
+
+/* Quill dropdown labels */
+.ql-picker.ql-font .ql-picker-label::before,
+.ql-picker.ql-font .ql-picker-item::before { content: 'Sans Serif'; }
+/* System Fonts */
+.ql-picker.ql-font .ql-picker-label[data-value="arial"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="arial"]::before { content: 'Arial ✉'; }
+.ql-picker.ql-font .ql-picker-label[data-value="timesnewroman"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="timesnewroman"]::before { content: 'Times New Roman ✉'; }
+.ql-picker.ql-font .ql-picker-label[data-value="couriernew"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="couriernew"]::before { content: 'Courier New ✉'; }
+/* Web Fonts */
+.ql-picker.ql-font .ql-picker-label[data-value="inter"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="inter"]::before { content: 'Inter'; }
+.ql-picker.ql-font .ql-picker-label[data-value="poppins"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="poppins"]::before { content: 'Poppins'; }
+.ql-picker.ql-font .ql-picker-label[data-value="roboto"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="roboto"]::before { content: 'Roboto'; }
+.ql-picker.ql-font .ql-picker-label[data-value="opensans"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="opensans"]::before { content: 'Open Sans'; }
+.ql-picker.ql-font .ql-picker-label[data-value="lato"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="lato"]::before { content: 'Lato'; }
+.ql-picker.ql-font .ql-picker-label[data-value="merriweather"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="merriweather"]::before { content: 'Merriweather'; }
+.ql-picker.ql-font .ql-picker-label[data-value="jetbrainsmono"]::before,
+.ql-picker.ql-font .ql-picker-item[data-value="jetbrainsmono"]::before { content: 'JetBrains Mono'; }
+
+/* Make font dropdown wider to fit font names */
+.ql-picker.ql-font { width: 160px; }
+</style>
+<script src="https://cdn.quilljs.com/1.3.7/quill.min.js"></script>
+<script>
+// Initialize Quill for email footer
+{% if betreiber %}
+// Build dynamic font whitelist from selected fonts
+var selectedFonts = {{ selected_fonts | tojson }};
+var fontWhitelist = selectedFonts.map(function(f) {
+    return f.name.toLowerCase().replace(/\s/g, '');
+});
+
+// If no fonts selected, fallback to primary font
+if (fontWhitelist.length === 0) {
+    fontWhitelist = ['inter'];
+}
+
+// Register Google Fonts for Quill with dynamic whitelist
+var Font = Quill.import('formats/font');
+Font.whitelist = fontWhitelist;
+Quill.register(Font, true);
+
+var quill = new Quill('#email_footer_editor', {
+    theme: 'snow',
+    modules: {
+        toolbar: [
+            [{ 'font': fontWhitelist }],
+            ['bold', 'italic', 'underline'],
+            [{ 'color': [] }, { 'background': [] }],
+            ['link'],
+            [{ 'list': 'ordered'}, { 'list': 'bullet' }],
+            [{ 'align': [] }],
+            ['clean']
+        ]
+    }
+});
+
+// Sync Quill content to hidden textarea on form submit
+document.getElementById('footerForm').addEventListener('submit', function() {
+    document.getElementById('email_footer').value = quill.root.innerHTML;
+});
+{% endif %}
+
+// CI Preview update on Kunde selection
+function updateCIPreview() {
+    const select = document.getElementById('kunde_id');
+    const option = select.options[select.selectedIndex];
+
+    const previewLogo = document.getElementById('previewLogo');
+    const previewColors = document.getElementById('previewColors');
+    const previewName = document.getElementById('previewName');
+    const previewPlaceholder = document.getElementById('previewPlaceholder');
+
+    if (!option.value) {
+        // No selection
+        if (previewPlaceholder) previewPlaceholder.style.display = 'block';
+        if (previewLogo) previewLogo.style.display = 'none';
+        if (previewColors) previewColors.style.display = 'none';
+        if (previewName) previewName.style.display = 'none';
+        return;
+    }
+
+    // Show preview elements
+    if (previewPlaceholder) previewPlaceholder.style.display = 'none';
+    if (previewLogo) previewLogo.style.display = 'block';
+    if (previewColors) previewColors.style.display = 'flex';
+    if (previewName) previewName.style.display = 'block';
+
+    const logoUrl = option.dataset.logo;
+    const primaryColor = option.dataset.primary;
+    const secondaryColor = option.dataset.secondary;
+    const accentColor = option.dataset.accent;
+    const firmierung = option.dataset.firmierung;
+
+    // Update logo
+    if (previewLogo) {
+        if (logoUrl) {
+            previewLogo.innerHTML = `<img src="${logoUrl}" alt="Logo" style="max-height: 60px; max-width: 100%;">`;
+        } else {
+            previewLogo.innerHTML = '<span class="text-muted">Kein Logo</span>';
+        }
+    }
+
+    // Update colors
+    if (previewColors) {
+        let colorsHtml = `
+            <div style="width: 40px; height: 40px; background: ${primaryColor}; border: 1px solid #ccc; border-radius: 5px;" title="Primärfarbe"></div>
+            <div style="width: 40px; height: 40px; background: ${secondaryColor}; border: 1px solid #ccc; border-radius: 5px;" title="Sekundärfarbe"></div>
+        `;
+        if (accentColor) {
+            colorsHtml += `<div style="width: 40px; height: 40px; background: ${accentColor}; border: 1px solid #ccc; border-radius: 5px;" title="Akzentfarbe"></div>`;
+        }
+        previewColors.innerHTML = colorsHtml;
+    }
+
+    // Update name
+    if (previewName) {
+        previewName.textContent = firmierung;
+    }
+}
+
+// Live preview update for branding colors
+document.getElementById('primary_color').addEventListener('change', function() {
+    document.documentElement.style.setProperty('--preview-primary', this.value);
+});
+document.getElementById('primary_color_picker').addEventListener('input', function() {
+    document.documentElement.style.setProperty('--preview-primary', this.value);
+});
+
+// Font preview with Google Fonts loading
+function updateFontPreview() {
+    const select = document.getElementById('font_family');
+    const option = select.options[select.selectedIndex];
+    const fontName = option.value;
+    const weights = option.dataset.weights;
+
+    // Update hidden field
+    document.getElementById('font_weights').value = weights;
+
+    // Load Google Font dynamically
+    const fontUrl = `https://fonts.googleapis.com/css2?family=${fontName.replace(' ', '+')}:wght@${weights}&display=swap`;
+
+    // Check if font is already loaded
+    const existingLink = document.querySelector(`link[href="${fontUrl}"]`);
+    if (!existingLink) {
+        const link = document.createElement('link');
+        link.href = fontUrl;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+    }
+
+    // Update preview
+    const preview = document.getElementById('fontPreview');
+    preview.style.fontFamily = `'${fontName}', sans-serif`;
+}
+
+// Secondary font preview update
+function updateSecondaryFontPreview() {
+    const select = document.getElementById('secondary_font_family');
+    const option = select.options[select.selectedIndex];
+    const preview = document.getElementById('secondaryFontPreview');
+
+    if (!option.value) {
+        // No secondary font selected
+        preview.innerHTML = '<span class="text-muted">Kein Sekundär-Font ausgewählt</span>';
+        document.getElementById('secondary_font_weights').value = '';
+        return;
+    }
+
+    const fontName = option.value;
+    const weights = option.dataset.weights;
+
+    // Update hidden field
+    document.getElementById('secondary_font_weights').value = weights;
+
+    // Load Google Font dynamically
+    const fontUrl = `https://fonts.googleapis.com/css2?family=${fontName.replace(' ', '+')}:wght@${weights}&display=swap`;
+    const existingLink = document.querySelector(`link[href="${fontUrl}"]`);
+    if (!existingLink) {
+        const link = document.createElement('link');
+        link.href = fontUrl;
+        link.rel = 'stylesheet';
+        document.head.appendChild(link);
+    }
+
+    // Update preview
+    preview.style.fontFamily = `'${fontName}', sans-serif`;
+    preview.innerHTML = '<span style="font-weight: 400;">Normal</span> | <span style="font-weight: 700;">Bold</span>';
+}
+
+// Load initial fonts for preview
+updateFontPreview();
+updateSecondaryFontPreview();
+</script>
+{% endblock %}

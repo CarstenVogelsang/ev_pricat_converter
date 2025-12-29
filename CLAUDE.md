@@ -6,17 +6,21 @@ Anweisungen für Claude Code in diesem Repository.
 
 **ev247** - Multi-Tool-Plattform für e-vendo Mitarbeiter und Kunden.
 
+## Kommunikation
+
+**Wir duzen uns!** Das ist unsere Unternehmensphilosophie – wir sind ein Team und kommunizieren auf Augenhöhe. Bitte verwende in allen Antworten die Du-Form.
+
 ## Befehle
 
 ```bash
 # Setup
 uv sync
 
-# Entwicklung
+# Entwicklung (Port 5001, da 5000 oft belegt)
 uv run python run.py
 
 # Produktion
-uv run gunicorn -w 4 -b 0.0.0.0:5000 'app:create_app()'
+uv run gunicorn -w 4 -b 0.0.0.0:5001 'app:create_app()'
 
 # Datenbank
 uv run flask init-db       # Tabellen erstellen (nur bei neuer DB)
@@ -39,6 +43,18 @@ Alle Details zur Architektur, Datenmodellen und Features sind in den PRD-Dokumen
 - [docs/prd/PRD_BASIS_RECHTEVERWALTUNG.md](docs/prd/PRD_BASIS_RECHTEVERWALTUNG.md) - Rollen, Modul-Zugriff, Admin-Sonderrechte
 - [docs/prd/PRD_BASIS_CHANGELOG.md](docs/prd/PRD_BASIS_CHANGELOG.md) - Plattform-Änderungen
 
+### PRD-Ordnerstruktur
+
+| Ordner | Inhalt | Kriterien |
+|--------|--------|-----------|
+| `docs/prd/` | Basis-Dokumente | Plattform-Architektur, übergreifend |
+| `docs/prd/module/` | Module | Eigenständige Features mit Menü-Eintrag |
+| `docs/prd/core/` | Basisfunktionalitäten | Querschnittsfunktionen, von Modulen genutzt |
+| `docs/prd/roadmap/` | Roadmap | Zukünftige Features nach MVP |
+
+**Regel:** Nur eigenständige Module mit eigenem Menü-Eintrag gehören in `module/`.
+Querschnittsfunktionen (Hilfetexte, Breadcrumb, etc.) gehören in `core/`.
+
 ### Module
 
 | Modul | PRD | Status |
@@ -48,8 +64,17 @@ Alle Details zur Architektur, Datenmodellen und Features sind in den PRD-Dokumen
 | Kunde-Lieferanten | [PRD-003](docs/prd/module/PRD-003-kunde-hat-lieferanten/PRD-003-kunde-hat-lieferanten.md) | Geplant |
 | Content Generator | [PRD-004](docs/prd/module/PRD-004-content-generator/PRD-004-content-generator.md) | Geplant |
 | Kunden-Dialog | [PRD-006](docs/prd/module/PRD-006-kunden-dialog/PRD-006-kunden-dialog.md) | Aktiv |
+| Anwender-Support | [PRD-007](docs/prd/module/PRD-007-anwender-support/PRD-007-anwender-support.md) | Aktiv |
+| Produktdaten | [PRD-009](docs/prd/module/PRD-009-produktdaten/PRD-009-produktdaten.md) | MVP |
 
-Jedes Modul hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
+### Basisfunktionalitäten (core/)
+
+| Feature | PRD | Status |
+|---------|-----|--------|
+| Hilfetexte | [PRD-005](docs/prd/core/PRD-005-hilfetexte/PRD-005-hilfetexte.md) | Aktiv |
+| Breadcrumb-Navigation | [PRD-008](docs/prd/core/PRD-008-breadcrumb-navigation/PRD-008-breadcrumb-navigation.md) | Aktiv |
+
+Jedes Modul/Feature hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 
 ### V2 Roadmap (nach MVP)
 
@@ -111,40 +136,158 @@ Jedes Modul hat oben rechts einen DEV-Button für Entwickler:
 {% endif %}
 ```
 
-### Hilfetexte-System
+### Hilfetexte-System (PRD-005)
 
-Hilfetexte werden in der `help_text` Tabelle gespeichert mit:
+**WICHTIG:** Erklärungstexte gehören NICHT direkt in den Content!
 
-- **Schlüssel:** Format `bereich.seite.element` (z.B. `kunden.detail.stammdaten`)
-- **Inhalt:** Markdown-formatierter Text
-- **Anzeige:** (i)-Icons in Card-Headern mit Popover/Modal
+Verwende immer das Hilfesystem:
+
+- **PRD:** [PRD-005-hilfetexte](docs/prd/core/PRD-005-hilfetexte/PRD-005-hilfetexte.md)
+- **Admin-UI:** `/admin/hilfetexte`
+- **Schlüssel-Format:** `bereich.seite.element` (z.B. `admin.betreiber.auswahl`)
+
+**Verwendung in Templates:**
 
 ```html
-{% set help = get_help_text('kunden.detail.stammdaten') %}
-{% if help %}
-<button type="button" class="btn btn-sm btn-link text-muted"
-        data-bs-toggle="popover" data-bs-content="{{ help.inhalt_markdown | markdown }}">
-    <i class="ti ti-info-circle"></i>
-</button>
-{% endif %}
+{% from "macros/help.html" import help_icon with context %}
+
+<div class="card-header">
+    <span><i class="ti ti-icon"></i> Titel {{ help_icon('bereich.seite.element') }}</span>
+</div>
 ```
 
+**WICHTIG:** `with context` ist erforderlich für den Context Processor!
+
+**Wenn du ein neues Modul/Maske implementierst:**
+
+1. Prüfe, ob Hilfetexte benötigt werden
+2. Lege Schlüssel nach Konvention `bereich.seite.element` an (in seed oder Admin-UI)
+3. Füge Help-Icons mit Macro ein
+4. Entferne `<p class="text-muted">` Beschreibungstexte und `<div class="form-text">` Hinweise
+
+### Button-Platzierung in Cards
+
+Speichern- und Löschen-Buttons werden **nie** mitten im Content platziert, sondern:
+
+| Button-Typ | Position | Beispiel |
+|------------|----------|----------|
+| **Speichern** (primär) | Card-Header, rechts | `<button class="btn btn-primary btn-sm">` |
+| **Löschen** (destruktiv) | Card-Footer oder Card-Header (mit Confirm) | `onclick="confirm('...')"` |
+| **Formular-Aktionen** | Card-Footer bei langen Formularen | `<div class="card-footer">` |
+
+**Pattern für Card-Header mit Button:**
+
+```html
+<form method="post">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="ti ti-icon"></i> Titel</span>
+            <button type="submit" class="btn btn-primary btn-sm">
+                <i class="ti ti-device-floppy"></i> Speichern
+            </button>
+        </div>
+        <div class="card-body">
+            <!-- Formularfelder -->
+        </div>
+    </div>
+</form>
+```
+
+**Ausnahme:** Bei sehr langen Formularen kann der Speichern-Button auch im Card-Footer platziert werden.
+
+### Breadcrumb-Navigation (PRD-008)
+
+**WICHTIG:** Jede Seite muss eine Breadcrumb-Navigation haben!
+
+Die Breadcrumb zeigt dem Benutzer, wo er sich befindet und ermöglicht schnelle Navigation zu übergeordneten Bereichen.
+
+**Verwendung in Templates:**
+
+```html
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Kunden', 'url': url_for('kunden.liste'), 'icon': 'ti-users'},
+    {'label': kunde.firmierung}
+]) }}
+```
+
+**Regeln:**
+
+| Regel | Beschreibung |
+|-------|--------------|
+| **Erste Ebene** | Immer "Dashboard" mit Link und `ti-home` Icon |
+| **Modul-Ebene** | Modul-Name mit Link und passendem Icon |
+| **Letzte Ebene** | Aktuelle Seite **ohne** `url` (wird automatisch ohne Link dargestellt) |
+| **Icons** | Nur für Dashboard und Module, nicht für Detail-Seiten |
+
+**Beispiele nach Bereich:**
+
+```html
+{# Kunden-Liste #}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Kunden'}
+]) }}
+
+{# Kunden-Detail #}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Kunden', 'url': url_for('kunden.liste'), 'icon': 'ti-users'},
+    {'label': kunde.firmierung}
+]) }}
+
+{# Admin-Bereich #}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Hilfetexte'}
+]) }}
+```
+
+**PRD:** [PRD-008-breadcrumb-navigation](docs/prd/core/PRD-008-breadcrumb-navigation/PRD-008-breadcrumb-navigation.md)
+
 ## Arbeitsweise
+
+### ⚠️ WICHTIG: PRD-Pflicht bei neuen Anforderungen
+
+**Bei jeder neuen größeren Anforderung gilt:**
+
+1. **PRD ZUERST erstellen** - Bevor Code geschrieben wird, muss ein PRD-Dokument im Ordner `docs/prd/module/PRD-XXX-...` angelegt werden
+2. **User-Genehmigung einholen** - Der User prüft das PRD und genehmigt die Umsetzung explizit
+3. **Erst nach Genehmigung implementieren** - Keine Implementierung ohne vorherige PRD-Freigabe!
+
+**Workflow:**
+
+```text
+Anforderung → PRD schreiben → User prüft → Genehmigung → Implementierung → CHANGELOG
+```
+
+Dies ist **PFLICHT** für alle neuen Module, größere Features und architektonische Änderungen!
+
+### Allgemeine Schritte
 
 1. **Vor Änderungen:** Relevantes PRD-Dokument lesen
 2. **Bei neuen Features:** PRD-Dokument aktualisieren
 3. **Nach Implementierungen:** Changelogs aktualisieren (siehe unten)
 4. **Nach Plan-Modus:** Zugehörige PRD- und CHANGELOG-Dokumente pflegen
 
-### Changelog-Pflege (wichtig!)
+### Changelog-Pflege (PFLICHT!)
 
-Nach jeder Implementierung müssen die relevanten Changelogs aktualisiert werden:
+⚠️ **JEDE Implementierung MUSS im entsprechenden CHANGELOG dokumentiert werden!**
 
-- **Basis-Plattform-Änderungen** (Auth, Admin-UI, Core-Features):
+Nach jeder Änderung - egal wie klein - müssen die relevanten Changelogs aktualisiert werden:
+
+- **Basis-Plattform-Änderungen** (Auth, Admin-UI, Core-Features, Stammdaten-CRUD):
   → [docs/prd/PRD_BASIS_CHANGELOG.md](docs/prd/PRD_BASIS_CHANGELOG.md)
 
 - **Modul-spezifische Änderungen**:
   → `docs/prd/module/PRD-XXX-.../CHANGELOG.md` im jeweiligen Modul-Ordner
+
+- **Core-Features** (Hilfetexte, Breadcrumbs, etc.):
+  → `docs/prd/core/PRD-XXX-.../CHANGELOG.md` im jeweiligen Core-Ordner
+
+**Wichtig:** Bei Änderungen, die mehrere Bereiche betreffen, ALLE betroffenen Changelogs aktualisieren!
 
 Format: [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) mit Kategorien:
 
@@ -152,6 +295,40 @@ Format: [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) mit Kategorien:
 - `Changed` - Änderungen an bestehenden Features
 - `Fixed` - Bugfixes
 - `Removed` - Entfernte Features
+
+## MCP-Server / Plugins
+
+Claude Code hat Zugriff auf folgende MCP-Server für dieses Projekt:
+
+### Context7 (Dokumentation)
+
+Nutze Context7, um **aktuelle Library-Dokumentation** abzurufen:
+
+```text
+"Hole die Flask-Dokumentation für Blueprints via Context7"
+"Was sagt die SQLAlchemy-Doku zu relationship()?"
+```
+
+**Wann nutzen:**
+
+- Bei Unsicherheit über API-Syntax
+- Für aktuelle Best Practices (Flask, SQLAlchemy, Jinja2, Bootstrap 5)
+- Bei neuen Library-Features
+
+### Playwright (Browser-Automation)
+
+Nutze Playwright für **UI-Tests und Screenshots**:
+
+```text
+"Öffne localhost:5000 und mach einen Screenshot"
+"Teste den Login-Flow mit den Credentials aus .env"
+```
+
+**Wann nutzen:**
+
+- Nach UI-Änderungen zur visuellen Überprüfung
+- Für automatisierte Funktionstests
+- Um Fehler im Browser zu reproduzieren
 
 ## Playwright Login Credentials
 

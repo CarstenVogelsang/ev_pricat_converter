@@ -1,0 +1,145 @@
+{% extends "administration/base.html" %}
+
+{% block title %}Benutzer - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="ti ti-users text-primary"></i> Benutzer verwalten</h2>
+    <a href="{{ url_for('benutzer.neu') }}" class="btn btn-primary">
+        <i class="ti ti-plus"></i> Neuer Benutzer
+    </a>
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-body py-2">
+        <form method="get" class="row g-3 align-items-center">
+            <div class="col-auto">
+                <label class="col-form-label">Filter:</label>
+            </div>
+            <div class="col-auto">
+                <select name="rolle" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Alle Rollen</option>
+                    {% for rolle in rollen %}
+                    <option value="{{ rolle.id }}" {{ 'selected' if rolle.id == rolle_filter }}>{{ rolle.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-auto">
+                <select name="aktiv" class="form-select form-select-sm" onchange="this.form.submit()">
+                    <option value="">Alle Status</option>
+                    <option value="1" {{ 'selected' if aktiv_filter == '1' }}>Aktiv</option>
+                    <option value="0" {{ 'selected' if aktiv_filter == '0' }}>Inaktiv</option>
+                </select>
+            </div>
+            {% if rolle_filter or aktiv_filter %}
+            <div class="col-auto">
+                <a href="{{ url_for('benutzer.index') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-x"></i> Filter zurücksetzen
+                </a>
+            </div>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+<!-- User List -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="ti ti-list"></i> Benutzer ({{ users|length }})</h5>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Name</th>
+                    <th>E-Mail</th>
+                    <th>Rolle</th>
+                    <th width="100">Status</th>
+                    <th width="150">Letzter Login</th>
+                    <th width="140">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for user in users %}
+                <tr class="{{ 'table-secondary' if not user.aktiv }}">
+                    <td>
+                        <strong>{{ user.full_name }}</strong>
+                        {% if user.id == current_user.id %}
+                        <span class="badge bg-info ms-1">Sie</span>
+                        {% endif %}
+                        {% if user.kunde %}
+                        <br><small class="text-muted">
+                            <i class="ti ti-building"></i> {{ user.kunde.firmierung }}
+                        </small>
+                        {% endif %}
+                    </td>
+                    <td>{{ user.email }}</td>
+                    <td>
+                        {% if user.rolle == 'admin' %}
+                        <span class="badge bg-danger">Admin</span>
+                        {% elif user.rolle == 'mitarbeiter' %}
+                        <span class="badge bg-primary">Mitarbeiter</span>
+                        {% else %}
+                        <span class="badge bg-secondary">{{ user.rolle }}</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if user.aktiv %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Inaktiv</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if user.last_login %}
+                        {{ user.last_login.strftime('%d.%m.%Y %H:%M') }}
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <div class="btn-group btn-group-sm">
+                            <a href="{{ url_for('benutzer.edit', id=user.id) }}"
+                               class="btn btn-outline-primary" title="Bearbeiten">
+                                <i class="ti ti-edit"></i>
+                            </a>
+                            <form method="post" action="{{ url_for('benutzer.toggle_aktiv', id=user.id) }}" class="d-inline">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-{{ 'warning' if user.aktiv else 'success' }}"
+                                        title="{{ 'Deaktivieren' if user.aktiv else 'Aktivieren' }}"
+                                        {% if user.id == current_user.id %}disabled{% endif %}>
+                                    <i class="ti ti-{{ 'ban' if user.aktiv else 'check' }}"></i>
+                                </button>
+                            </form>
+                            <form method="post" action="{{ url_for('benutzer.delete', id=user.id) }}" class="d-inline"
+                                  onsubmit="return confirm('Benutzer {{ user.full_name }} wirklich löschen?');">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                <button type="submit" class="btn btn-outline-danger" title="Löschen"
+                                        {% if user.id == current_user.id or user.kunde %}disabled{% endif %}>
+                                    <i class="ti ti-trash"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="6" class="text-center text-muted py-4">
+                        <i class="ti ti-users-off fs-1 d-block mb-2"></i>
+                        Keine Benutzer gefunden.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- Legend -->
+<div class="mt-3 text-muted small">
+    <i class="ti ti-info-circle"></i>
+    <strong>Hinweis:</strong> Benutzer mit verknüpftem Kunden können nicht gelöscht werden.
+    Entfernen Sie zuerst die Verknüpfung in der Kundenverwaltung.
+</div>
+{% endblock %}

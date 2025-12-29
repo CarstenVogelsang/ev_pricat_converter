@@ -9,7 +9,8 @@ from werkzeug.utils import secure_filename
 import flask
 
 from app import db
-from app.models import Config, Lieferant, User, Kunde, KundeCI, Branche, Verband, HelpText, BranchenRolle, BrancheBranchenRolle, Modul, ModulZugriff, AuditLog, Rolle
+from app.models import Config, Lieferant, User, Kunde, KundeCI, Branche, Verband, HelpText, BranchenRolle, BrancheBranchenRolle, Modul, ModulZugriff, AuditLog, Rolle, LookupWert
+from app.models import ProduktLookup, Attributgruppe, EigenschaftDefinition, Produkt, ProduktStatus
 from app.services import FTPService, BrandingService, get_brevo_service
 from app.routes.auth import admin_required, mitarbeiter_required
 
@@ -2129,3 +2130,851 @@ def module_edit(id):
     except Exception as e:
         db.session.rollback()
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+# ============================================================================
+# LookupWert Management (Configurable Key-Value Pairs)
+# ============================================================================
+
+@admin_bp.route('/lookup-werte', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def lookup_werte():
+    """Manage LookupWert entries (configurable key-value pairs).
+
+    Provides CRUD operations for system configuration values like
+    support ticket types, status values, etc.
+    """
+    from app.services import log_mittel
+
+    if request.method == 'POST':
+        action = request.form.get('action')
+
+        if action == 'create':
+            kategorie = request.form.get('kategorie', '').strip()
+            schluessel = request.form.get('schluessel', '').strip().lower()
+            wert = request.form.get('wert', '').strip()
+            icon = request.form.get('icon', '').strip() or None
+            farbe = request.form.get('farbe', '').strip() or None
+            sortierung = request.form.get('sortierung', 0, type=int)
+
+            if kategorie and schluessel and wert:
+                existing = LookupWert.query.filter_by(
+                    kategorie=kategorie,
+                    schluessel=schluessel
+                ).first()
+
+                if existing:
+                    flash(f'Eintrag "{kategorie}.{schluessel}" existiert bereits', 'warning')
+                else:
+                    lookup = LookupWert(
+                        kategorie=kategorie,
+                        schluessel=schluessel,
+                        wert=wert,
+                        icon=icon,
+                        farbe=farbe,
+                        sortierung=sortierung,
+                        aktiv=True
+                    )
+                    db.session.add(lookup)
+                    db.session.commit()
+
+                    log_mittel(
+                        modul='system',
+                        aktion='lookup_erstellt',
+                        details=f'LookupWert erstellt: {kategorie}.{schluessel}',
+                        entity_type='LookupWert',
+                        entity_id=lookup.id
+                    )
+                    db.session.commit()
+
+                    flash(f'Eintrag "{kategorie}.{schluessel}" erstellt', 'success')
+            else:
+                flash('Kategorie, Schlüssel und Wert sind erforderlich', 'danger')
+
+        elif action == 'update':
+            lookup_id = request.form.get('id', type=int)
+            lookup = LookupWert.query.get(lookup_id)
+
+            if lookup:
+                lookup.wert = request.form.get('wert', lookup.wert).strip()
+                lookup.icon = request.form.get('icon', '').strip() or None
+                lookup.farbe = request.form.get('farbe', '').strip() or None
+                lookup.sortierung = request.form.get('sortierung', lookup.sortierung, type=int)
+                lookup.aktiv = 'aktiv' in request.form
+
+                db.session.commit()
+
+                log_mittel(
+                    modul='system',
+                    aktion='lookup_bearbeitet',
+                    details=f'LookupWert bearbeitet: {lookup.kategorie}.{lookup.schluessel}',
+                    entity_type='LookupWert',
+                    entity_id=lookup.id
+                )
+                db.session.commit()
+
+                flash(f'Eintrag aktualisiert', 'success')
+            else:
+                flash('Eintrag nicht gefunden', 'danger')
+
+        elif action == 'delete':
+            lookup_id = request.form.get('id', type=int)
+            lookup = LookupWert.query.get(lookup_id)
+
+            if lookup:
+                key = f"{lookup.kategorie}.{lookup.schluessel}"
+                redirect_tab = lookup.kategorie  # Remember tab before delete
+                db.session.delete(lookup)
+                db.session.commit()
+
+                log_mittel(
+                    modul='system',
+                    aktion='lookup_geloescht',
+                    details=f'LookupWert gelöscht: {key}',
+                    entity_type='LookupWert',
+                    entity_id=lookup_id
+                )
+                db.session.commit()
+
+                flash(f'Eintrag "{key}" gelöscht', 'success')
+                return redirect(url_for('admin.lookup_werte', tab=redirect_tab))
+            else:
+                flash('Eintrag nicht gefunden', 'danger')
+
+        # Redirect with tab parameter to stay on current category
+        redirect_tab = request.form.get('redirect_tab', '')
+        if redirect_tab:
+            return redirect(url_for('admin.lookup_werte', tab=redirect_tab))
+        return redirect(url_for('admin.lookup_werte'))
+
+    # GET: Load all entries grouped by category
+    kategorien = LookupWert.get_kategorien()
+    entries_by_kategorie = {}
+
+    for kategorie in kategorien:
+        entries_by_kategorie[kategorie] = LookupWert.query.filter_by(
+            kategorie=kategorie
+        ).order_by(LookupWert.sortierung, LookupWert.schluessel).all()
+
+    # All modules for assignment
+    module = Modul.query.order_by(Modul.name).all()
+
+    return render_template(
+        'administration/lookup_werte.html',
+        kategorien=kategorien,
+        entries_by_kategorie=entries_by_kategorie,
+        module=module,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/lookup-werte/reorder', methods=['POST'])
+@login_required
+@admin_required
+def lookup_werte_reorder():
+    """Update sort order for LookupWerte via AJAX."""
+    data = request.get_json()
+
+    if not data or 'order' not in data:
+        return jsonify({'success': False, 'message': 'Keine Sortierreihenfolge übergeben'}), 400
+
+    order = data['order']  # List of IDs in new order
+
+    try:
+        for index, lookup_id in enumerate(order):
+            lookup = LookupWert.query.get(int(lookup_id))
+            if lookup:
+                lookup.sortierung = (index + 1) * 10  # 10, 20, 30, ...
+
+        db.session.commit()
+        return jsonify({'success': True, 'message': 'Sortierung gespeichert'})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'success': False, 'message': str(e)}), 500
+
+
+# ============================================================================
+# PRD-009: Produktdaten Administration
+# ============================================================================
+
+@admin_bp.route('/produkte')
+@login_required
+@admin_required
+def produkte():
+    """Produkte list view with search."""
+    search = request.args.get('q', '')
+    page = request.args.get('page', 1, type=int)
+    per_page = 25
+
+    query = Produkt.query
+
+    if search:
+        pattern = f'%{search}%'
+        query = query.filter(
+            db.or_(
+                Produkt.ean.ilike(pattern),
+                Produkt.artikelnummer_lieferant.ilike(pattern),
+                Produkt.artikelbezeichnung.ilike(pattern),
+                Produkt.markenname.ilike(pattern),
+            )
+        )
+
+    produkte = query.order_by(Produkt.artikelbezeichnung).paginate(
+        page=page, per_page=per_page, error_out=False
+    )
+
+    return render_template(
+        'administration/produkte.html',
+        produkte=produkte,
+        search=search,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/produkte/form', methods=['GET', 'POST'])
+@admin_bp.route('/produkte/form/<int:id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def produkt_form(id=None):
+    """Create or edit a product."""
+    from decimal import Decimal, InvalidOperation
+    from datetime import datetime
+
+    # Load existing product or create new one
+    if id:
+        produkt = Produkt.query.get_or_404(id)
+    else:
+        produkt = Produkt()
+
+    if request.method == 'POST':
+        try:
+            # Identifikation (EAN nur bei Neuanlage änderbar)
+            if not id:
+                produkt.ean = request.form.get('ean', '').strip()
+            produkt.artikelnummer_lieferant = request.form.get('artikelnummer_lieferant', '').strip() or None
+            produkt.artikelnummer_hersteller = request.form.get('artikelnummer_hersteller', '').strip() or None
+
+            # Grunddaten
+            produkt.artikelbezeichnung = request.form.get('artikelbezeichnung', '').strip()
+            produkt.kurzbezeichnung = request.form.get('kurzbezeichnung', '').strip() or None
+            produkt.status = request.form.get('status', 'entwurf')
+
+            # Marke & Hersteller
+            produkt.markenname = request.form.get('markenname', '').strip() or None
+            produkt.hersteller_name = request.form.get('hersteller_name', '').strip() or None
+            produkt.serienname = request.form.get('serienname', '').strip() or None
+
+            # Preise (Decimal-Felder)
+            def parse_decimal(value, precision=2):
+                if not value or not value.strip():
+                    return None
+                try:
+                    return Decimal(value.strip()).quantize(Decimal(10) ** -precision)
+                except InvalidOperation:
+                    return None
+
+            produkt.uvpe = parse_decimal(request.form.get('uvpe'), 2)
+            produkt.ekp_netto = parse_decimal(request.form.get('ekp_netto'), 4)
+            produkt.mwst_satz = parse_decimal(request.form.get('mwst_satz'), 2)
+            produkt.waehrung = request.form.get('waehrung', 'EUR')
+
+            # Logistik (Decimal-Felder)
+            produkt.stueck_laenge_cm = parse_decimal(request.form.get('stueck_laenge_cm'), 3)
+            produkt.stueck_breite_cm = parse_decimal(request.form.get('stueck_breite_cm'), 3)
+            produkt.stueck_hoehe_cm = parse_decimal(request.form.get('stueck_hoehe_cm'), 3)
+            produkt.stueck_gewicht_kg = parse_decimal(request.form.get('stueck_gewicht_kg'), 3)
+
+            # Klassifikation
+            produkt.zolltarif_nr = request.form.get('zolltarif_nr', '').strip() or None
+            produkt.ursprungsland = request.form.get('ursprungsland', '').strip().upper() or None
+
+            # Termine (Date-Felder)
+            def parse_date(value):
+                if not value or not value.strip():
+                    return None
+                try:
+                    return datetime.strptime(value.strip(), '%Y-%m-%d').date()
+                except ValueError:
+                    return None
+
+            produkt.lieferbar_ab = parse_date(request.form.get('lieferbar_ab'))
+            produkt.lieferbar_bis = parse_date(request.form.get('lieferbar_bis'))
+            produkt.erste_auslieferung = parse_date(request.form.get('erste_auslieferung'))
+
+            # Beschreibungstexte
+            produkt.b2b_kurztext = request.form.get('b2b_kurztext', '').strip() or None
+            produkt.b2c_text = request.form.get('b2c_text', '').strip() or None
+
+            # Meta
+            if not id:
+                produkt.created_by_id = current_user.id
+
+            # Validate required fields
+            if not produkt.ean:
+                flash('EAN/GTIN ist erforderlich.', 'danger')
+                return render_template('administration/produkt_form.html', produkt=produkt, admin_tab='stammdaten')
+
+            if not produkt.artikelbezeichnung:
+                flash('Artikelbezeichnung ist erforderlich.', 'danger')
+                return render_template('administration/produkt_form.html', produkt=produkt, admin_tab='stammdaten')
+
+            # Check EAN uniqueness for new products
+            if not id:
+                existing = Produkt.get_by_ean(produkt.ean)
+                if existing:
+                    flash(f'Ein Produkt mit EAN {produkt.ean} existiert bereits.', 'danger')
+                    return render_template('administration/produkt_form.html', produkt=produkt, admin_tab='stammdaten')
+
+            # Save
+            db.session.add(produkt)
+            db.session.commit()
+
+            flash(f'Produkt "{produkt.artikelbezeichnung[:50]}" wurde gespeichert.', 'success')
+            return redirect(url_for('admin.produkte'))
+
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Fehler beim Speichern: {str(e)}', 'danger')
+
+    return render_template(
+        'administration/produkt_form.html',
+        produkt=produkt,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/produkte/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def produkt_delete(id):
+    """Delete a product."""
+    produkt = Produkt.query.get_or_404(id)
+    bezeichnung = produkt.artikelbezeichnung[:50]
+
+    try:
+        db.session.delete(produkt)
+        db.session.commit()
+        flash(f'Produkt "{bezeichnung}" wurde gelöscht.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Fehler beim Löschen: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.produkte'))
+
+
+@admin_bp.route('/produkt-lookup')
+@login_required
+@admin_required
+def produkt_lookup():
+    """Produkt-Codelisten overview."""
+    # Get all categories with counts
+    kategorien_counts = ProduktLookup.count_by_kategorie()
+
+    # Get selected category
+    kategorie = request.args.get('kategorie', '')
+
+    # Get entries for selected category
+    eintraege = []
+    if kategorie:
+        eintraege = ProduktLookup.get_by_kategorie(kategorie, nur_aktive=False)
+
+    return render_template(
+        'administration/produkt_lookup.html',
+        kategorien_counts=kategorien_counts,
+        kategorie=kategorie,
+        eintraege=eintraege,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/attributgruppen')
+@login_required
+@admin_required
+def attributgruppen():
+    """Attributgruppen (5-Ebenen Produktklassifikation) overview."""
+    # Get all Ebene 1 categories
+    hauptkategorien = Attributgruppe.get_hauptkategorien()
+
+    # Get selected Ebene 1
+    ebene_1 = request.args.get('ebene_1', '')
+    search = request.args.get('q', '')
+
+    eintraege = []
+    if search:
+        eintraege = Attributgruppe.suche(search, limit=100)
+    elif ebene_1:
+        eintraege = Attributgruppe.get_by_ebene_1(ebene_1)
+
+    return render_template(
+        'administration/attributgruppen.html',
+        hauptkategorien=hauptkategorien,
+        ebene_1=ebene_1,
+        search=search,
+        eintraege=eintraege,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/eigenschaft-definitionen')
+@login_required
+@admin_required
+def eigenschaft_definitionen():
+    """EigenschaftDefinitionen (Produkt-Eigenschaften) overview."""
+    # Get all groups
+    gruppen = EigenschaftDefinition.get_gruppen()
+
+    # Get selected group
+    gruppe = request.args.get('gruppe', '')
+
+    eintraege = []
+    if gruppe:
+        eintraege = EigenschaftDefinition.get_by_gruppe(gruppe, nur_aktive=False)
+    else:
+        # Show all if no group selected
+        eintraege = EigenschaftDefinition.query.order_by(
+            EigenschaftDefinition.gruppe,
+            EigenschaftDefinition.sortierung
+        ).all()
+
+    return render_template(
+        'administration/eigenschaft_definitionen.html',
+        gruppen=gruppen,
+        gruppe=gruppe,
+        eintraege=eintraege,
+        admin_tab='stammdaten'
+    )
+
+
+# ============================================================================
+# API: PRD Content (für DEV-Button Modal)
+# ============================================================================
+
+@admin_bp.route('/api/prd-content')
+@login_required
+@admin_required
+def prd_content():
+    """Serve PRD markdown content as HTML for modal display.
+
+    Security: Only allows paths starting with 'docs/prd/'.
+    """
+    import markdown
+    import os
+
+    path = request.args.get('path', '')
+
+    # Security check: Only allow docs/prd/ paths
+    if not path.startswith('docs/prd/'):
+        return '<div class="alert alert-danger">Ungültiger Pfad</div>', 400
+
+    # Prevent directory traversal
+    if '..' in path:
+        return '<div class="alert alert-danger">Ungültiger Pfad</div>', 400
+
+    # Construct full path
+    base_path = os.path.dirname(current_app.root_path)
+    full_path = os.path.join(base_path, path)
+
+    # Check if file exists
+    if not os.path.isfile(full_path):
+        return f'<div class="alert alert-warning"><i class="ti ti-file-off me-2"></i>PRD-Datei nicht gefunden: <code>{path}</code></div>', 404
+
+    try:
+        with open(full_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+
+        # Convert markdown to HTML
+        md = markdown.Markdown(extensions=[
+            'tables',
+            'fenced_code',
+            'codehilite',
+            'toc',
+            'nl2br'
+        ])
+        html = md.convert(content)
+
+        # Wrap in styled container
+        styled_html = f'''
+        <div class="prd-content">
+            <style>
+                .prd-content h1 {{ font-size: 1.75rem; border-bottom: 2px solid #dee2e6; padding-bottom: 0.5rem; margin-bottom: 1rem; }}
+                .prd-content h2 {{ font-size: 1.5rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.25rem; margin-top: 1.5rem; }}
+                .prd-content h3 {{ font-size: 1.25rem; margin-top: 1.25rem; }}
+                .prd-content h4 {{ font-size: 1.1rem; margin-top: 1rem; }}
+                .prd-content table {{ width: 100%; margin: 1rem 0; }}
+                .prd-content table th, .prd-content table td {{
+                    padding: 0.5rem;
+                    border: 1px solid #dee2e6;
+                    text-align: left;
+                }}
+                .prd-content table th {{ background-color: #f8f9fa; font-weight: 600; }}
+                .prd-content table tr:nth-child(even) {{ background-color: #f8f9fa; }}
+                .prd-content code {{
+                    background-color: #f1f3f5;
+                    padding: 0.125rem 0.25rem;
+                    border-radius: 0.25rem;
+                    font-size: 0.875rem;
+                }}
+                .prd-content pre {{
+                    background-color: #1e1e1e;
+                    color: #d4d4d4;
+                    padding: 1rem;
+                    border-radius: 0.5rem;
+                    overflow-x: auto;
+                }}
+                .prd-content pre code {{
+                    background-color: transparent;
+                    padding: 0;
+                    color: inherit;
+                }}
+                .prd-content ul, .prd-content ol {{ padding-left: 1.5rem; }}
+                .prd-content li {{ margin-bottom: 0.25rem; }}
+                .prd-content blockquote {{
+                    border-left: 4px solid #6c757d;
+                    padding-left: 1rem;
+                    margin-left: 0;
+                    color: #6c757d;
+                }}
+            </style>
+            {html}
+        </div>
+        '''
+
+        return styled_html
+
+    except Exception as e:
+        current_app.logger.error(f"Error reading PRD file {path}: {e}")
+        return f'<div class="alert alert-danger"><i class="ti ti-alert-circle me-2"></i>Fehler beim Laden: {str(e)}</div>', 500
+
+
+# ============================================================================
+# Platzhalter-Routes für neue Stammdaten-Kacheln
+# ============================================================================
+
+@admin_bp.route('/rollen')
+@login_required
+@admin_required
+def rollen():
+    """Benutzerrollen verwalten (Platzhalter)."""
+    rollen_liste = Rolle.query.order_by(Rolle.name).all()
+
+    return render_template(
+        'administration/rollen.html',
+        rollen=rollen_liste,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/lieferanten')
+@login_required
+@admin_required
+def lieferanten():
+    """Lieferanten-Stammdaten verwalten."""
+    lieferanten_liste = Lieferant.query.order_by(Lieferant.kurzbezeichnung).all()
+
+    return render_template(
+        'administration/lieferanten.html',
+        lieferanten=lieferanten_liste,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/lieferanten/form', methods=['GET', 'POST'])
+@admin_bp.route('/lieferanten/form/<int:id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def lieferant_form(id=None):
+    """Create or edit a supplier."""
+    if id:
+        lieferant = Lieferant.query.get_or_404(id)
+    else:
+        lieferant = Lieferant()
+
+    if request.method == 'POST':
+        # Get form data
+        kurzbezeichnung = request.form.get('kurzbezeichnung', '').strip()
+        vedes_id = request.form.get('vedes_id', '').strip()
+        gln = request.form.get('gln', '').strip() or None
+        aktiv = 'aktiv' in request.form
+
+        # Validation
+        if not kurzbezeichnung:
+            flash('Kurzbezeichnung ist erforderlich.', 'danger')
+            return render_template('administration/lieferant_form.html',
+                                 lieferant=lieferant, admin_tab='stammdaten')
+
+        if not vedes_id:
+            flash('VEDES-ID ist erforderlich.', 'danger')
+            return render_template('administration/lieferant_form.html',
+                                 lieferant=lieferant, admin_tab='stammdaten')
+
+        # Check for duplicate VEDES-ID (only for new entries or changed ID)
+        if not lieferant.id or lieferant.vedes_id != vedes_id:
+            existing = Lieferant.query.filter_by(vedes_id=vedes_id).first()
+            if existing and existing.id != lieferant.id:
+                flash(f'VEDES-ID "{vedes_id}" existiert bereits.', 'danger')
+                return render_template('administration/lieferant_form.html',
+                                     lieferant=lieferant, admin_tab='stammdaten')
+
+        # Check for duplicate GLN
+        if gln:
+            existing_gln = Lieferant.query.filter_by(gln=gln).first()
+            if existing_gln and existing_gln.id != lieferant.id:
+                flash(f'GLN "{gln}" existiert bereits.', 'danger')
+                return render_template('administration/lieferant_form.html',
+                                     lieferant=lieferant, admin_tab='stammdaten')
+
+        # Update fields
+        lieferant.kurzbezeichnung = kurzbezeichnung
+        if not lieferant.id:  # Only set VEDES-ID for new entries
+            lieferant.vedes_id = vedes_id
+        lieferant.gln = gln
+        lieferant.aktiv = aktiv
+
+        try:
+            if not lieferant.id:
+                db.session.add(lieferant)
+            db.session.commit()
+            flash(f'Lieferant "{kurzbezeichnung}" wurde gespeichert.', 'success')
+            return redirect(url_for('admin.lieferanten'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Fehler beim Speichern: {str(e)}', 'danger')
+
+    return render_template('administration/lieferant_form.html',
+                         lieferant=lieferant, admin_tab='stammdaten')
+
+
+@admin_bp.route('/lieferanten/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def lieferant_delete(id):
+    """Delete a supplier."""
+    lieferant = Lieferant.query.get_or_404(id)
+    name = lieferant.kurzbezeichnung
+
+    try:
+        db.session.delete(lieferant)
+        db.session.commit()
+        flash(f'Lieferant "{name}" wurde gelöscht.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Fehler beim Löschen: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.lieferanten'))
+
+
+@admin_bp.route('/hersteller')
+@login_required
+@admin_required
+def hersteller():
+    """Hersteller-Stammdaten verwalten."""
+    from app.models import Hersteller
+    hersteller_liste = Hersteller.query.order_by(Hersteller.kurzbezeichnung).all()
+
+    return render_template(
+        'administration/hersteller.html',
+        hersteller=hersteller_liste,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/hersteller/form', methods=['GET', 'POST'])
+@admin_bp.route('/hersteller/form/<int:id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def hersteller_form(id=None):
+    """Create or edit a manufacturer."""
+    from app.models import Hersteller
+
+    if id:
+        hersteller = Hersteller.query.get_or_404(id)
+    else:
+        hersteller = Hersteller()
+
+    if request.method == 'POST':
+        # Get form data
+        kurzbezeichnung = request.form.get('kurzbezeichnung', '').strip()
+        gln = request.form.get('gln', '').strip()
+        vedes_id = request.form.get('vedes_id', '').strip() or None
+
+        # Validation
+        if not kurzbezeichnung:
+            flash('Kurzbezeichnung ist erforderlich.', 'danger')
+            return render_template('administration/hersteller_form.html',
+                                 hersteller=hersteller, admin_tab='stammdaten')
+
+        if not gln:
+            flash('GLN ist erforderlich.', 'danger')
+            return render_template('administration/hersteller_form.html',
+                                 hersteller=hersteller, admin_tab='stammdaten')
+
+        # Check for duplicate GLN (only for new entries or changed GLN)
+        if not hersteller.id or hersteller.gln != gln:
+            existing = Hersteller.query.filter_by(gln=gln).first()
+            if existing and existing.id != hersteller.id:
+                flash(f'GLN "{gln}" existiert bereits.', 'danger')
+                return render_template('administration/hersteller_form.html',
+                                     hersteller=hersteller, admin_tab='stammdaten')
+
+        # Check for duplicate VEDES-ID
+        if vedes_id:
+            existing_vedes = Hersteller.query.filter_by(vedes_id=vedes_id).first()
+            if existing_vedes and existing_vedes.id != hersteller.id:
+                flash(f'VEDES-ID "{vedes_id}" existiert bereits.', 'danger')
+                return render_template('administration/hersteller_form.html',
+                                     hersteller=hersteller, admin_tab='stammdaten')
+
+        # Update fields
+        hersteller.kurzbezeichnung = kurzbezeichnung
+        if not hersteller.id:  # Only set GLN for new entries
+            hersteller.gln = gln
+        hersteller.vedes_id = vedes_id
+
+        try:
+            if not hersteller.id:
+                db.session.add(hersteller)
+            db.session.commit()
+            flash(f'Hersteller "{kurzbezeichnung}" wurde gespeichert.', 'success')
+            return redirect(url_for('admin.hersteller'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Fehler beim Speichern: {str(e)}', 'danger')
+
+    return render_template('administration/hersteller_form.html',
+                         hersteller=hersteller, admin_tab='stammdaten')
+
+
+@admin_bp.route('/hersteller/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def hersteller_delete(id):
+    """Delete a manufacturer and all associated brands."""
+    from app.models import Hersteller
+
+    hersteller = Hersteller.query.get_or_404(id)
+    name = hersteller.kurzbezeichnung
+    marken_count = hersteller.marken.count()
+
+    try:
+        db.session.delete(hersteller)
+        db.session.commit()
+        if marken_count > 0:
+            flash(f'Hersteller "{name}" und {marken_count} zugehörige Marken wurden gelöscht.', 'success')
+        else:
+            flash(f'Hersteller "{name}" wurde gelöscht.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Fehler beim Löschen: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.hersteller'))
+
+
+@admin_bp.route('/marken')
+@login_required
+@admin_required
+def marken():
+    """Marken-Stammdaten verwalten."""
+    from app.models import Marke
+    marken_liste = Marke.query.order_by(Marke.kurzbezeichnung).all()
+
+    return render_template(
+        'administration/marken.html',
+        marken=marken_liste,
+        admin_tab='stammdaten'
+    )
+
+
+@admin_bp.route('/marken/form', methods=['GET', 'POST'])
+@admin_bp.route('/marken/form/<int:id>', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def marke_form(id=None):
+    """Create or edit a brand."""
+    from app.models import Marke, Hersteller
+
+    if id:
+        marke = Marke.query.get_or_404(id)
+    else:
+        marke = Marke()
+
+    hersteller_liste = Hersteller.query.order_by(Hersteller.kurzbezeichnung).all()
+
+    if request.method == 'POST':
+        # Get form data
+        kurzbezeichnung = request.form.get('kurzbezeichnung', '').strip()
+        hersteller_id = request.form.get('hersteller_id', '').strip()
+
+        # Validation
+        if not kurzbezeichnung:
+            flash('Kurzbezeichnung ist erforderlich.', 'danger')
+            return render_template('administration/marke_form.html',
+                                 marke=marke, hersteller=hersteller_liste, admin_tab='stammdaten')
+
+        if not hersteller_id:
+            flash('Hersteller ist erforderlich.', 'danger')
+            return render_template('administration/marke_form.html',
+                                 marke=marke, hersteller=hersteller_liste, admin_tab='stammdaten')
+
+        # Get the selected manufacturer
+        selected_hersteller = Hersteller.query.get(int(hersteller_id))
+        if not selected_hersteller:
+            flash('Hersteller nicht gefunden.', 'danger')
+            return render_template('administration/marke_form.html',
+                                 marke=marke, hersteller=hersteller_liste, admin_tab='stammdaten')
+
+        # Update fields
+        marke.kurzbezeichnung = kurzbezeichnung
+        marke.hersteller_id = int(hersteller_id)
+
+        # Generate GLN evendo if new
+        if not marke.id:
+            marke.gln_evendo = Marke.generate_gln_evendo(selected_hersteller, kurzbezeichnung)
+
+        try:
+            if not marke.id:
+                db.session.add(marke)
+            db.session.commit()
+            flash(f'Marke "{kurzbezeichnung}" wurde gespeichert.', 'success')
+            return redirect(url_for('admin.marken'))
+        except Exception as e:
+            db.session.rollback()
+            flash(f'Fehler beim Speichern: {str(e)}', 'danger')
+
+    return render_template('administration/marke_form.html',
+                         marke=marke, hersteller=hersteller_liste, admin_tab='stammdaten')
+
+
+@admin_bp.route('/marken/<int:id>/delete', methods=['POST'])
+@login_required
+@admin_required
+def marke_delete(id):
+    """Delete a brand."""
+    from app.models import Marke
+
+    marke = Marke.query.get_or_404(id)
+    name = marke.kurzbezeichnung
+
+    try:
+        db.session.delete(marke)
+        db.session.commit()
+        flash(f'Marke "{name}" wurde gelöscht.', 'success')
+    except Exception as e:
+        db.session.rollback()
+        flash(f'Fehler beim Löschen: {str(e)}', 'danger')
+
+    return redirect(url_for('admin.marken'))
+
+
+@admin_bp.route('/config')
+@login_required
+@admin_required
+def config():
+    """Systemkonfiguration verwalten."""
+    configs = Config.query.order_by(Config.key).all()
+
+    return render_template(
+        'administration/config.html',
+        configs=configs,
+        admin_tab='stammdaten'
+    )

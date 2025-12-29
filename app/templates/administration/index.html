@@ -1,8 +1,14 @@
 {% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}System - Administration - {{ branding.app_title }}{% endblock %}
 
 {% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Administration', 'icon': 'ti-settings'}
+]) }}
+
 <h2 class="mb-4"><i class="ti ti-dashboard"></i> System-Übersicht</h2>
 
 <div class="row g-4">

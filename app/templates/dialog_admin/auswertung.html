@@ -1,17 +1,17 @@
 {% extends "base.html" %}
 {% from "macros/help.html" import help_icon with context %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}Auswertung - {{ fragebogen.titel }} - {{ super() }}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.index') }}">Fragebögen</a></li>
-            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.detail', id=fragebogen.id) }}">{{ fragebogen.titel }}</a></li>
-            <li class="breadcrumb-item active">Auswertung</li>
-        </ol>
-    </nav>
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden-Dialog', 'url': url_for('dialog_admin.index'), 'icon': 'ti-messages'},
+        {'label': fragebogen.titel, 'url': url_for('dialog_admin.detail', id=fragebogen.id)},
+        {'label': 'Auswertung'}
+    ]) }}
 
     <h1 class="mb-4">
         <i class="ti ti-chart-bar"></i> Auswertung: {{ fragebogen.titel }} {{ help_icon('dialog.auswertung.uebersicht') }}

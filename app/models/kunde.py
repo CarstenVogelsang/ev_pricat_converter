@@ -39,6 +39,10 @@ class Kunde(db.Model):
     email_footer = db.Column(db.Text, nullable=True)  # HTML footer for emails
     ist_systemkunde = db.Column(db.Boolean, default=False, nullable=False)  # System default for footer
 
+    # Anrede/Briefanrede settings for email templates
+    anrede = db.Column(db.String(20), default='firma')  # herr, frau, divers, firma
+    kommunikation_stil = db.Column(db.String(20), default='foermlich')  # foermlich, locker
+
     # DEPRECATED: Legacy 1:1 user assignment - use benutzer_zuordnungen instead
     # Kept temporarily for migration, will be removed in future version
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True, unique=True)
@@ -147,6 +151,96 @@ class Kunde(db.Model):
                 parts.append(self.land)
             return ', '.join(parts)
         return self.adresse or ''
+
+    # ========== Briefanrede Properties ==========
+
+    @property
+    def effektiver_kommunikation_stil(self) -> str:
+        """Effective communication style (User overrides Kunde default).
+
+        Priority:
+        1. hauptbenutzer.kommunikation_stil (if set)
+        2. self.kommunikation_stil (Kunde default)
+        3. 'foermlich' (system fallback)
+        """
+        user = self.hauptbenutzer
+        if user and user.kommunikation_stil:
+            return user.kommunikation_stil
+        return self.kommunikation_stil or 'foermlich'
+
+    @property
+    def briefanrede(self) -> str:
+        """Automatic salutation based on effective kommunikation_stil.
+
+        Uses the effective style which considers User override over Kunde default.
+        """
+        if self.effektiver_kommunikation_stil == 'locker':
+            return self.briefanrede_locker
+        return self.briefanrede_foermlich
+
+    @property
+    def briefanrede_foermlich(self) -> str:
+        """Formal salutation (Sie-form).
+
+        Examples:
+        - Herr: 'Sehr geehrter Herr Müller'
+        - Frau: 'Sehr geehrte Frau Schmidt'
+        - Divers: 'Guten Tag Alex Müller'
+        - Firma: 'Sehr geehrte Damen und Herren'
+        """
+        return self._generate_briefanrede('foermlich')
+
+    @property
+    def briefanrede_locker(self) -> str:
+        """Informal salutation (Du-form).
+
+        Examples:
+        - Herr: 'Lieber Herr Müller'
+        - Frau: 'Liebe Frau Schmidt'
+        - Divers: 'Hallo Alex'
+        - Firma: 'Hallo zusammen'
+        """
+        return self._generate_briefanrede('locker')
+
+    def _generate_briefanrede(self, stil: str) -> str:
+        """Generate salutation from LookupWert pattern.
+
+        Args:
+            stil: 'foermlich' or 'locker'
+
+        Returns:
+            Formatted salutation string with name placeholders filled in
+
+        Logic:
+        - anrede comes from hauptbenutzer (personenbezogen: herr/frau/divers)
+        - Falls back to 'firma' if no user or no anrede set
+        """
+        from app.models import LookupWert
+
+        kategorie = f'anrede_{stil}'
+
+        # Get anrede from hauptbenutzer (personenbezogen)
+        user = self.hauptbenutzer
+        anrede_key = user.anrede if user and user.anrede else 'firma'
+
+        pattern = LookupWert.get_wert(kategorie, anrede_key)
+        if not pattern:
+            # Fallback if no pattern found
+            if stil == 'locker':
+                return 'Hallo'
+            return 'Sehr geehrte Damen und Herren'
+
+        # Get name parts from hauptbenutzer
+        vorname = ''
+        nachname = ''
+        if user:
+            vorname = user.vorname or ''
+            nachname = user.nachname or ''
+
+        # Replace placeholders and clean up whitespace
+        result = pattern.format(vorname=vorname, nachname=nachname)
+        # Remove double spaces and strip
+        return ' '.join(result.split())
 
     def to_dict(self):
         """Return dictionary representation."""

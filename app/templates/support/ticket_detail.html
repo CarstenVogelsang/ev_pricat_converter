@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ ticket.nummer_anzeige }} - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Meine Support-Anfragen', 'url': url_for('support.meine_tickets'), 'icon': 'ti-headset'},
+        {'label': ticket.nummer_anzeige}
+    ]) }}
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Header -->
+            <div class="d-flex justify-content-between align-items-start mb-4">
+                <div>
+                    <h2 class="mb-2">
+                        <span class="badge bg-light text-dark me-2">{{ ticket.nummer_anzeige }}</span>
+                        {{ ticket.titel }}
+                    </h2>
+                    <div>
+                        <span class="badge bg-{{ ticket.status_color }} me-2">{{ ticket.status_label }}</span>
+                        <span class="badge bg-light text-dark">
+                            <i class="{{ ticket.typ_icon }}"></i> {{ ticket.typ_label }}
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Beschreibung -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-file-description"></i> Beschreibung
+                </div>
+                <div class="card-body">
+                    <div class="markdown-content">
+                        {{ ticket.beschreibung|markdown|safe }}
+                    </div>
+                </div>
+                <div class="card-footer text-muted small">
+                    Erstellt am {{ ticket.erstellt_am.strftime('%d.%m.%Y um %H:%M Uhr') }}
+                </div>
+            </div>
+
+            <!-- Kommentare -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-messages"></i> Verlauf ({{ kommentare|length }})
+                </div>
+                <div class="card-body">
+                    {% if kommentare %}
+                    <div class="timeline">
+                        {% for kommentar in kommentare %}
+                        <div class="timeline-item mb-3 pb-3 {{ 'border-bottom' if not loop.last else '' }}">
+                            <div class="d-flex justify-content-between align-items-start mb-2">
+                                <div>
+                                    <strong>{{ kommentar.user.vorname }} {{ kommentar.user.nachname }}</strong>
+                                    {% if kommentar.user.is_admin or kommentar.user.is_mitarbeiter %}
+                                    <span class="badge bg-info ms-1">Support</span>
+                                    {% endif %}
+                                    {% if kommentar.ist_status_aenderung %}
+                                    <span class="badge bg-secondary ms-1">Status</span>
+                                    {% endif %}
+                                </div>
+                                <small class="text-muted">{{ kommentar.erstellt_am.strftime('%d.%m.%Y %H:%M') }}</small>
+                            </div>
+                            <div class="{% if kommentar.ist_status_aenderung %}text-muted fst-italic{% endif %}">
+                                {{ kommentar.inhalt|markdown|safe }}
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Noch keine Kommentare.</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Neuer Kommentar -->
+            {% if ticket.status != TicketStatus.GESCHLOSSEN.value %}
+            <div class="card">
+                <div class="card-header">
+                    <i class="ti ti-message-plus"></i> Antworten
+                </div>
+                <div class="card-body">
+                    <form method="post" action="{{ url_for('support.kommentar_hinzufuegen', nummer=ticket.nummer) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <textarea class="form-control" name="inhalt" rows="4"
+                                      placeholder="Ihre Nachricht..." required></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-send"></i> Senden
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="alert alert-secondary">
+                <i class="ti ti-lock"></i>
+                Dieses Ticket ist geschlossen und kann nicht mehr kommentiert werden.
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header">
+                    <i class="ti ti-info-circle"></i> Details
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm table-borderless mb-0">
+                        <tr>
+                            <td class="text-muted">Ticket-Nr:</td>
+                            <td><strong>{{ ticket.nummer_anzeige }}</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Status:</td>
+                            <td><span class="badge bg-{{ ticket.status_color }}">{{ ticket.status_label }}</span></td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Typ:</td>
+                            <td><i class="{{ ticket.typ_icon }}"></i> {{ ticket.typ_label }}</td>
+                        </tr>
+                        <tr>
+                            <td class="text-muted">Priorität:</td>
+                            <td><span class="badge bg-{{ ticket.prioritaet_color }}">{{ ticket.prioritaet_label }}</span></td>
+                        </tr>
+                        {% if ticket.modul %}
+                        <tr>
+                            <td class="text-muted">Modul:</td>
+                            <td>{{ ticket.modul.name }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if ticket.bearbeiter %}
+                        <tr>
+                            <td class="text-muted">Bearbeiter:</td>
+                            <td>{{ ticket.bearbeiter.vorname }} {{ ticket.bearbeiter.nachname }}</td>
+                        </tr>
+                        {% endif %}
+                        <tr>
+                            <td class="text-muted">Erstellt:</td>
+                            <td>{{ ticket.erstellt_am.strftime('%d.%m.%Y %H:%M') }}</td>
+                        </tr>
+                        {% if ticket.geloest_am %}
+                        <tr>
+                            <td class="text-muted">Gelöst:</td>
+                            <td>{{ ticket.geloest_am.strftime('%d.%m.%Y %H:%M') }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+
+            {% if ticket.hilfetext_schluessel or ticket.seiten_url %}
+            <div class="card mt-3">
+                <div class="card-header">
+                    <i class="ti ti-link"></i> Kontext
+                </div>
+                <div class="card-body">
+                    {% if ticket.hilfetext_schluessel %}
+                    <div class="mb-2">
+                        <small class="text-muted">Hilfetext:</small><br>
+                        <code>{{ ticket.hilfetext_schluessel }}</code>
+                    </div>
+                    {% endif %}
+                    {% if ticket.seiten_url %}
+                    <div>
+                        <small class="text-muted">Seite:</small><br>
+                        <a href="{{ ticket.seiten_url }}" target="_blank" class="small text-break">
+                            {{ ticket.seiten_url|truncate(40) }}
+                        </a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -33,6 +33,23 @@ from app.models.fragebogen import (
 # Email Templates
 from app.models.email_template import EmailTemplate
 
+# Generic Key-Value Storage
+from app.models.lookup_wert import LookupWert
+
+# Anwender-Support Module (PRD-007)
+from app.models.support_team import SupportTeam, SupportTeamMitglied
+from app.models.support_ticket import (
+    SupportTicket, TicketKommentar,
+    TicketTyp, TicketStatus, TicketPrioritaet
+)
+
+# Produktdaten Module (PRD-009)
+from app.models.produkt_lookup import ProduktLookup
+from app.models.attributgruppe import Attributgruppe
+from app.models.eigenschaft_definition import EigenschaftDefinition, DatenTyp
+from app.models.produkt import Produkt, ProduktStatus
+from app.models.eigenschaft_wert import EigenschaftWert
+
 __all__ = [
     'Lieferant', 'Hersteller', 'Marke', 'Config',
     'Rolle', 'User',
@@ -51,4 +68,15 @@ __all__ = [
     'FragebogenStatus', 'TeilnahmeStatus',
     # Email Templates
     'EmailTemplate',
+    # Generic Key-Value Storage
+    'LookupWert',
+    # Anwender-Support Module (PRD-007)
+    'SupportTeam', 'SupportTeamMitglied',
+    'SupportTicket', 'TicketKommentar',
+    'TicketTyp', 'TicketStatus', 'TicketPrioritaet',
+    # Produktdaten Module (PRD-009)
+    'ProduktLookup', 'Attributgruppe',
+    'EigenschaftDefinition', 'DatenTyp',
+    'Produkt', 'ProduktStatus',
+    'EigenschaftWert',
 ]

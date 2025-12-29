@@ -1,8 +1,15 @@
 {% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}Verbände - Administration - {{ branding.app_title }}{% endblock %}
 
 {% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Verbände', 'icon': 'ti-building-community'}
+]) }}
+
 <h2 class="mb-4"><i class="ti ti-building-community text-primary"></i> Verbände verwalten</h2>
 
 <div class="row">

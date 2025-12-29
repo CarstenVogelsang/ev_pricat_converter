@@ -1,0 +1,144 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Eigenschaften - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Eigenschaften', 'icon': 'ti-forms'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="ti ti-forms text-warning"></i> Eigenschafts-Definitionen</h2>
+    <span class="badge bg-secondary">{{ eintraege|length }} Eigenschaften</span>
+</div>
+
+<div class="row">
+    {% if gruppen %}
+    <div class="col-md-4 col-lg-3">
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-category me-1"></i> Gruppen
+            </div>
+            <div class="list-group list-group-flush">
+                <a href="{{ url_for('admin.eigenschaft_definitionen') }}"
+                   class="list-group-item list-group-item-action {{ 'active' if not gruppe else '' }}">
+                    <i class="ti ti-list me-1"></i> Alle anzeigen
+                </a>
+                {% for g in gruppen %}
+                <a href="{{ url_for('admin.eigenschaft_definitionen', gruppe=g) }}"
+                   class="list-group-item list-group-item-action {{ 'active' if g == gruppe else '' }}">
+                    {{ g or 'Ohne Gruppe' }}
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="{{ 'col-md-8 col-lg-9' if gruppen else 'col-12' }}">
+        {% if eintraege %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="ti ti-list me-1"></i>
+                    {% if gruppe %}
+                    Gruppe: <strong>{{ gruppe }}</strong>
+                    {% else %}
+                    Alle Eigenschaften
+                    {% endif %}
+                    <span class="text-muted">({{ eintraege|length }})</span>
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>NTG-Code</th>
+                            <th>Name</th>
+                            <th>Datentyp</th>
+                            <th>Codelist</th>
+                            <th class="text-center">Pflicht</th>
+                            <th class="text-center">Aktiv</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in eintraege %}
+                        <tr>
+                            <td><code>{{ e.ntg_code }}</code></td>
+                            <td>
+                                <strong>{{ e.name }}</strong>
+                                {% if e.beschreibung %}
+                                <br><small class="text-muted">{{ e.beschreibung[:60] }}{% if e.beschreibung|length > 60 %}...{% endif %}</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if e.datentyp == 'text' %}
+                                <span class="badge bg-light text-dark">Text</span>
+                                {% elif e.datentyp == 'number' %}
+                                <span class="badge bg-info">Dezimal</span>
+                                {% elif e.datentyp == 'integer' %}
+                                <span class="badge bg-info">Ganzzahl</span>
+                                {% elif e.datentyp == 'boolean' %}
+                                <span class="badge bg-success">Ja/Nein</span>
+                                {% elif e.datentyp == 'date' %}
+                                <span class="badge bg-warning">Datum</span>
+                                {% elif e.datentyp == 'codelist' %}
+                                <span class="badge bg-primary">Auswahl</span>
+                                {% else %}
+                                <span class="badge bg-secondary">{{ e.datentyp }}</span>
+                                {% endif %}
+                                {% if e.max_laenge %}
+                                <small class="text-muted">(max {{ e.max_laenge }})</small>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if e.codelist_kategorie %}
+                                <a href="{{ url_for('admin.produkt_lookup', kategorie=e.codelist_kategorie) }}">
+                                    {{ e.codelist_kategorie }}
+                                </a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if e.pflichtfeld %}
+                                <i class="ti ti-check text-success"></i>
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if e.aktiv %}
+                                <i class="ti ti-check text-success"></i>
+                                {% else %}
+                                <i class="ti ti-x text-danger"></i>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="ti ti-forms display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">Keine Eigenschafts-Definitionen</h4>
+                <p class="text-muted">
+                    Eigenschafts-Definitionen werden automatisch aus dem NTG-Standard abgeleitet
+                    oder können manuell angelegt werden.
+                </p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <i class="ti ti-info-circle me-2"></i>
+    <strong>Info:</strong> Eigenschafts-Definitionen beschreiben die verfügbaren Produkteigenschaften
+    (z.B. "Batterie erforderlich", "Ursprungsland"). Sie werden beim Anlegen von Produkten verwendet.
+</div>
+{% endblock %}

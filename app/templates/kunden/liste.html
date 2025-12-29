@@ -1,11 +1,16 @@
 {% extends "base.html" %}
 {% from "macros/module_header.html" import module_header %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}Kunden - {{ branding.app_title }}{% endblock %}
 
 {% set module = module_colors.get('kunden', {'color_hex': '#198754', 'icon': 'ti-users'}) %}
 
 {% block content %}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Kunden', 'icon': 'ti-users'}
+]) }}
 {% call module_header(
     title="Kunden",
     icon=module.icon,

@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% from "macros/help.html" import help_icon with context %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Neue Anfrage - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Meine Support-Anfragen', 'url': url_for('support.meine_tickets'), 'icon': 'ti-headset'},
+        {'label': 'Neue Anfrage'}
+    ]) }}
+
+    <div class="row justify-content-center">
+        <div class="col-lg-8">
+            <div class="d-flex justify-content-between align-items-center mb-4">
+                <h2>
+                    <i class="ti ti-plus" style="color: #17a2b8;"></i>
+                    Neue Support-Anfrage
+                    {{ help_icon('support.tickets.erstellen') }}
+                </h2>
+            </div>
+
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="modul_code" value="{{ modul_code }}">
+                <input type="hidden" name="hilfetext_schluessel" value="{{ hilfetext_schluessel }}">
+                <input type="hidden" name="seiten_url" value="{{ seiten_url }}">
+
+                <div class="card">
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="ti ti-ticket"></i> Anfrage-Details</span>
+                        <button type="submit" class="btn btn-primary btn-sm">
+                            <i class="ti ti-send"></i> Absenden
+                        </button>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="typ" class="form-label">Art der Anfrage</label>
+                            <select class="form-select" id="typ" name="typ" required>
+                                {% for value, label in TicketTyp.choices() %}
+                                <option value="{{ value }}" {{ 'selected' if typ == value else '' }}>{{ label }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="titel" class="form-label">Betreff <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="titel" name="titel"
+                                   value="{{ titel }}" maxlength="200" required
+                                   placeholder="Kurze Beschreibung Ihrer Anfrage">
+                            <div class="form-text">Maximal 200 Zeichen</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="beschreibung" class="form-label">Beschreibung <span class="text-danger">*</span></label>
+                            <textarea class="form-control" id="beschreibung" name="beschreibung"
+                                      rows="8" required
+                                      placeholder="Beschreiben Sie Ihr Anliegen möglichst genau...">{{ beschreibung }}</textarea>
+                            <div class="form-text">
+                                Bitte beschreiben Sie Ihr Anliegen so detailliert wie möglich.
+                                Bei Fehlermeldungen: Was haben Sie gemacht? Was ist passiert? Was haben Sie erwartet?
+                            </div>
+                        </div>
+
+                        {% if modul_code or hilfetext_schluessel or seiten_url %}
+                        <div class="alert alert-info mb-0">
+                            <i class="ti ti-info-circle"></i>
+                            <strong>Kontext wird automatisch erfasst:</strong>
+                            <ul class="mb-0 mt-2">
+                                {% if modul_code %}
+                                <li>Modul: {{ modul_code }}</li>
+                                {% endif %}
+                                {% if hilfetext_schluessel %}
+                                <li>Hilfetext: {{ hilfetext_schluessel }}</li>
+                                {% endif %}
+                                {% if seiten_url %}
+                                <li>Seite: {{ seiten_url|truncate(60) }}</li>
+                                {% endif %}
+                            </ul>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

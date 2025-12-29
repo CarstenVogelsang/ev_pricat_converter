@@ -1,0 +1,159 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Produkte - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Produkte', 'icon': 'ti-box'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="ti ti-box text-success"></i> Produktstammdaten</h2>
+    <div>
+        <span class="badge bg-secondary me-2">{{ produkte.total }} Produkte</span>
+        <a href="{{ url_for('admin.produkt_form') }}" class="btn btn-primary btn-sm">
+            <i class="ti ti-plus me-1"></i> Neu
+        </a>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-8">
+                <div class="input-group">
+                    <span class="input-group-text"><i class="ti ti-search"></i></span>
+                    <input type="text" class="form-control" name="q" value="{{ search }}"
+                           placeholder="EAN, Artikelnummer oder Bezeichnung suchen...">
+                </div>
+            </div>
+            <div class="col-md-4">
+                <button type="submit" class="btn btn-primary">
+                    <i class="ti ti-search"></i> Suchen
+                </button>
+                {% if search %}
+                <a href="{{ url_for('admin.produkte') }}" class="btn btn-outline-secondary">
+                    <i class="ti ti-x"></i> Filter zurücksetzen
+                </a>
+                {% endif %}
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if produkte.items %}
+<div class="card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>EAN</th>
+                    <th>Artikelnr.</th>
+                    <th>Bezeichnung</th>
+                    <th>Marke</th>
+                    <th>UVPE</th>
+                    <th>Status</th>
+                    <th class="text-end">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for produkt in produkte.items %}
+                <tr>
+                    <td><code>{{ produkt.ean }}</code></td>
+                    <td>{{ produkt.artikelnummer_lieferant or '-' }}</td>
+                    <td>
+                        <strong>{{ produkt.artikelbezeichnung[:50] }}</strong>
+                        {% if produkt.artikelbezeichnung|length > 50 %}...{% endif %}
+                    </td>
+                    <td>{{ produkt.markenname or '-' }}</td>
+                    <td>
+                        {% if produkt.uvpe %}
+                        {{ "%.2f"|format(produkt.uvpe) }} {{ produkt.waehrung or 'EUR' }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if produkt.status == 'aktiv' %}
+                        <span class="badge bg-success">Aktiv</span>
+                        {% elif produkt.status == 'auslauf' %}
+                        <span class="badge bg-warning">Auslauf</span>
+                        {% elif produkt.status == 'archiviert' %}
+                        <span class="badge bg-secondary">Archiviert</span>
+                        {% else %}
+                        <span class="badge bg-info">Entwurf</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-end">
+                        <a href="{{ url_for('admin.produkt_form', id=produkt.id) }}"
+                           class="btn btn-sm btn-outline-primary" title="Bearbeiten">
+                            <i class="ti ti-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {% if produkte.pages > 1 %}
+    <div class="card-footer">
+        <nav>
+            <ul class="pagination justify-content-center mb-0">
+                {% if produkte.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.produkte', page=produkte.prev_num, q=search) }}">
+                        <i class="ti ti-chevron-left"></i>
+                    </a>
+                </li>
+                {% endif %}
+
+                {% for page_num in produkte.iter_pages() %}
+                    {% if page_num %}
+                    <li class="page-item {{ 'active' if page_num == produkte.page else '' }}">
+                        <a class="page-link" href="{{ url_for('admin.produkte', page=page_num, q=search) }}">
+                            {{ page_num }}
+                        </a>
+                    </li>
+                    {% else %}
+                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if produkte.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.produkte', page=produkte.next_num, q=search) }}">
+                        <i class="ti ti-chevron-right"></i>
+                    </a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+    </div>
+    {% endif %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="ti ti-box-off display-1 text-muted mb-3"></i>
+        <h4 class="text-muted">Keine Produkte gefunden</h4>
+        {% if search %}
+        <p class="text-muted">Keine Produkte für "{{ search }}" gefunden.</p>
+        <a href="{{ url_for('admin.produkte') }}" class="btn btn-outline-primary">
+            <i class="ti ti-x"></i> Filter zurücksetzen
+        </a>
+        {% else %}
+        <p class="text-muted">Es sind noch keine Produkte angelegt.</p>
+        {% endif %}
+    </div>
+</div>
+{% endif %}
+
+<div class="alert alert-info mt-4">
+    <i class="ti ti-info-circle me-2"></i>
+    <strong>Hinweis:</strong> Diese Ansicht ist im Aufbau (PRD-009). Produkte können über Excel-Import oder API angelegt werden.
+</div>
+{% endblock %}

@@ -66,6 +66,8 @@ def create_app(config_name=None):
     from app.routes.dialog import dialog_bp
     from app.routes.dialog_admin import dialog_admin_bp
     from app.routes.benutzer import benutzer_bp
+    from app.routes.support import support_bp
+    from app.routes.support_admin import support_admin_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
@@ -80,6 +82,9 @@ def create_app(config_name=None):
     app.register_blueprint(dialog_admin_bp)
     # Benutzer-Administration
     app.register_blueprint(benutzer_bp)
+    # PRD-007: Anwender-Support
+    app.register_blueprint(support_bp)
+    app.register_blueprint(support_admin_bp)
 
     # Initialize Flask-Admin (under /db-admin, requires admin role)
     from app.admin import init_admin
@@ -1048,6 +1053,124 @@ Branding-Test:
 
 {{ copyright_text }}'''
             },
+            {
+                'schluessel': 'support_ticket_neu',
+                'name': 'Neues Support-Ticket',
+                'beschreibung': 'Benachrichtigung an Support-Team bei neuem Ticket (PRD-007)',
+                'betreff': 'Neues Ticket {{ ticket_nummer }}: {{ ticket_titel }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: {{ primary_color }}; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">
+                                🎫 Neues Support-Ticket
+                            </h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Ein neues Support-Ticket wurde erstellt:
+                            </p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="10" style="background-color: #f8f9fa; border-radius: 6px; margin: 0 0 20px 0;">
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px; border-bottom: 1px solid #e9ecef;">
+                                        <strong>Ticket-Nr:</strong> {{ ticket_nummer }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px; border-bottom: 1px solid #e9ecef;">
+                                        <strong>Betreff:</strong> {{ ticket_titel }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px; border-bottom: 1px solid #e9ecef;">
+                                        <strong>Typ:</strong> {{ ticket_typ }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px; border-bottom: 1px solid #e9ecef;">
+                                        <strong>Erstellt von:</strong> {{ ersteller_name }}{% if ersteller_email %} ({{ ersteller_email }}){% endif %}
+                                    </td>
+                                </tr>
+                                {% if modul_name %}
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px;">
+                                        <strong>Modul:</strong> {{ modul_name }}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </table>
+                            <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0 0 20px 0;">
+                                <strong>Beschreibung:</strong><br>
+                                {{ ticket_beschreibung | replace('\n', '<br>') | safe }}
+                            </p>
+                            <!-- Button -->
+                            <table role="presentation" cellspacing="0" cellpadding="0" style="margin: 0 auto 30px auto;">
+                                <tr>
+                                    <td style="background-color: {{ primary_color }}; border-radius: 6px;">
+                                        <a href="{{ link }}" style="display: inline-block; padding: 14px 32px; color: #ffffff; text-decoration: none; font-size: 16px; font-weight: bold;">
+                                            Ticket anzeigen
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''Neues Support-Ticket
+
+Ein neues Support-Ticket wurde erstellt:
+
+Ticket-Nr: {{ ticket_nummer }}
+Betreff: {{ ticket_titel }}
+Typ: {{ ticket_typ }}
+Erstellt von: {{ ersteller_name }}{% if ersteller_email %} ({{ ersteller_email }}){% endif %}
+{% if modul_name %}Modul: {{ modul_name }}{% endif %}
+
+Beschreibung:
+{{ ticket_beschreibung }}
+
+Ticket anzeigen: {{ link }}
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
         ]
 
         for template_data in email_templates_data:
@@ -1103,6 +1226,55 @@ Branding-Test:
             else:
                 click.echo(f"LookupWert already exists: {kategorie}.{schluessel}")
 
+        # PRD-007: Support ticket enums in LookupWert
+        # Format: (kategorie, schluessel, wert, icon, farbe, sortierung)
+        support_lookups = [
+            # Ticket-Typen
+            ('support_typ', 'frage', 'Frage', 'ti-help', 'info', 1),
+            ('support_typ', 'verbesserung', 'Verbesserungsvorschlag', 'ti-bulb', 'primary', 2),
+            ('support_typ', 'bug', 'Fehlermeldung', 'ti-alert-triangle', 'danger', 3),
+            ('support_typ', 'schulung', 'Schulungsanfrage', 'ti-school', 'warning', 4),
+            ('support_typ', 'daten', 'Datenkorrektur', 'ti-database-edit', 'secondary', 5),
+            ('support_typ', 'sonstiges', 'Sonstiges', 'ti-dots', 'light', 6),
+            # Ticket-Status
+            ('support_status', 'offen', 'Offen', 'ti-clock', 'warning', 1),
+            ('support_status', 'in_bearbeitung', 'In Bearbeitung', 'ti-loader', 'info', 2),
+            ('support_status', 'warte_auf_kunde', 'Warte auf Kunde', 'ti-hourglass', 'secondary', 3),
+            ('support_status', 'geloest', 'Gelöst', 'ti-check', 'success', 4),
+            ('support_status', 'geschlossen', 'Geschlossen', 'ti-archive', 'dark', 5),
+            # Ticket-Priorität
+            ('support_prioritaet', 'niedrig', 'Niedrig', 'ti-arrow-down', 'secondary', 1),
+            ('support_prioritaet', 'normal', 'Normal', 'ti-minus', 'primary', 2),
+            ('support_prioritaet', 'hoch', 'Hoch', 'ti-arrow-up', 'warning', 3),
+            ('support_prioritaet', 'kritisch', 'Kritisch', 'ti-alert-triangle', 'danger', 4),
+        ]
+
+        for kategorie, schluessel, wert, icon, farbe, sortierung in support_lookups:
+            existing = LookupWert.query.filter_by(
+                kategorie=kategorie,
+                schluessel=schluessel
+            ).first()
+            if not existing:
+                lookup_entry = LookupWert(
+                    kategorie=kategorie,
+                    schluessel=schluessel,
+                    wert=wert,
+                    icon=icon,
+                    farbe=farbe,
+                    sortierung=sortierung,
+                    aktiv=True
+                )
+                db.session.add(lookup_entry)
+                click.echo(f"Created LookupWert: {kategorie}.{schluessel}")
+            else:
+                # Update existing entries with new icon/farbe if missing
+                if not existing.icon or not existing.farbe:
+                    existing.icon = icon
+                    existing.farbe = farbe
+                    click.echo(f"Updated LookupWert: {kategorie}.{schluessel}")
+                else:
+                    click.echo(f"LookupWert already exists: {kategorie}.{schluessel}")
+
         # Create Module (unified module management - replaces SubApp)
         from app.models import Modul, ModulZugriff, ModulTyp
         # Format: (code, name, beschreibung, icon, color, color_hex, route_endpoint, sort_order, typ, zeige_dashboard)
@@ -1117,9 +1289,12 @@ Branding-Test:
              'ti-puzzle', 'secondary', '#6c757d', None, 2, ModulTyp.BASIS.value, False),
             ('auth', 'Authentifizierung', 'Login und Benutzersitzungen',
              'ti-puzzle', 'secondary', '#6c757d', None, 3, ModulTyp.BASIS.value, False),
+            # Administration Dashboard-Modul (nur für Admin sichtbar durch Admin-Bypass)
+            ('administration', 'Administration', 'Benutzer, Einstellungen und Systemverwaltung',
+             'ti-settings', 'secondary', '#6c757d', 'admin.index', 5, ModulTyp.BASIS.value, True),
             # Dashboard modules with different types
             ('pricat', 'PRICAT Converter', 'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
-             'ti-route-square', 'primary', '#0d6efd', 'main.lieferanten', 10, ModulTyp.CONSULTING_INTERN.value, True),
+             'ti-route-square', 'primary', '#0d6efd', 'main.pricat_converter', 10, ModulTyp.CONSULTING_INTERN.value, True),
             ('kunden', 'Lead & Kundenreport', 'Kunden verwalten und Website-Analyse',
              'ti-users', 'success', '#198754', 'kunden.liste', 20, ModulTyp.SALES_INTERN.value, True),
             ('lieferanten', 'Meine Lieferanten', 'Relevante Lieferanten auswählen',
@@ -1129,6 +1304,9 @@ Branding-Test:
             # PRD-006: Kunden-Dialog Modul
             ('dialog', 'Kunden-Dialog', 'Fragebögen erstellen und Kunden befragen',
              'ti-messages', 'teal', '#20c997', 'dialog.index', 50, ModulTyp.KUNDENPROJEKT.value, True),
+            # PRD-007: Anwender-Support Modul
+            ('support', 'Anwender-Support', 'Support-Tickets erstellen und verwalten',
+             'ti-headset', 'info', '#17a2b8', 'support.meine_tickets', 60, ModulTyp.KUNDENPROJEKT.value, True),
         ]
         for code, name, beschreibung, icon, color, color_hex, route_endpoint, sort_order, typ, zeige_dashboard in module_data:
             existing = Modul.query.filter_by(code=code).first()
@@ -1162,6 +1340,8 @@ Branding-Test:
             ('content', ['admin', 'mitarbeiter', 'kunde']),
             # PRD-006: Kunden-Dialog
             ('dialog', ['admin', 'mitarbeiter', 'kunde']),
+            # PRD-007: Anwender-Support
+            ('support', ['admin', 'mitarbeiter', 'kunde']),
         ]
         for code, role_names in modul_access_mappings:
             modul = Modul.query.filter_by(code=code).first()
@@ -1176,6 +1356,51 @@ Branding-Test:
                             access = ModulZugriff(modul_id=modul.id, rolle_id=rolle.id)
                             db.session.add(access)
                             click.echo(f'Created ModulZugriff: {code} -> {role_name}')
+
+        # PRD-007: Create default support team
+        from app.models import SupportTeam, SupportTeamMitglied, User
+
+        default_team = SupportTeam.query.filter_by(name='Allgemeiner Support').first()
+        if not default_team:
+            default_team = SupportTeam(
+                name='Allgemeiner Support',
+                beschreibung='Standard-Team für alle Support-Anfragen',
+                icon='ti-users',
+                aktiv=True
+            )
+            db.session.add(default_team)
+            db.session.flush()
+            click.echo('Created SupportTeam: Allgemeiner Support')
+
+            # Add all admins and mitarbeiter to the default team
+            admin_rolle = roles.get('admin')
+            mitarbeiter_rolle = roles.get('mitarbeiter')
+
+            if admin_rolle:
+                admin_users = User.query.filter_by(rolle_id=admin_rolle.id).all()
+                for user in admin_users:
+                    mitglied = SupportTeamMitglied(
+                        team_id=default_team.id,
+                        user_id=user.id,
+                        ist_teamleiter=True,
+                        benachrichtigung_aktiv=True
+                    )
+                    db.session.add(mitglied)
+                    click.echo(f'Added {user.email} to SupportTeam as Teamleiter')
+
+            if mitarbeiter_rolle:
+                mitarbeiter_users = User.query.filter_by(rolle_id=mitarbeiter_rolle.id).all()
+                for user in mitarbeiter_users:
+                    mitglied = SupportTeamMitglied(
+                        team_id=default_team.id,
+                        user_id=user.id,
+                        ist_teamleiter=False,
+                        benachrichtigung_aktiv=True
+                    )
+                    db.session.add(mitglied)
+                    click.echo(f'Added {user.email} to SupportTeam as Mitglied')
+        else:
+            click.echo('SupportTeam already exists: Allgemeiner Support')
 
         # PRD-006: Create example V2 questionnaire "Kunden-Anforderungen"
         from app.models import Fragebogen, FragebogenStatus, User

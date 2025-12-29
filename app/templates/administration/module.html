@@ -1,4 +1,5 @@
 {% extends "administration/base.html" %}
+{% from "macros/icon_picker.html" import icon_input %}
 
 {% block title %}Modulverwaltung - Administration - {{ branding.app_title }}{% endblock %}
 
@@ -264,15 +265,7 @@ tr.sortable-chosen {
 
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="edit-modul-icon" class="form-label">Icon</label>
-                            <div class="input-group">
-                                <span class="input-group-text" id="icon-preview"><i class="ti ti-apps"></i></span>
-                                <input type="text" class="form-control" id="edit-modul-icon" name="icon"
-                                       placeholder="ti-apps">
-                            </div>
-                            <div class="form-text">
-                                <a href="https://tabler.io/icons" target="_blank" rel="noopener">Tabler Icons</a> verwenden (z.B. ti-home)
-                            </div>
+                            {{ icon_input('icon', '', 'edit-modul-icon', 'ti-apps', 'Icon') }}
                         </div>
                         <div class="col-md-6 mb-3">
                             <label for="edit-modul-color" class="form-label">Farbe</label>

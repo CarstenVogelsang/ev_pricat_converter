@@ -1,0 +1,181 @@
+{% extends "administration/base.html" %}
+
+{% block title %}{{ 'Benutzer bearbeiten' if user else 'Neuer Benutzer' }} - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('benutzer.index') }}">Benutzer</a></li>
+        {% if user %}
+        <li class="breadcrumb-item active">{{ user.full_name }}</li>
+        {% else %}
+        <li class="breadcrumb-item active">Neu</li>
+        {% endif %}
+    </ol>
+</nav>
+
+<div class="card">
+    <div class="card-header">
+        <h4 class="mb-0">
+            {% if user %}
+            <i class="ti ti-edit"></i> Benutzer bearbeiten
+            {% else %}
+            <i class="ti ti-plus"></i> Neuer Benutzer
+            {% endif %}
+        </h4>
+    </div>
+    <div class="card-body">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="vorname" class="form-label">Vorname *</label>
+                        <input type="text" class="form-control" id="vorname" name="vorname"
+                               value="{{ vorname }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="nachname" class="form-label">Nachname *</label>
+                        <input type="text" class="form-control" id="nachname" name="nachname"
+                               value="{{ nachname }}" required>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="email" class="form-label">E-Mail *</label>
+                        <input type="email" class="form-control" id="email" name="email"
+                               value="{{ email }}" required>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="rolle_id" class="form-label">Rolle *</label>
+                        <select class="form-select" id="rolle_id" name="rolle_id" required>
+                            <option value="">-- Rolle wählen --</option>
+                            {% for rolle in rollen %}
+                            <option value="{{ rolle.id }}" {{ 'selected' if rolle.id == rolle_id }}>
+                                {{ rolle.name }}
+                                {% if rolle.beschreibung %} - {{ rolle.beschreibung }}{% endif %}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Anrede/Briefanrede Einstellungen -->
+            <div class="row">
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="anrede" class="form-label">Anrede</label>
+                        <select class="form-select" id="anrede" name="anrede">
+                            <option value="" {{ 'selected' if not anrede }}>-- Keine Auswahl --</option>
+                            <option value="herr" {{ 'selected' if anrede == 'herr' }}>Herr</option>
+                            <option value="frau" {{ 'selected' if anrede == 'frau' }}>Frau</option>
+                            <option value="divers" {{ 'selected' if anrede == 'divers' }}>Divers</option>
+                        </select>
+                        <div class="form-text">Für die persönliche Ansprache in E-Mails (z.B. "Sehr geehrter Herr Müller").</div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="mb-3">
+                        <label for="kommunikation_stil" class="form-label">Kommunikationsstil</label>
+                        <select class="form-select" id="kommunikation_stil" name="kommunikation_stil">
+                            <option value="" {{ 'selected' if not kommunikation_stil }}>-- Standard vom Kunden --</option>
+                            <option value="foermlich" {{ 'selected' if kommunikation_stil == 'foermlich' }}>Förmlich (Sie)</option>
+                            <option value="locker" {{ 'selected' if kommunikation_stil == 'locker' }}>Locker (Du)</option>
+                        </select>
+                        <div class="form-text">Leer = Standard des zugeordneten Kunden verwenden.</div>
+                    </div>
+                </div>
+            </div>
+
+            {% if not user %}
+            <div class="mb-3">
+                <label for="passwort" class="form-label">Passwort</label>
+                <input type="text" class="form-control" id="passwort" name="passwort"
+                       placeholder="Leer lassen für automatisches Passwort">
+                <div class="form-text">
+                    Wenn leer, wird ein sicheres Passwort generiert und angezeigt.
+                </div>
+            </div>
+            {% endif %}
+
+            <hr>
+
+            <div class="d-flex justify-content-between">
+                <a href="{{ url_for('benutzer.index') }}" class="btn btn-outline-secondary">
+                    <i class="ti ti-arrow-left"></i> Abbrechen
+                </a>
+                <div>
+                    {% if user %}
+                    <form method="post" action="{{ url_for('benutzer.reset_passwort', id=user.id) }}" class="d-inline"
+                          onsubmit="return confirm('Passwort wirklich zurücksetzen?');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <button type="submit" class="btn btn-outline-warning me-2">
+                            <i class="ti ti-key"></i> Passwort zurücksetzen
+                        </button>
+                    </form>
+                    {% endif %}
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+{% if user %}
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="ti ti-info-circle"></i> Informationen</h5>
+    </div>
+    <div class="card-body">
+        <dl class="row mb-0">
+            <dt class="col-sm-3">Erstellt am</dt>
+            <dd class="col-sm-9">
+                {% if user.created_at %}
+                {{ user.created_at.strftime('%d.%m.%Y %H:%M') }}
+                {% else %}
+                -
+                {% endif %}
+            </dd>
+
+            <dt class="col-sm-3">Letzter Login</dt>
+            <dd class="col-sm-9">
+                {% if user.last_login %}
+                {{ user.last_login.strftime('%d.%m.%Y %H:%M') }}
+                {% else %}
+                Noch nie angemeldet
+                {% endif %}
+            </dd>
+
+            <dt class="col-sm-3">Status</dt>
+            <dd class="col-sm-9">
+                {% if user.aktiv %}
+                <span class="badge bg-success">Aktiv</span>
+                {% else %}
+                <span class="badge bg-secondary">Inaktiv</span>
+                {% endif %}
+            </dd>
+
+            {% if user.kunde %}
+            <dt class="col-sm-3">Verknüpfter Kunde</dt>
+            <dd class="col-sm-9">
+                <a href="{{ url_for('kunden.detail', id=user.kunde.id) }}">
+                    <i class="ti ti-building"></i> {{ user.kunde.firmierung }}
+                </a>
+            </dd>
+            {% endif %}
+        </dl>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -5,6 +5,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}{{ branding.app_title }}{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Google Fonts (only if web fonts are used) -->
+    {% if branding.google_fonts_url %}
+    <link href="{{ branding.google_fonts_url }}" rel="stylesheet">
+    {% endif %}
     <link rel="stylesheet" href="{{ url_for('static', filename='tabler-icons/tabler-icons.min.css') }}">
     <style>
         :root {
@@ -13,6 +17,7 @@
         }
         html, body {
             height: 100%;
+            font-family: '{{ branding.font_family }}', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
         }
         body {
             display: flex;
@@ -165,6 +170,61 @@
         </div>
     </footer>
 
+    <!-- Global Support Quick-Create Modal (PRD-007) -->
+    {% if current_user.is_authenticated %}
+    <div class="modal fade" id="supportQuickCreateModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <form id="supportQuickCreateForm" method="post" action="{{ url_for('support.quick_create') }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <input type="hidden" name="hilfetext_schluessel" id="support_hilfetext_schluessel">
+                    <input type="hidden" name="seiten_url" id="support_seiten_url">
+
+                    <div class="modal-header">
+                        <h5 class="modal-title">
+                            <i class="ti ti-headset text-info"></i> Support-Anfrage
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schliessen"></button>
+                    </div>
+                    <div class="modal-body">
+                        <!-- Kontext-Info oben anzeigen (PRD-007 UX) -->
+                        <div id="support_kontext_info" class="alert alert-info py-2 d-none">
+                            <i class="ti ti-link"></i> <strong>Kontext:</strong> <span id="support_kontext_text"></span>
+                        </div>
+                        <div class="mb-3">
+                            <label for="support_typ" class="form-label">Anfrage-Typ</label>
+                            <select class="form-select" id="support_typ" name="typ" required>
+                                <option value="frage">Frage</option>
+                                <option value="verbesserung">Verbesserungsvorschlag</option>
+                                <option value="bug">Fehlermeldung</option>
+                                <option value="schulung">Schulungsanfrage</option>
+                                <option value="daten">Datenkorrektur</option>
+                                <option value="sonstiges">Sonstiges</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="support_titel" class="form-label">Betreff *</label>
+                            <input type="text" class="form-control" id="support_titel" name="titel"
+                                   maxlength="200" required placeholder="Worum geht es?">
+                        </div>
+                        <div class="mb-3">
+                            <label for="support_beschreibung" class="form-label">Beschreibung *</label>
+                            <textarea class="form-control" id="support_beschreibung" name="beschreibung"
+                                      rows="4" required placeholder="Beschreiben Sie Ihr Anliegen..."></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-send"></i> Anfrage senden
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
     <script>
         // Toasts automatisch anzeigen
@@ -173,6 +233,89 @@
                 new bootstrap.Toast(toastEl).show();
             });
         });
+
+        // Support Quick-Create Modal (PRD-007)
+
+        // Mapping für lesbare Kontext-Namen
+        const kontextLabels = {
+            // Module
+            'kunden': 'Kunden',
+            'dialog': 'Kunden-Dialog',
+            'pricat': 'PRICAT Converter',
+            'admin': 'Administration',
+            'support': 'Support',
+            'abrechnung': 'Abrechnung',
+            // Ansichten
+            'index': 'Übersicht',
+            'detail': 'Detail',
+            'form': 'Formular',
+            'liste': 'Liste',
+            'neu': 'Neu',
+            'edit': 'Bearbeiten',
+            // Bereiche/Elemente
+            'stammdaten': 'Stammdaten',
+            'branchen': 'Branchen',
+            'verbaende': 'Verbände',
+            'ci': 'Corporate Identity',
+            'benutzer': 'Benutzer',
+            'einstellungen': 'Einstellungen',
+            'uebersicht': 'Übersicht',
+            'fragebogen': 'Fragebogen',
+            'teilnehmer': 'Teilnehmer',
+            'auswertung': 'Auswertung'
+        };
+
+        // Konvertiert einen Schlüssel wie "kunden.detail.stammdaten" in einen Breadcrumb
+        function formatKontextBreadcrumb(schluessel) {
+            if (!schluessel) return '';
+
+            const teile = schluessel.split('.');
+            const lesbar = teile.map(function(teil) {
+                // Erst im Mapping suchen, sonst kapitalisieren
+                if (kontextLabels[teil.toLowerCase()]) {
+                    return kontextLabels[teil.toLowerCase()];
+                }
+                // Fallback: Erster Buchstabe groß
+                return teil.charAt(0).toUpperCase() + teil.slice(1);
+            });
+
+            return lesbar.join(' › ');
+        }
+
+        function openSupportModal(hilfetextSchluessel, hilfetextTitel) {
+            // Set hidden fields
+            document.getElementById('support_hilfetext_schluessel').value = hilfetextSchluessel || '';
+            document.getElementById('support_seiten_url').value = window.location.href;
+
+            // Reset form
+            document.getElementById('support_titel').value = '';
+            document.getElementById('support_beschreibung').value = '';
+            document.getElementById('support_typ').value = 'frage';
+
+            // Show context info as breadcrumb if available
+            const kontextInfo = document.getElementById('support_kontext_info');
+            const kontextText = document.getElementById('support_kontext_text');
+            if (hilfetextSchluessel) {
+                // Breadcrumb aus Schlüssel generieren
+                kontextText.innerHTML = formatKontextBreadcrumb(hilfetextSchluessel);
+                kontextInfo.classList.remove('d-none');
+            } else {
+                kontextInfo.classList.add('d-none');
+            }
+
+            // Close any open help modal first
+            const openModals = document.querySelectorAll('.modal.show');
+            openModals.forEach(function(modal) {
+                const bsModal = bootstrap.Modal.getInstance(modal);
+                if (bsModal) bsModal.hide();
+            });
+
+            // Open support modal after a brief delay
+            setTimeout(function() {
+                const supportModal = new bootstrap.Modal(document.getElementById('supportQuickCreateModal'));
+                supportModal.show();
+            }, 150);
+        }
     </script>
     {% block scripts %}{% endblock %}
 </body>

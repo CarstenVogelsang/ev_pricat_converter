@@ -1,12 +1,18 @@
 {% extends "base.html" %}
 {% from "macros/module_header.html" import module_header %}
-{% from "macros/help.html" import help_icon with context %}
+{% from "macros/help.html" import help_icon_with_support with context %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}{{ kunde.firmierung }} - {{ branding.app_title }}{% endblock %}
 
 {% set module = module_colors.get('kunden', {'color_hex': '#198754', 'icon': 'ti-users'}) %}
 
 {% block content %}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Kunden', 'url': url_for('kunden.liste'), 'icon': 'ti-users'},
+    {'label': kunde.firmierung}
+]) }}
 <style>
 /* Größere Badges für Branchen und Verbände */
 .branche-wrapper {
@@ -69,8 +75,7 @@
 {% call module_header(
     title=kunde.firmierung,
     icon=module.icon,
-    color_hex=module.color_hex,
-    breadcrumb={'url': url_for('kunden.liste'), 'label': 'Zur Liste'}
+    color_hex=module.color_hex
 ) %}
     {% if current_user.is_internal %}
     <a href="{{ url_for('kunden.projekt', id=kunde.id) }}" class="btn btn-primary">
@@ -94,7 +99,7 @@
     <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="ti ti-building"></i> Stammdaten {{ help_icon('kunden.detail.stammdaten') }}</span>
+                <span><i class="ti ti-building"></i> Stammdaten {{ help_icon_with_support('kunden.detail.stammdaten') }}</span>
             </div>
             <div class="card-body">
                 <dl class="row mb-0">
@@ -308,7 +313,7 @@
         <!-- Branchen Card (Unterbranchen) -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="ti ti-category"></i> Unterbranchen {{ help_icon('kunden.detail.branchen') }}</span>
+                <span><i class="ti ti-category"></i> Unterbranchen {{ help_icon_with_support('kunden.detail.branchen') }}</span>
                 {% if kunde.hauptbranche %}
                 <span class="badge bg-primary"><i class="ti ti-{{ kunde.hauptbranche.icon }}"></i> {{ kunde.hauptbranche.name }}</span>
                 {% endif %}
@@ -370,7 +375,7 @@
         <!-- Verbände Card -->
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="ti ti-building-community"></i> Verbände {{ help_icon('kunden.detail.verbaende') }}</span>
+                <span><i class="ti ti-building-community"></i> Verbände {{ help_icon_with_support('kunden.detail.verbaende') }}</span>
             </div>
             <div class="card-body">
                 <div class="d-flex flex-wrap gap-2" id="verbaende-container">
@@ -407,7 +412,7 @@
     <div class="col-md-6">
         <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
-                <span><i class="ti ti-palette"></i> Corporate Identity {{ help_icon('kunden.detail.ci') }}</span>
+                <span><i class="ti ti-palette"></i> Corporate Identity {{ help_icon_with_support('kunden.detail.ci') }}</span>
                 <div>
                     {% if kunde.ci and kunde.ci.raw_response %}
                     <button type="button" class="btn btn-sm btn-outline-secondary me-2"

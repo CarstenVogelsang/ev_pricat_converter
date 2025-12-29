@@ -1,0 +1,121 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ 'Hersteller bearbeiten' if hersteller.id else 'Neuer Hersteller' }} - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Hersteller', 'url': url_for('admin.hersteller'), 'icon': 'ti-building-factory'},
+    {'label': hersteller.kurzbezeichnung if hersteller.id else 'Neuer Hersteller'}
+]) }}
+
+<form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Header mit Aktionen #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="ti ti-building-factory" style="color: #fd7e14;"></i>
+            {{ 'Hersteller bearbeiten' if hersteller.id else 'Neuen Hersteller anlegen' }}
+        </h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.hersteller') }}" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left me-1"></i> Zurück
+            </a>
+            {% if hersteller.id %}
+            <button type="button" class="btn btn-outline-danger"
+                    onclick="if(confirm('Möchten Sie diesen Hersteller wirklich löschen? Alle zugehörigen Marken werden ebenfalls gelöscht!')) { document.getElementById('deleteForm').submit(); }">
+                <i class="ti ti-trash me-1"></i> Löschen
+            </button>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+                <i class="ti ti-device-floppy me-1"></i> Speichern
+            </button>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Stammdaten #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-id me-1"></i> Stammdaten
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="kurzbezeichnung" class="form-label">Kurzbezeichnung <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="kurzbezeichnung" name="kurzbezeichnung"
+                           value="{{ hersteller.kurzbezeichnung or '' }}" required maxlength="40">
+                    <div class="form-text">Name des Herstellers (max. 40 Zeichen)</div>
+                </div>
+                <div class="col-md-6">
+                    <label for="gln" class="form-label">GLN (Global Location Number) <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="gln" name="gln"
+                           value="{{ hersteller.gln or '' }}" required maxlength="13"
+                           pattern="[0-9]{13}" title="13-stellige Zahl"
+                           {{ 'readonly' if hersteller.id else '' }}>
+                    {% if hersteller.id %}
+                    <div class="form-text">GLN kann nach Anlage nicht mehr geändert werden.</div>
+                    {% else %}
+                    <div class="form-text">13-stellige GLN des Herstellers</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="vedes_id" class="form-label">VEDES-ID</label>
+                    <input type="text" class="form-control" id="vedes_id" name="vedes_id"
+                           value="{{ hersteller.vedes_id or '' }}" maxlength="13">
+                    <div class="form-text">VEDES-ID des Herstellers (optional)</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if hersteller.id and hersteller.marken.count() > 0 %}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Zugehörige Marken #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <i class="ti ti-tag me-1"></i> Zugehörige Marken ({{ hersteller.marken.count() }})
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm mb-0">
+                <thead>
+                    <tr>
+                        <th>Markenname</th>
+                        <th>GLN evendo</th>
+                        <th class="text-end">Aktionen</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for marke in hersteller.marken.all() %}
+                    <tr>
+                        <td>{{ marke.kurzbezeichnung }}</td>
+                        <td><code>{{ marke.gln_evendo or '-' }}</code></td>
+                        <td class="text-end">
+                            <a href="{{ url_for('admin.marke_form', id=marke.id) }}"
+                               class="btn btn-sm btn-outline-secondary" title="Marke bearbeiten">
+                                <i class="ti ti-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+
+</form>
+
+{% if hersteller.id %}
+<form id="deleteForm" action="{{ url_for('admin.hersteller_delete', id=hersteller.id) }}" method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}
+{% endblock %}

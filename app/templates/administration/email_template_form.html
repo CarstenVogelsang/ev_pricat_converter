@@ -112,10 +112,6 @@
                 <button type="submit" class="btn btn-primary btn-lg">
                     <i class="ti ti-device-floppy"></i> Speichern
                 </button>
-                <button type="button" class="btn btn-outline-primary"
-                        data-bs-toggle="modal" data-bs-target="#testEmailModal">
-                    <i class="ti ti-send"></i> Test-E-Mail senden
-                </button>
                 <a href="{{ url_for('admin.email_templates') }}" class="btn btn-outline-secondary">
                     Abbrechen
                 </a>
@@ -123,41 +119,4 @@
         </div>
     </div>
 </form>
-
-<!-- Test-E-Mail Modal (AUSSERHALB des Hauptformulars!) -->
-<div class="modal fade" id="testEmailModal" tabindex="-1" aria-labelledby="testEmailModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <form method="post" action="{{ url_for('admin.email_template_send_test', id=template.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="testEmailModalLabel">
-                        <i class="ti ti-send"></i> Test-E-Mail senden
-                    </h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-                </div>
-                <div class="modal-body">
-                    <p class="text-muted">
-                        Sendet dieses Template mit Beispieldaten an den ausgewählten Empfänger.
-                    </p>
-                    <div class="mb-3">
-                        <label class="form-label">Empfänger</label>
-                        <select class="form-select" name="test_user_id" required>
-                            <option value="">-- Empfänger wählen --</option>
-                            {% for user in all_users %}
-                            <option value="{{ user.id }}">{{ user.full_name }} ({{ user.email }})</option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ti ti-send"></i> Senden
-                    </button>
-                </div>
-            </form>
-        </div>
-    </div>
-</div>
 {% endblock %}

@@ -1,9 +1,15 @@
 {% extends "administration/base.html" %}
 {% from "macros/admin_tile.html" import admin_tile %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}Einstellungen - Administration{% endblock %}
 
 {% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Einstellungen', 'icon': 'ti-adjustments'}
+]) }}
+
 <h4 class="mb-4"><i class="ti ti-adjustments me-2"></i>Einstellungen</h4>
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
@@ -55,6 +61,13 @@
         'ti-database',
         url_for('dbadmin.index'),
         color_hex='#dc3545'
+    ) }}
+    {{ admin_tile(
+        'Support-Dashboard',
+        'Support-Tickets und Teams verwalten',
+        'ti-headset',
+        url_for('support_admin.dashboard'),
+        color_hex='#17a2b8'
     ) }}
 </div>
 

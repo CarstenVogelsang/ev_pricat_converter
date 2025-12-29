@@ -21,6 +21,10 @@ class User(UserMixin, db.Model):
     last_login = db.Column(db.DateTime)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
+    # Anrede/Briefanrede settings (personenbezogen)
+    anrede = db.Column(db.String(20), nullable=True)  # herr, frau, divers
+    kommunikation_stil = db.Column(db.String(20), nullable=True)  # NULL = Kunde-Default
+
     # NEW: 1:N relationship to Kunden via junction table
     kunde_zuordnungen = db.relationship(
         'KundeBenutzer',
@@ -96,6 +100,8 @@ class User(UserMixin, db.Model):
             'email': self.email,
             'vorname': self.vorname,
             'nachname': self.nachname,
+            'anrede': self.anrede,
+            'kommunikation_stil': self.kommunikation_stil,
             'rolle': self.rolle,
             'rolle_id': self.rolle_id,
             'aktiv': self.aktiv,

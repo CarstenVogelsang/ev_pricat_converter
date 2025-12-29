@@ -1,10 +1,22 @@
 {% extends "administration/base.html" %}
 {% from "macros/admin_tile.html" import admin_tile %}
+{% from "macros/admin_group.html" import admin_group_header with context %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}Stammdaten - Administration{% endblock %}
 
 {% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'icon': 'ti-database'}
+]) }}
+
 <h4 class="mb-4"><i class="ti ti-database me-2"></i>Stammdaten verwalten</h4>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Gruppe 1: Benutzerverwaltung (Lila #6f42c1) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{{ admin_group_header('Benutzerverwaltung', 'users', '#6f42c1', 'docs/prd/PRD_BASIS_RECHTEVERWALTUNG.md') }}
 
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
     {{ admin_tile(
@@ -15,28 +27,185 @@
         color_hex='#6f42c1'
     ) }}
     {{ admin_tile(
+        'Rollen',
+        'Benutzerrollen (Admin, Mitarbeiter, Kunde)',
+        'ti-shield-check',
+        url_for('admin.rollen'),
+        color_hex='#8b5cf6'
+    ) }}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Gruppe 2: Kundenmanagement (Blau #0d6efd) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{{ admin_group_header('Kundenmanagement', 'building-store', '#0d6efd', 'docs/prd/PRD_BASIS_MVP.md') }}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
+        'Kunden',
+        'Kundenstammdaten verwalten',
+        'ti-building-store',
+        url_for('kunden.liste'),
+        color_hex='#0d6efd'
+    ) }}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Gruppe 3: Support (Pink #e91e8c) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{{ admin_group_header('Support', 'headset', '#e91e8c', 'docs/prd/module/PRD-007-anwender-support/PRD-007-anwender-support.md') }}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
+        'Support-Teams',
+        'Team-Verwaltung für Support-Tickets',
+        'ti-users',
+        url_for('support_admin.teams'),
+        color_hex='#e91e8c'
+    ) }}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Gruppe 4: Partner & Marken (Orange #fd7e14) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{{ admin_group_header('Partner & Marken', 'building-store', '#fd7e14') }}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
+        'Lieferanten',
+        'Lieferanten verwalten (GLN, VEDES-ID)',
+        'ti-truck',
+        url_for('admin.lieferanten'),
+        color_hex='#fd7e14'
+    ) }}
+    {{ admin_tile(
+        'Hersteller',
+        'Hersteller verwalten (GLN, Marken)',
+        'ti-building-factory',
+        url_for('admin.hersteller'),
+        color_hex='#f97316'
+    ) }}
+    {{ admin_tile(
+        'Marken',
+        'Marken verwalten (Hersteller-Zuordnung)',
+        'ti-tag',
+        url_for('admin.marken'),
+        color_hex='#ea580c'
+    ) }}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Gruppe 5: Klassifikation (Türkis #20c997) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{{ admin_group_header('Klassifikation', 'category', '#20c997', 'docs/prd/PRD_Branchenmodell_V2.md') }}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
         'Branchen',
         'Branchenkatalog für Kundenzuordnung',
         'ti-category',
         url_for('admin.branchen'),
-        color_hex='#fd7e14'
+        color_hex='#20c997'
     ) }}
     {{ admin_tile(
         'Branchenrollen',
         'Rollen wie Händler, Hersteller, etc.',
         'ti-tags',
         url_for('admin.branchenrollen'),
-        color_hex='#20c997'
+        color_hex='#14b8a6'
     ) }}
     {{ admin_tile(
         'Verbände',
         'Verbandszugehörigkeiten verwalten',
         'ti-building-community',
         url_for('admin.verbaende'),
-        color_hex='#0d6efd'
+        color_hex='#0d9488'
     ) }}
 </div>
 
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Gruppe 6: Produktdaten (Mintgrün #198754) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{{ admin_group_header('Produktdaten', 'package', '#198754', 'docs/prd/module/PRD-009-produktdaten/PRD-009-produktdaten.md') }}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
+        'Produkte',
+        'Produktstammdaten verwalten',
+        'ti-box',
+        url_for('admin.produkte'),
+        color_hex='#198754'
+    ) }}
+    {{ admin_tile(
+        'Produkt-Codelisten',
+        'Länder, Währungen, Batterien, etc.',
+        'ti-list-numbers',
+        url_for('admin.produkt_lookup'),
+        color_hex='#16a34a'
+    ) }}
+    {{ admin_tile(
+        'Attributgruppen',
+        '5-Ebenen Produktklassifikation',
+        'ti-hierarchy-3',
+        url_for('admin.attributgruppen'),
+        color_hex='#15803d'
+    ) }}
+    {{ admin_tile(
+        'Eigenschaften',
+        'Produkt-Eigenschafts-Definitionen',
+        'ti-forms',
+        url_for('admin.eigenschaft_definitionen'),
+        color_hex='#166534'
+    ) }}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Gruppe 7: System (Grau #6c757d) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{{ admin_group_header('System', 'settings', '#6c757d', 'docs/prd/PRD_BASIS_MVP.md') }}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
+        'Lookup-Werte',
+        'Konfigurierbare Schlüssel-Wert-Paare',
+        'ti-list-details',
+        url_for('admin.lookup_werte'),
+        color_hex='#6c757d'
+    ) }}
+    {{ admin_tile(
+        'Systemkonfiguration',
+        'Systemweite Einstellungen verwalten',
+        'ti-adjustments',
+        url_for('admin.config'),
+        color_hex='#52525b'
+    ) }}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Gruppe 8: Kommunikation (Indigo #6610f2) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{{ admin_group_header('Kommunikation', 'mail', '#6610f2', 'docs/prd/core/PRD-005-hilfetexte/PRD-005-hilfetexte.md') }}
+
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {{ admin_tile(
+        'Email-Templates',
+        'Email-Vorlagen für System-Nachrichten',
+        'ti-template',
+        url_for('admin.email_templates'),
+        color_hex='#6610f2'
+    ) }}
+    {{ admin_tile(
+        'Hilfetexte',
+        'Kontexthilfen für die Anwendung',
+        'ti-help-circle',
+        url_for('admin.hilfetexte'),
+        color_hex='#7c3aed'
+    ) }}
+</div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Styles #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
 <style>
     .admin-tile {
         transition: transform 0.2s, box-shadow 0.2s;
@@ -49,4 +218,63 @@
         min-height: 120px;
     }
 </style>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# PRD Modal (nur für Admin) #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{% if current_user.rolle == 'admin' %}
+<div class="modal fade" id="prdModal" tabindex="-1" aria-labelledby="prdModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="prdModalLabel">
+                    <i class="ti ti-file-text me-2"></i>PRD Dokumentation
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body" id="prdModalContent">
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Lädt...</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Schließen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const prdModal = document.getElementById('prdModal');
+    if (prdModal) {
+        prdModal.addEventListener('show.bs.modal', function(event) {
+            const button = event.relatedTarget;
+            const prdPath = button.getAttribute('data-prd-path');
+            const modalContent = document.getElementById('prdModalContent');
+
+            // Loading indicator
+            modalContent.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary" role="status"><span class="visually-hidden">Lädt...</span></div></div>';
+
+            // Fetch PRD content
+            fetch('/admin/api/prd-content?path=' + encodeURIComponent(prdPath))
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('PRD konnte nicht geladen werden');
+                    }
+                    return response.text();
+                })
+                .then(html => {
+                    modalContent.innerHTML = html;
+                })
+                .catch(error => {
+                    modalContent.innerHTML = '<div class="alert alert-danger"><i class="ti ti-alert-circle me-2"></i>' + error.message + '</div>';
+                });
+        });
+    }
+});
+</script>
+{% endif %}
 {% endblock %}

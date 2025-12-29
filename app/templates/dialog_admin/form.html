@@ -1,21 +1,25 @@
 {% extends "base.html" %}
 {% from "macros/help.html" import help_icon with context %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}{% if fragebogen %}Fragebogen bearbeiten{% else %}Neuer Fragebogen{% endif %} - {{ super() }}{% endblock %}
 
 {% block content %}
 <div class="container py-4">
-    <nav aria-label="breadcrumb" class="mb-3">
-        <ol class="breadcrumb">
-            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.index') }}">Fragebögen</a></li>
-            {% if fragebogen %}
-            <li class="breadcrumb-item"><a href="{{ url_for('dialog_admin.detail', id=fragebogen.id) }}">{{ fragebogen.titel }}</a></li>
-            <li class="breadcrumb-item active">Bearbeiten</li>
-            {% else %}
-            <li class="breadcrumb-item active">Neu</li>
-            {% endif %}
-        </ol>
-    </nav>
+    {% if fragebogen %}
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden-Dialog', 'url': url_for('dialog_admin.index'), 'icon': 'ti-messages'},
+        {'label': fragebogen.titel, 'url': url_for('dialog_admin.detail', id=fragebogen.id)},
+        {'label': 'Bearbeiten'}
+    ]) }}
+    {% else %}
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden-Dialog', 'url': url_for('dialog_admin.index'), 'icon': 'ti-messages'},
+        {'label': 'Neuer Fragebogen'}
+    ]) }}
+    {% endif %}
 
     {% if fragebogen and fragebogen.vorgaenger %}
     <div class="alert alert-primary d-flex align-items-center mb-4">

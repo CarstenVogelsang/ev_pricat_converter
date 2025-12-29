@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "macros/icon_picker.html" import icon_picker_offcanvas %}
 
 {% block content %}
 <div class="container-fluid py-4">
@@ -40,4 +41,11 @@
         {% block admin_content %}{% endblock %}
     </div>
 </div>
+
+{# Icon Picker Offcanvas (für alle Admin-Seiten verfügbar) #}
+{{ icon_picker_offcanvas() }}
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/icon-picker.js') }}"></script>
 {% endblock %}

@@ -1,8 +1,15 @@
 {% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}E-Mail-Templates - {{ super() }}{% endblock %}
 
 {% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Einstellungen', 'url': url_for('admin.einstellungen_uebersicht')},
+    {'label': 'E-Mail-Templates', 'icon': 'ti-mail'}
+]) }}
+
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="ti ti-mail"></i> E-Mail-Templates</h2>
 </div>

@@ -6,6 +6,15 @@ Alle Änderungen am PRICAT Converter Modul.
 
 ## [Unreleased]
 
+### Changed
+
+- **Route umbenannt:** `/lieferanten` → `/pricat-converter`
+  - Konsistent mit Dashboard-Kachel "PRICAT Converter"
+  - Template umbenannt: `index.html` → `pricat_converter.html`
+  - Alle `url_for()`-Referenzen aktualisiert
+  - Modul-Datenbank-Eintrag `route_endpoint` auf `main.pricat_converter` geändert
+  - Grund: Die Route `/lieferanten` wird jetzt für die allgemeine Lieferanten-Stammdatenverwaltung benötigt
+
 ### Added
 
 - PRICAT Admin: Neue Card "Bild-Download Einstellungen" mit Link zu Systemeinstellungen

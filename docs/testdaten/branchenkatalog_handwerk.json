@@ -1,0 +1,82 @@
+{
+  "meta": {
+    "source": "unternehmensdaten.org",
+    "version": "1.0",
+    "export_date": "2025-12-12T14:30:00Z",
+    "type": "branchenkatalog",
+    "description": "Branchenkatalog für Handwerksbetriebe"
+  },
+  "hauptbranche": {
+    "uuid": "cat-handwerk-001",
+    "name": "HANDWERK",
+    "slug": "handwerk",
+    "icon": "fas fa-tools"
+  },
+  "unterbranchen": [
+    {
+      "uuid": "hw-elektro-001",
+      "name": "Elektroinstallation",
+      "slug": "elektroinstallation",
+      "icon": "fas fa-bolt",
+      "sortierung": 10,
+      "rollen": ["hersteller", "grosshaendler", "einzelhandel_stationaer"]
+    },
+    {
+      "uuid": "hw-sanitaer-001",
+      "name": "Sanitär & Heizung",
+      "slug": "sanitaer-heizung",
+      "icon": "fas fa-faucet",
+      "sortierung": 20,
+      "rollen": ["hersteller", "grosshaendler", "einzelhandel_stationaer"]
+    },
+    {
+      "uuid": "hw-tischler-001",
+      "name": "Tischlerei & Schreinerei",
+      "slug": "tischlerei",
+      "icon": "fas fa-hammer",
+      "sortierung": 30,
+      "rollen": ["hersteller", "einzelhandel_stationaer"]
+    },
+    {
+      "uuid": "hw-maler-001",
+      "name": "Maler & Lackierer",
+      "slug": "maler-lackierer",
+      "icon": "fas fa-paint-roller",
+      "sortierung": 40,
+      "rollen": ["hersteller", "grosshaendler", "einzelhandel_stationaer"]
+    },
+    {
+      "uuid": "hw-dach-001",
+      "name": "Dachdecker & Zimmerei",
+      "slug": "dachdecker",
+      "icon": "fas fa-house-chimney",
+      "sortierung": 50,
+      "rollen": ["hersteller", "grosshaendler", "einzelhandel_stationaer"]
+    },
+    {
+      "uuid": "hw-metall-001",
+      "name": "Metallbau & Schlosserei",
+      "slug": "metallbau",
+      "icon": "fas fa-wrench",
+      "sortierung": 60,
+      "rollen": ["hersteller", "grosshaendler", "einzelhandel_stationaer"]
+    },
+    {
+      "uuid": "hw-kfz-001",
+      "name": "KFZ-Werkstätten",
+      "slug": "kfz-werkstatt",
+      "icon": "fas fa-car",
+      "sortierung": 70,
+      "rollen": ["hersteller", "grosshaendler", "einzelhandel_stationaer"]
+    },
+    {
+      "uuid": "hw-friseur-001",
+      "name": "Friseur & Kosmetik",
+      "slug": "friseur-kosmetik",
+      "icon": "fas fa-scissors",
+      "sortierung": 80,
+      "rollen": ["hersteller", "grosshaendler", "einzelhandel_stationaer", "einzelhandel_online", "filialist"]
+    }
+  ],
+  "rollen_katalog": []
+}

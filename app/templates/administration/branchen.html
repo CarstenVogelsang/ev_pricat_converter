@@ -1,8 +1,16 @@
 {% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+{% from "macros/icon_picker.html" import icon_input %}
 
 {% block title %}Branchen - Administration - {{ branding.app_title }}{% endblock %}
 
 {% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Branchen', 'icon': 'ti-category'}
+]) }}
+
 <style>
 .drag-handle {
     cursor: grab;
@@ -221,15 +229,7 @@ tr.sortable-chosen {
                         <div class="form-text">Empfehlung: Großbuchstaben für bessere Unterscheidung</div>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Icon (Tabler Icon)</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-folder" id="new-hb-icon-preview"></i></span>
-                            <input type="text" class="form-control" name="icon" value="folder"
-                                   id="new-hb-icon" placeholder="z.B. building, briefcase">
-                        </div>
-                        <div class="form-text">
-                            <a href="https://tabler.io/icons" target="_blank">Tabler Icons</a> - ohne "ti-" Prefix
-                        </div>
+                        {{ icon_input('icon', 'folder', 'new-hb-icon', 'ti-folder', 'Icon (Tabler Icon)', strip_prefix=true) }}
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -263,15 +263,7 @@ tr.sortable-chosen {
                                placeholder="z.B. Spielwaren">
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Icon (Tabler Icon)</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-category" id="new-ub-icon-preview"></i></span>
-                            <input type="text" class="form-control" name="icon" value="category"
-                                   id="new-ub-icon" placeholder="z.B. lego, train, bike">
-                        </div>
-                        <div class="form-text">
-                            <a href="https://tabler.io/icons" target="_blank">Tabler Icons</a> - ohne "ti-" Prefix
-                        </div>
+                        {{ icon_input('icon', 'category', 'new-ub-icon', 'ti-category', 'Icon (Tabler Icon)', strip_prefix=true) }}
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -305,11 +297,7 @@ tr.sortable-chosen {
                         <input type="text" class="form-control" name="name" value="{{ hb.name }}" required>
                     </div>
                     <div class="mb-3">
-                        <label class="form-label">Icon</label>
-                        <div class="input-group">
-                            <span class="input-group-text"><i class="ti ti-{{ hb.icon }}"></i></span>
-                            <input type="text" class="form-control" name="icon" value="{{ hb.icon }}">
-                        </div>
+                        {{ icon_input('icon', hb.icon, 'edit-hb-icon-' ~ hb.id, 'ti-folder', 'Icon', strip_prefix=true) }}
                     </div>
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv-hb-{{ hb.id }}"
@@ -393,11 +381,7 @@ tr.sortable-chosen {
                                 <input type="text" class="form-control" name="name" value="{{ ub.name }}" required>
                             </div>
                             <div class="mb-3">
-                                <label class="form-label">Icon</label>
-                                <div class="input-group">
-                                    <span class="input-group-text"><i class="ti ti-{{ ub.icon }}"></i></span>
-                                    <input type="text" class="form-control" name="icon" value="{{ ub.icon }}">
-                                </div>
+                                {{ icon_input('icon', ub.icon, 'edit-ub-icon-' ~ ub.id, 'ti-category', 'Icon', strip_prefix=true) }}
                             </div>
                             <div class="form-check">
                                 <input class="form-check-input" type="checkbox" name="aktiv" id="aktiv-ub-{{ ub.id }}"
@@ -442,17 +426,6 @@ tr.sortable-chosen {
 <!-- SortableJS for drag & drop sorting -->
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
 <script>
-// Live Icon Previews
-document.querySelectorAll('[id$="-icon"]').forEach(function(input) {
-    input.addEventListener('input', function() {
-        const previewId = this.id + '-preview';
-        const preview = document.getElementById(previewId);
-        if (preview) {
-            preview.className = 'ti ti-' + this.value;
-        }
-    });
-});
-
 // Drag & Drop Sorting for Unterbranchen
 document.addEventListener('DOMContentLoaded', function() {
     const tbody = document.getElementById('unterbranchen-tbody');

@@ -35,38 +35,4 @@
     {% endfor %}
 </div>
 
-{% if current_user.is_admin %}
-<hr class="my-5">
-
-<div class="mb-4">
-    <h4><i class="ti ti-settings"></i> Administration</h4>
-</div>
-
-<div class="row row-cols-1 row-cols-md-2 row-cols-lg-4 g-3">
-    <div class="col">
-        <a href="{{ url_for('admin.index') }}" class="card text-decoration-none h-100">
-            <div class="card-body text-center">
-                <i class="ti ti-dashboard fs-1 text-secondary mb-2"></i>
-                <h6 class="card-title mb-0">Admin Dashboard</h6>
-            </div>
-        </a>
-    </div>
-    <div class="col">
-        <a href="{{ url_for('admin.branding') }}" class="card text-decoration-none h-100">
-            <div class="card-body text-center">
-                <i class="ti ti-palette fs-1 text-secondary mb-2"></i>
-                <h6 class="card-title mb-0">Branding</h6>
-            </div>
-        </a>
-    </div>
-    <div class="col">
-        <a href="{{ url_for('dbadmin.index') }}" class="card text-decoration-none h-100">
-            <div class="card-body text-center">
-                <i class="ti ti-database fs-1 text-secondary mb-2"></i>
-                <h6 class="card-title mb-0">DB Admin</h6>
-            </div>
-        </a>
-    </div>
-</div>
-{% endif %}
 {% endblock %}

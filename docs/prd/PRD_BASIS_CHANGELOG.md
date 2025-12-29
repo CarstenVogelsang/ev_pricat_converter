@@ -12,6 +12,30 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Added
 
+- **Stammdaten-CRUD für Partner & Marken:** Vollständige CRUD-Administration für Geschäftspartner
+  - **Lieferanten:** `/admin/lieferanten` mit Liste, Formular, Löschen
+    - Felder: Kurzbezeichnung, VEDES-ID (unique), GLN (optional), Aktiv-Status
+    - PRICAT-spezifische Felder (FTP-Pfade, ELENA-URLs) werden nur angezeigt, nicht editiert
+    - PRICAT-Verwaltung erfolgt weiterhin über `/admin/pricat/`
+  - **Hersteller:** `/admin/hersteller` mit Liste, Formular, Löschen
+    - Felder: Kurzbezeichnung, GLN (unique, Pflicht), VEDES-ID (optional)
+    - Anzeige der zugehörigen Marken im Formular
+    - Kaskaden-Löschung: Löscht auch zugehörige Marken
+  - **Marken:** `/admin/marken` mit Liste, Formular, Löschen
+    - Felder: Kurzbezeichnung, Hersteller (Dropdown)
+    - GLN evendo wird automatisch generiert: `{Hersteller.GLN}_{laufende_nummer}`
+  - Neue Templates: `lieferant_form.html`, `hersteller.html`, `hersteller_form.html`, `marken.html`, `marke_form.html`
+  - Neue Routes in `admin.py`: `lieferant_form()`, `lieferant_delete()`, `hersteller()`, `hersteller_form()`, `hersteller_delete()`, `marken()`, `marke_form()`, `marke_delete()`
+
+- **Zentraler Tabler Icon Picker:** Wiederverwendbare Icon-Auswahl-Komponente
+  - Offcanvas-Dialog mit ~5000 Tabler Icons
+  - Suchfunktion für schnelle Icon-Suche
+  - Live-Preview im Input-Feld
+  - Jinja2-Macro `icon_input()` für konsistente Integration
+  - Unterstützt Icons mit und ohne `ti-` Prefix (`strip_prefix` Parameter)
+  - Eingebunden in: Branchen, Branchenrollen, Lookup-Werte, Module
+  - Dateien: `macros/icon_picker.html`, `js/icon-picker.js`, `js/tabler-icons-list.json`
+
 - **UI-Konvention: Aktionen-Positionierung:** Dokumentiert in PRD_BASIS_MVP.md
   - Aktionen horizontal unter dem Seitentitel statt in Sidebar
   - Primäre Aktionen als einzelne Buttons
@@ -20,12 +44,24 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Changed
 
+- **Stammdaten-Gruppe umbenannt:** "PRICAT-Stammdaten" → "Partner & Marken"
+  - Icon geändert: `ti-file-spreadsheet` → `ti-building-store`
+  - Kachel-Beschreibungen aktualisiert (ohne PRICAT-Bezug)
+  - PRD-Link entfernt (keine direkte PRD-Zuordnung für allgemeine Stammdaten)
+
 - **Test-E-Mail Button in Vorschaumodus verschoben:** Verbesserter Workflow
   - Button von Bearbeitungsmodus in Vorschaumodus verschoben
   - Test-E-Mail nur verfügbar wenn Kunde für Vorschau ausgewählt
   - Empfänger wählbar: An Kunden senden oder an sich selbst (Admin)
   - Verwendet echte Kundendaten statt Beispieldaten für Platzhalter
   - Dateien: `email_template_form.html`, `email_template_preview.html`, `admin.py`
+
+### Fixed
+
+- **CSRF-Token in Lookup-Werte Admin:** Fehlende CSRF-Tokens hinzugefügt
+  - Delete-Formular: Token-Input hinzugefügt
+  - AJAX-Reorder: X-CSRFToken Header in Fetch-Request
+  - Datei: `templates/administration/lookup_werte.html`
 
 ### Added
 
@@ -192,7 +228,7 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 ### Changed
 
 - **Hilfetexte-System (PRD-005):** Icon-Optimierung und Kontrast-Verbesserungen
-  - Details siehe: `docs/prd/module/PRD-005-hilfetexte/CHANGELOG.md`
+  - Details siehe: `docs/prd/core/PRD-005-hilfetexte/CHANGELOG.md`
 - PRD_BASIS_MVP.md enthält jetzt Tech-Stack, Projektstruktur, Basis-DB-Schema
 - PRD_BASIS_MVP.md: Rollen-Abschnitt gekürzt, Verweis auf PRD_BASIS_RECHTEVERWALTUNG.md
 - PRD_BASIS_MODULVERWALTUNG.md: Rechteverwaltungs-Referenz hinzugefügt

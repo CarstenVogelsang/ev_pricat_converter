@@ -1,0 +1,328 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ 'Produkt bearbeiten' if produkt.id else 'Neues Produkt' }} - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Produkte', 'url': url_for('admin.produkte'), 'icon': 'ti-box'},
+    {'label': produkt.artikelbezeichnung[:30] + '...' if produkt.id and produkt.artikelbezeichnung|length > 30 else (produkt.artikelbezeichnung if produkt.id else 'Neues Produkt')}
+]) }}
+
+<form method="post">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Header mit Aktionen #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">
+            <i class="ti ti-box text-success"></i>
+            {{ 'Produkt bearbeiten' if produkt.id else 'Neues Produkt anlegen' }}
+        </h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('admin.produkte') }}" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left me-1"></i> Zurück
+            </a>
+            {% if produkt.id %}
+            <button type="button" class="btn btn-outline-danger"
+                    onclick="if(confirm('Möchten Sie dieses Produkt wirklich löschen?')) { document.getElementById('deleteForm').submit(); }">
+                <i class="ti ti-trash me-1"></i> Löschen
+            </button>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+                <i class="ti ti-device-floppy me-1"></i> Speichern
+            </button>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Identifikation & Grunddaten #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-barcode me-1"></i> Identifikation & Grunddaten
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="ean" class="form-label">EAN/GTIN <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="ean" name="ean"
+                           value="{{ produkt.ean or '' }}" required maxlength="14"
+                           pattern="[0-9]{8,14}" title="8-14 stellige Zahl"
+                           {{ 'readonly' if produkt.id else '' }}>
+                    {% if produkt.id %}
+                    <div class="form-text">EAN kann nach Anlage nicht mehr geändert werden.</div>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label for="artikelnummer_lieferant" class="form-label">Artikelnummer Lieferant</label>
+                    <input type="text" class="form-control" id="artikelnummer_lieferant"
+                           name="artikelnummer_lieferant" value="{{ produkt.artikelnummer_lieferant or '' }}"
+                           maxlength="35">
+                </div>
+                <div class="col-md-4">
+                    <label for="artikelnummer_hersteller" class="form-label">Artikelnummer Hersteller</label>
+                    <input type="text" class="form-control" id="artikelnummer_hersteller"
+                           name="artikelnummer_hersteller" value="{{ produkt.artikelnummer_hersteller or '' }}"
+                           maxlength="35">
+                </div>
+                <div class="col-12">
+                    <label for="artikelbezeichnung" class="form-label">Artikelbezeichnung <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="artikelbezeichnung" name="artikelbezeichnung"
+                           value="{{ produkt.artikelbezeichnung or '' }}" required maxlength="250">
+                </div>
+                <div class="col-md-6">
+                    <label for="kurzbezeichnung" class="form-label">Kurzbezeichnung</label>
+                    <input type="text" class="form-control" id="kurzbezeichnung" name="kurzbezeichnung"
+                           value="{{ produkt.kurzbezeichnung or '' }}" maxlength="35">
+                </div>
+                <div class="col-md-6">
+                    <label for="status" class="form-label">Status</label>
+                    <select class="form-select" id="status" name="status">
+                        <option value="entwurf" {{ 'selected' if produkt.status == 'entwurf' or not produkt.status else '' }}>Entwurf</option>
+                        <option value="aktiv" {{ 'selected' if produkt.status == 'aktiv' else '' }}>Aktiv</option>
+                        <option value="auslauf" {{ 'selected' if produkt.status == 'auslauf' else '' }}>Auslauf</option>
+                        <option value="archiviert" {{ 'selected' if produkt.status == 'archiviert' else '' }}>Archiviert</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Marke & Hersteller #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-award me-1"></i> Marke & Hersteller
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="markenname" class="form-label">Markenname</label>
+                    <input type="text" class="form-control" id="markenname" name="markenname"
+                           value="{{ produkt.markenname or '' }}" maxlength="35">
+                </div>
+                <div class="col-md-4">
+                    <label for="hersteller_name" class="form-label">Hersteller</label>
+                    <input type="text" class="form-control" id="hersteller_name" name="hersteller_name"
+                           value="{{ produkt.hersteller_name or '' }}" maxlength="35">
+                </div>
+                <div class="col-md-4">
+                    <label for="serienname" class="form-label">Serie</label>
+                    <input type="text" class="form-control" id="serienname" name="serienname"
+                           value="{{ produkt.serienname or '' }}" maxlength="35">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Preise #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-currency-euro me-1"></i> Preise
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="uvpe" class="form-label">UVP (brutto)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="uvpe" name="uvpe"
+                               value="{{ produkt.uvpe or '' }}" step="0.01" min="0">
+                        <span class="input-group-text">{{ produkt.waehrung or 'EUR' }}</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="ekp_netto" class="form-label">EK-Preis (netto)</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="ekp_netto" name="ekp_netto"
+                               value="{{ produkt.ekp_netto or '' }}" step="0.0001" min="0">
+                        <span class="input-group-text">{{ produkt.waehrung or 'EUR' }}</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="mwst_satz" class="form-label">MwSt-Satz</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="mwst_satz" name="mwst_satz"
+                               value="{{ produkt.mwst_satz or '' }}" step="0.01" min="0" max="100">
+                        <span class="input-group-text">%</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="waehrung" class="form-label">Währung</label>
+                    <select class="form-select" id="waehrung" name="waehrung">
+                        <option value="EUR" {{ 'selected' if produkt.waehrung == 'EUR' or not produkt.waehrung else '' }}>EUR</option>
+                        <option value="CHF" {{ 'selected' if produkt.waehrung == 'CHF' else '' }}>CHF</option>
+                        <option value="USD" {{ 'selected' if produkt.waehrung == 'USD' else '' }}>USD</option>
+                        <option value="GBP" {{ 'selected' if produkt.waehrung == 'GBP' else '' }}>GBP</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Logistik & Maße #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-box me-1"></i> Logistik & Maße (Stückebene)
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="stueck_laenge_cm" class="form-label">Länge</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="stueck_laenge_cm" name="stueck_laenge_cm"
+                               value="{{ produkt.stueck_laenge_cm or '' }}" step="0.001" min="0">
+                        <span class="input-group-text">cm</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="stueck_breite_cm" class="form-label">Breite</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="stueck_breite_cm" name="stueck_breite_cm"
+                               value="{{ produkt.stueck_breite_cm or '' }}" step="0.001" min="0">
+                        <span class="input-group-text">cm</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="stueck_hoehe_cm" class="form-label">Höhe</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="stueck_hoehe_cm" name="stueck_hoehe_cm"
+                               value="{{ produkt.stueck_hoehe_cm or '' }}" step="0.001" min="0">
+                        <span class="input-group-text">cm</span>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <label for="stueck_gewicht_kg" class="form-label">Gewicht</label>
+                    <div class="input-group">
+                        <input type="number" class="form-control" id="stueck_gewicht_kg" name="stueck_gewicht_kg"
+                               value="{{ produkt.stueck_gewicht_kg or '' }}" step="0.001" min="0">
+                        <span class="input-group-text">kg</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Klassifikation #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-category me-1"></i> Klassifikation
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="zolltarif_nr" class="form-label">Zolltarifnummer</label>
+                    <input type="text" class="form-control" id="zolltarif_nr" name="zolltarif_nr"
+                           value="{{ produkt.zolltarif_nr or '' }}" maxlength="11"
+                           pattern="[0-9]{8,11}" title="8-11 stellige Zahl">
+                </div>
+                <div class="col-md-6">
+                    <label for="ursprungsland" class="form-label">Ursprungsland (ISO-Code)</label>
+                    <input type="text" class="form-control" id="ursprungsland" name="ursprungsland"
+                           value="{{ produkt.ursprungsland or '' }}" maxlength="2"
+                           placeholder="z.B. DE, CN, US">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Termine #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-calendar me-1"></i> Termine
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label for="lieferbar_ab" class="form-label">Lieferbar ab</label>
+                    <input type="date" class="form-control" id="lieferbar_ab" name="lieferbar_ab"
+                           value="{{ produkt.lieferbar_ab.strftime('%Y-%m-%d') if produkt.lieferbar_ab else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="lieferbar_bis" class="form-label">Lieferbar bis</label>
+                    <input type="date" class="form-control" id="lieferbar_bis" name="lieferbar_bis"
+                           value="{{ produkt.lieferbar_bis.strftime('%Y-%m-%d') if produkt.lieferbar_bis else '' }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="erste_auslieferung" class="form-label">Erste Auslieferung</label>
+                    <input type="date" class="form-control" id="erste_auslieferung" name="erste_auslieferung"
+                           value="{{ produkt.erste_auslieferung.strftime('%Y-%m-%d') if produkt.erste_auslieferung else '' }}">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Beschreibungstexte #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header">
+            <i class="ti ti-file-text me-1"></i> Beschreibungstexte
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-12">
+                    <label for="b2b_kurztext" class="form-label">B2B Kurztext (max. 500 Zeichen)</label>
+                    <textarea class="form-control" id="b2b_kurztext" name="b2b_kurztext" rows="2"
+                              maxlength="500">{{ produkt.b2b_kurztext or '' }}</textarea>
+                </div>
+                <div class="col-12">
+                    <label for="b2c_text" class="form-label">B2C Werbetext (max. 6000 Zeichen)</label>
+                    <textarea class="form-control" id="b2c_text" name="b2c_text" rows="5"
+                              maxlength="6000">{{ produkt.b2c_text or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Footer mit Aktionen (nochmal für lange Formulare) #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="d-flex justify-content-end gap-2 mb-4">
+        <a href="{{ url_for('admin.produkte') }}" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left me-1"></i> Zurück
+        </a>
+        <button type="submit" class="btn btn-primary">
+            <i class="ti ti-device-floppy me-1"></i> Speichern
+        </button>
+    </div>
+</form>
+
+{# Löschen-Form (separate Form für POST) #}
+{% if produkt.id %}
+<form id="deleteForm" method="post" action="{{ url_for('admin.produkt_delete', id=produkt.id) }}" class="d-none">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}
+
+{# Meta-Infos bei bestehendem Produkt #}
+{% if produkt.id %}
+<div class="card bg-light">
+    <div class="card-body small text-muted">
+        <div class="row">
+            <div class="col-md-4">
+                <strong>Erstellt:</strong> {{ produkt.created_at.strftime('%d.%m.%Y %H:%M') if produkt.created_at else '-' }}
+            </div>
+            <div class="col-md-4">
+                <strong>Zuletzt geändert:</strong> {{ produkt.updated_at.strftime('%d.%m.%Y %H:%M') if produkt.updated_at else '-' }}
+            </div>
+            <div class="col-md-4">
+                <strong>Produkt-ID:</strong> {{ produkt.id }}
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

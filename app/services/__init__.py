@@ -23,6 +23,9 @@ from app.services.fragebogen_service import (
     FragebogenService, ValidationResult, EinladungResult, get_fragebogen_service
 )
 
+# Anwender-Support Module (PRD-007)
+from app.services.support_service import SupportService, get_support_service
+
 __all__ = [
     # Parser
     'PricatParser', 'PricatData', 'ArticleData',
@@ -51,4 +54,6 @@ __all__ = [
     'EmailTemplateService', 'get_email_template_service',
     'PasswordService', 'UserCreationResult', 'CredentialsSendResult', 'get_password_service',
     'FragebogenService', 'ValidationResult', 'EinladungResult', 'get_fragebogen_service',
+    # Anwender-Support Module (PRD-007)
+    'SupportService', 'get_support_service',
 ]

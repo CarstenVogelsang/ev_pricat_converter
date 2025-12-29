@@ -1,14 +1,16 @@
 {% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}{{ titel }} - {{ branding.app_title }}{% endblock %}
 
 {% block content %}
-<div class="mb-4">
-    <a href="{{ url_for('kunden.liste') }}" class="text-muted text-decoration-none">
-        <i class="ti ti-arrow-left"></i> Zurück zur Liste
-    </a>
-    <h2 class="mt-2">{{ titel }}</h2>
-</div>
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Kunden', 'url': url_for('kunden.liste'), 'icon': 'ti-users'},
+    {'label': titel}
+]) }}
+
+<h2 class="mb-4">{{ titel }}</h2>
 
 <div class="row">
     <div class="col-md-8">
@@ -107,6 +109,16 @@
                             {% endfor %}
                             <div class="form-text">Wird für die Benutzer-Zuordnung verwendet.</div>
                         </div>
+                    </div>
+
+                    <!-- Kommunikationsstil (Firmen-Standard) -->
+                    <div class="mb-3">
+                        <label for="kommunikation_stil" class="form-label">Kommunikationsstil (Standard)</label>
+                        {{ form.kommunikation_stil(class="form-select" + (" is-invalid" if form.kommunikation_stil.errors else "")) }}
+                        {% for error in form.kommunikation_stil.errors %}
+                        <div class="invalid-feedback">{{ error }}</div>
+                        {% endfor %}
+                        <div class="form-text">Standard für alle Benutzer ohne eigene Einstellung. Die Anrede (Herr/Frau/Divers) wird beim jeweiligen Benutzer gepflegt.</div>
                     </div>
 
                     <div class="mb-3">

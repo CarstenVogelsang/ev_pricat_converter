@@ -1,0 +1,354 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+{% from "macros/icon_picker.html" import icon_input %}
+
+{% block title %}Lookup-Werte - Administration{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Lookup-Werte', 'icon': 'ti-list-details'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="ti ti-list-details me-2"></i>Lookup-Werte</h4>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#createModal">
+        <i class="ti ti-plus me-1"></i> Neuer Eintrag
+    </button>
+</div>
+
+<p class="text-muted mb-4">
+    Konfigurierbare Schlüssel-Wert-Paare für System-Enums wie Ticket-Typen, Status-Werte etc.
+</p>
+
+{% if kategorien %}
+    <!-- Kategorie-Navigation -->
+    <ul class="nav nav-pills mb-4" id="kategorieTabs" role="tablist">
+        {% for kategorie in kategorien %}
+        <li class="nav-item" role="presentation">
+            <button class="nav-link {{ 'active' if loop.first else '' }}"
+                    id="tab-{{ kategorie }}"
+                    data-bs-toggle="pill"
+                    data-bs-target="#content-{{ kategorie }}"
+                    type="button"
+                    role="tab">
+                {{ kategorie }}
+                <span class="badge bg-secondary ms-1">{{ entries_by_kategorie[kategorie]|length }}</span>
+            </button>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <!-- Kategorie-Inhalte -->
+    <div class="tab-content" id="kategorieTabContent">
+        {% for kategorie in kategorien %}
+        <div class="tab-pane fade {{ 'show active' if loop.first else '' }}"
+             id="content-{{ kategorie }}"
+             role="tabpanel">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-category me-1"></i> {{ kategorie }}</span>
+                    <small class="text-muted">{{ entries_by_kategorie[kategorie]|length }} Einträge</small>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Schlüssel</th>
+                                    <th>Wert</th>
+                                    <th style="width: 80px;">Icon</th>
+                                    <th style="width: 100px;">Farbe</th>
+                                    <th style="width: 80px;">Sort.</th>
+                                    <th style="width: 80px;">Status</th>
+                                    <th style="width: 100px;"></th>
+                                </tr>
+                            </thead>
+                            <tbody class="sortable-list" data-kategorie="{{ kategorie }}">
+                                {% for entry in entries_by_kategorie[kategorie] %}
+                                <tr data-id="{{ entry.id }}" class="{{ 'text-muted' if not entry.aktiv else '' }}">
+                                    <td class="sortable-handle text-center" style="cursor: grab;">
+                                        <i class="ti ti-grip-vertical"></i>
+                                    </td>
+                                    <td>
+                                        <code>{{ entry.schluessel }}</code>
+                                    </td>
+                                    <td>{{ entry.wert }}</td>
+                                    <td class="text-center">
+                                        {% if entry.icon %}
+                                        <i class="ti {{ entry.icon }}" title="{{ entry.icon }}"></i>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if entry.farbe %}
+                                        <span class="badge bg-{{ entry.farbe }}">{{ entry.farbe }}</span>
+                                        {% else %}
+                                        <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">{{ entry.sortierung }}</td>
+                                    <td class="text-center">
+                                        {% if entry.aktiv %}
+                                        <span class="badge bg-success">Aktiv</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Inaktiv</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                                onclick="editEntry({{ entry.id }}, '{{ entry.kategorie }}', '{{ entry.schluessel }}', '{{ entry.wert }}', '{{ entry.icon or '' }}', '{{ entry.farbe or '' }}', {{ entry.sortierung }}, {{ 'true' if entry.aktiv else 'false' }})">
+                                            <i class="ti ti-edit"></i>
+                                        </button>
+                                        <form method="post" class="d-inline"
+                                              onsubmit="return confirm('Eintrag wirklich löschen?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <input type="hidden" name="action" value="delete">
+                                            <input type="hidden" name="id" value="{{ entry.id }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                                <i class="ti ti-trash"></i>
+                                            </button>
+                                        </form>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+{% else %}
+    <div class="card">
+        <div class="card-body text-center py-5">
+            <i class="ti ti-database-off fs-1 text-muted mb-3 d-block"></i>
+            <h5 class="text-muted">Keine Lookup-Werte vorhanden</h5>
+            <p class="text-muted">Erstellen Sie den ersten Eintrag, um zu beginnen.</p>
+        </div>
+    </div>
+{% endif %}
+
+<!-- Create Modal -->
+<div class="modal fade" id="createModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="create">
+                <input type="hidden" name="redirect_tab" id="create_redirect_tab" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-plus me-2"></i>Neuer Eintrag</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Kategorie</label>
+                        <input type="text" class="form-control" name="kategorie" required
+                               placeholder="z.B. support_typ, support_status"
+                               list="kategorienList">
+                        <datalist id="kategorienList">
+                            {% for k in kategorien %}
+                            <option value="{{ k }}">
+                            {% endfor %}
+                        </datalist>
+                        <small class="form-text text-muted">Namespace für die Werte</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Schlüssel</label>
+                        <input type="text" class="form-control" name="schluessel" required
+                               placeholder="z.B. offen, bug, kritisch">
+                        <small class="form-text text-muted">Technischer Identifier (lowercase)</small>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Wert (Anzeige)</label>
+                        <input type="text" class="form-control" name="wert" required
+                               placeholder="z.B. Offen, Fehlermeldung, Kritisch">
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ icon_input('icon', '', 'create_icon', 'ti-help', 'Icon (Tabler)') }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Farbe (Bootstrap)</label>
+                            <select class="form-select" name="farbe">
+                                <option value="">- Keine -</option>
+                                <option value="primary">primary</option>
+                                <option value="secondary">secondary</option>
+                                <option value="success">success</option>
+                                <option value="danger">danger</option>
+                                <option value="warning">warning</option>
+                                <option value="info">info</option>
+                                <option value="dark">dark</option>
+                                <option value="light">light</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Sortierung</label>
+                        <input type="number" class="form-control" name="sortierung" value="0">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-check me-1"></i> Erstellen
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form method="post">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="id" id="edit_id">
+                <input type="hidden" name="redirect_tab" id="edit_redirect_tab" value="">
+                <div class="modal-header">
+                    <h5 class="modal-title"><i class="ti ti-edit me-2"></i>Eintrag bearbeiten</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Kategorie</label>
+                        <input type="text" class="form-control" id="edit_kategorie" readonly disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Schlüssel</label>
+                        <input type="text" class="form-control" id="edit_schluessel" readonly disabled>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Wert (Anzeige)</label>
+                        <input type="text" class="form-control" name="wert" id="edit_wert" required>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            {{ icon_input('icon', '', 'edit_icon', 'ti-help', 'Icon (Tabler)') }}
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Farbe (Bootstrap)</label>
+                            <select class="form-select" name="farbe" id="edit_farbe">
+                                <option value="">- Keine -</option>
+                                <option value="primary">primary</option>
+                                <option value="secondary">secondary</option>
+                                <option value="success">success</option>
+                                <option value="danger">danger</option>
+                                <option value="warning">warning</option>
+                                <option value="info">info</option>
+                                <option value="dark">dark</option>
+                                <option value="light">light</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Sortierung</label>
+                            <input type="number" class="form-control" name="sortierung" id="edit_sortierung">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Status</label>
+                            <div class="form-check mt-2">
+                                <input type="checkbox" class="form-check-input" name="aktiv" id="edit_aktiv" value="1">
+                                <label class="form-check-label" for="edit_aktiv">Aktiv</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-device-floppy me-1"></i> Speichern
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+// Initialize Sortable for each category
+document.querySelectorAll('.sortable-list').forEach(function(list) {
+    new Sortable(list, {
+        handle: '.sortable-handle',
+        animation: 150,
+        onEnd: function(evt) {
+            const kategorie = evt.to.dataset.kategorie;
+            const rows = evt.to.querySelectorAll('tr[data-id]');
+            const order = Array.from(rows).map(row => row.dataset.id);
+
+            fetch('{{ url_for("admin.lookup_werte_reorder") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({ order: order })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    console.log('Sortierung gespeichert');
+                } else {
+                    alert('Fehler: ' + data.message);
+                }
+            });
+        }
+    });
+});
+
+function editEntry(id, kategorie, schluessel, wert, icon, farbe, sortierung, aktiv) {
+    document.getElementById('edit_id').value = id;
+    document.getElementById('edit_kategorie').value = kategorie;
+    document.getElementById('edit_schluessel').value = schluessel;
+    document.getElementById('edit_wert').value = wert;
+    document.getElementById('edit_icon').value = icon;
+    document.getElementById('edit_farbe').value = farbe;
+    document.getElementById('edit_sortierung').value = sortierung;
+    document.getElementById('edit_aktiv').checked = aktiv;
+
+    // Set redirect_tab to current category
+    document.getElementById('edit_redirect_tab').value = kategorie;
+
+    // Icon Preview aktualisieren (Funktion aus icon-picker.js)
+    updateIconPreviewFor('edit_icon');
+
+    new bootstrap.Modal(document.getElementById('editModal')).show();
+}
+
+// Activate tab based on URL parameter
+document.addEventListener('DOMContentLoaded', function() {
+    const urlParams = new URLSearchParams(window.location.search);
+    const tabParam = urlParams.get('tab');
+
+    if (tabParam) {
+        // Find and click the matching tab
+        const tabButton = document.getElementById('tab-' + tabParam);
+        if (tabButton) {
+            tabButton.click();
+        }
+    }
+
+    // Set redirect_tab when opening Create modal to current active tab
+    const createModal = document.getElementById('createModal');
+    if (createModal) {
+        createModal.addEventListener('show.bs.modal', function() {
+            const activeTab = document.querySelector('#kategorieTabs .nav-link.active');
+            if (activeTab) {
+                const tabId = activeTab.id.replace('tab-', '');
+                document.getElementById('create_redirect_tab').value = tabId;
+            }
+        });
+    }
+});
+</script>
+{% endblock %}

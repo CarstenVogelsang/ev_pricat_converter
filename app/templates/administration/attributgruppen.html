@@ -1,0 +1,147 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Attributgruppen - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Attributgruppen', 'icon': 'ti-hierarchy-3'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="ti ti-hierarchy-3 text-danger"></i> Produktklassifikation</h2>
+    <span class="badge bg-secondary">{{ hauptkategorien|sum(attribute='anzahl') }} Attributgruppen in {{ hauptkategorien|length }} Hauptkategorien</span>
+</div>
+
+<div class="row">
+    <div class="col-md-4 col-lg-3">
+        <div class="card mb-3">
+            <div class="card-header">
+                <i class="ti ti-search me-1"></i> Suche
+            </div>
+            <div class="card-body">
+                <form method="get">
+                    <div class="input-group">
+                        <input type="text" class="form-control" name="q" value="{{ search }}"
+                               placeholder="Produktgruppe suchen...">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="ti ti-search"></i>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-category me-1"></i> Hauptkategorien (Ebene 1)
+            </div>
+            <div class="list-group list-group-flush">
+                {% for kat in hauptkategorien %}
+                <a href="{{ url_for('admin.attributgruppen', ebene_1=kat.code) }}"
+                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {{ 'active' if kat.code == ebene_1 else '' }}">
+                    <span>
+                        <span class="badge bg-light text-dark me-1">{{ kat.code }}</span>
+                        {{ kat.name }}
+                    </span>
+                    <span class="badge {{ 'bg-light text-dark' if kat.code == ebene_1 else 'bg-secondary' }} rounded-pill">
+                        {{ kat.anzahl }}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8 col-lg-9">
+        {% if search %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="ti ti-search me-1"></i>
+                    Suchergebnisse für "<strong>{{ search }}</strong>"
+                </span>
+                <a href="{{ url_for('admin.attributgruppen') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-x"></i> Suche zurücksetzen
+                </a>
+            </div>
+            {% if eintraege %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>NTG-Schlüssel</th>
+                            <th>Kategoriepfad</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in eintraege %}
+                        <tr>
+                            <td><code>{{ e.ntg_schluessel }}</code></td>
+                            <td>{{ e.vollstaendiger_name }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="card-body text-center py-4">
+                <i class="ti ti-mood-sad text-muted"></i>
+                <p class="text-muted mb-0">Keine Treffer für "{{ search }}"</p>
+            </div>
+            {% endif %}
+        </div>
+
+        {% elif ebene_1 %}
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-list me-1"></i>
+                <strong>{{ hauptkategorien|selectattr('code', 'equalto', ebene_1)|map(attribute='name')|first }}</strong>
+                <span class="text-muted">({{ eintraege|length }} Einträge)</span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>NTG-Schlüssel</th>
+                            <th>Ebene 2</th>
+                            <th>Ebene 3</th>
+                            <th>Ebene 4</th>
+                            <th>Ebene 5</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in eintraege %}
+                        <tr>
+                            <td><code class="text-muted small">{{ e.ntg_schluessel }}</code></td>
+                            <td>{{ e.ebene_2_name or '-' }}</td>
+                            <td>{{ e.ebene_3_name or '-' }}</td>
+                            <td>{{ e.ebene_4_name or '-' }}</td>
+                            <td><strong>{{ e.ebene_5_name or '-' }}</strong></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="ti ti-arrow-left display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">Hauptkategorie auswählen</h4>
+                <p class="text-muted">Wählen Sie eine Hauptkategorie aus der Liste links<br>oder nutzen Sie die Suche.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <i class="ti ti-info-circle me-2"></i>
+    <strong>Info:</strong> Die Attributgruppen definieren eine 5-Ebenen Produkthierarchie nach NTG-Standard.
+    Sie werden zur Klassifikation von Produkten verwendet.
+</div>
+{% endblock %}

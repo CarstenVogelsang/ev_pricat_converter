@@ -1,0 +1,195 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Support-Tickets - Administration{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Support-Tickets', 'icon': 'ti-headset'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="ti ti-headset me-2"></i>Support-Tickets</h4>
+    <a href="{{ url_for('support_admin.teams') }}" class="btn btn-outline-secondary">
+        <i class="ti ti-users me-1"></i> Teams verwalten
+    </a>
+</div>
+
+<!-- Statistiken -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-warning bg-opacity-10 border-warning">
+            <div class="card-body text-center">
+                <h2 class="mb-0 text-warning">{{ stats.offen }}</h2>
+                <small class="text-muted">Offen</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-primary bg-opacity-10 border-primary">
+            <div class="card-body text-center">
+                <h2 class="mb-0 text-primary">{{ stats.in_bearbeitung }}</h2>
+                <small class="text-muted">In Bearbeitung</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-info bg-opacity-10 border-info">
+            <div class="card-body text-center">
+                <h2 class="mb-0 text-info">{{ stats.warte_auf_kunde }}</h2>
+                <small class="text-muted">Wartet auf Kunde</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-success bg-opacity-10 border-success">
+            <div class="card-body text-center">
+                <h2 class="mb-0 text-success">{{ stats.heute_geloest }}</h2>
+                <small class="text-muted">Heute gelöst</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Filter -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-2">
+                <label class="form-label">Status</label>
+                <select name="status" class="form-select form-select-sm">
+                    <option value="">Alle Status</option>
+                    {% for status in TicketStatus %}
+                    <option value="{{ status.value }}" {{ 'selected' if status_filter == status.value else '' }}>
+                        {{ status.get_label(status.value) }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Typ</label>
+                <select name="typ" class="form-select form-select-sm">
+                    <option value="">Alle Typen</option>
+                    {% for typ in TicketTyp %}
+                    <option value="{{ typ.value }}" {{ 'selected' if typ_filter == typ.value else '' }}>
+                        {{ typ.get_label(typ.value) }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Priorität</label>
+                <select name="prioritaet" class="form-select form-select-sm">
+                    <option value="">Alle Prioritäten</option>
+                    {% for prio in TicketPrioritaet %}
+                    <option value="{{ prio.value }}" {{ 'selected' if prioritaet_filter == prio.value else '' }}>
+                        {{ prio.get_label(prio.value) }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Bearbeiter</label>
+                <select name="bearbeiter" class="form-select form-select-sm">
+                    <option value="">Alle Bearbeiter</option>
+                    {% for member in team_members %}
+                    <option value="{{ member.id }}" {{ 'selected' if bearbeiter_filter == member.id|string else '' }}>
+                        {{ member.vorname }} {{ member.nachname }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <div class="form-check">
+                    <input type="checkbox" class="form-check-input" name="nur_offene" value="1"
+                           id="nur_offene" {{ 'checked' if nur_offene else '' }}>
+                    <label class="form-check-label" for="nur_offene">Nur offene</label>
+                </div>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-sm w-100">
+                    <i class="ti ti-filter"></i> Filtern
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Ticket-Tabelle -->
+<div class="card">
+    <div class="card-header">
+        <i class="ti ti-list"></i> Tickets ({{ tickets|length }})
+    </div>
+    <div class="card-body p-0">
+        {% if tickets %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Nummer</th>
+                        <th>Titel</th>
+                        <th>Typ</th>
+                        <th>Status</th>
+                        <th>Priorität</th>
+                        <th>Ersteller</th>
+                        <th>Bearbeiter</th>
+                        <th>Erstellt</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ticket in tickets %}
+                    <tr>
+                        <td>
+                            <a href="{{ url_for('support_admin.ticket_detail', nummer=ticket.nummer) }}"
+                               class="text-decoration-none fw-bold"
+                               title="Kunden sehen: {{ ticket.nummer_anzeige }}">
+                                {{ ticket.nummer_intern }}
+                            </a>
+                        </td>
+                        <td>
+                            <a href="{{ url_for('support_admin.ticket_detail', nummer=ticket.nummer) }}"
+                               class="text-decoration-none text-dark">
+                                {{ ticket.titel|truncate(40) }}
+                            </a>
+                        </td>
+                        <td>
+                            <i class="{{ ticket.typ_icon }} text-muted"></i>
+                            <span class="small">{{ ticket.typ_label }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ ticket.status_color }}">{{ ticket.status_label }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-{{ ticket.prioritaet_color }}">{{ ticket.prioritaet_label }}</span>
+                        </td>
+                        <td class="small">{{ ticket.ersteller.vorname }} {{ ticket.ersteller.nachname }}</td>
+                        <td class="small">
+                            {% if ticket.bearbeiter %}
+                            {{ ticket.bearbeiter.vorname }} {{ ticket.bearbeiter.nachname }}
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="small text-muted">{{ ticket.erstellt_am.strftime('%d.%m.%Y') }}</td>
+                        <td>
+                            <a href="{{ url_for('support_admin.ticket_detail', nummer=ticket.nummer) }}"
+                               class="btn btn-sm btn-outline-primary">
+                                <i class="ti ti-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="ti ti-inbox fs-1"></i>
+            <p class="mt-2 mb-0">Keine Tickets gefunden.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

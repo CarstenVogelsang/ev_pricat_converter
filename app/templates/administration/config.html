@@ -1,0 +1,76 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Systemkonfiguration - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Systemkonfiguration', 'icon': 'ti-adjustments'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="ti ti-adjustments" style="color: #52525b;"></i> Systemkonfiguration</h2>
+    <span class="badge bg-secondary">{{ configs|length }} Einträge</span>
+</div>
+
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="ti ti-list me-1"></i> Konfigurationswerte</span>
+        <div>
+            <a href="{{ url_for('admin.settings') }}" class="btn btn-sm btn-outline-primary">
+                <i class="ti ti-settings me-1"></i> Einstellungen bearbeiten
+            </a>
+        </div>
+    </div>
+    {% if configs %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Schlüssel</th>
+                    <th>Wert</th>
+                    <th>Kategorie</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for config in configs %}
+                <tr>
+                    <td><code>{{ config.key }}</code></td>
+                    <td>
+                        {% if 'password' in config.key.lower() or 'secret' in config.key.lower() or 'token' in config.key.lower() %}
+                        <span class="text-muted">••••••••</span>
+                        {% elif config.value and config.value|length > 50 %}
+                        {{ config.value[:50] }}...
+                        {% else %}
+                        {{ config.value or '-' }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% set kategorie = config.key.split('_')[0] if '_' in config.key else 'allgemein' %}
+                        <span class="badge bg-light text-dark">{{ kategorie }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card-body text-center py-5">
+        <i class="ti ti-settings-off display-1 text-muted mb-3"></i>
+        <h4 class="text-muted">Keine Konfiguration vorhanden</h4>
+        <p class="text-muted">
+            Die Systemkonfiguration wird über die <a href="{{ url_for('admin.settings') }}">Einstellungen</a> verwaltet.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="alert alert-warning mt-4">
+    <i class="ti ti-alert-triangle me-2"></i>
+    <strong>Hinweis:</strong> Änderungen an der Systemkonfiguration können die Funktionsweise
+    der Anwendung beeinflussen. Verwenden Sie die <a href="{{ url_for('admin.settings') }}">Einstellungen-Seite</a>
+    für sichere Änderungen.
+</div>
+{% endblock %}

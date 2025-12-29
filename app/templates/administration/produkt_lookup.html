@@ -1,0 +1,104 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Produkt-Codelisten - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Produkt-Codelisten', 'icon': 'ti-list-numbers'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="ti ti-list-numbers text-info"></i> Produkt-Codelisten</h2>
+    <span class="badge bg-secondary">{{ kategorien_counts.values()|sum }} Einträge in {{ kategorien_counts|length }} Kategorien</span>
+</div>
+
+<div class="row">
+    <div class="col-md-4 col-lg-3">
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-category me-1"></i> Kategorien
+            </div>
+            <div class="list-group list-group-flush">
+                {% for kat, count in kategorien_counts.items()|sort %}
+                <a href="{{ url_for('admin.produkt_lookup', kategorie=kat) }}"
+                   class="list-group-item list-group-item-action d-flex justify-content-between align-items-center {{ 'active' if kat == kategorie else '' }}">
+                    {{ kat }}
+                    <span class="badge {{ 'bg-light text-dark' if kat == kategorie else 'bg-secondary' }} rounded-pill">
+                        {{ count }}
+                    </span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8 col-lg-9">
+        {% if kategorie %}
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="ti ti-list me-1"></i>
+                    <strong>{{ kategorie }}</strong>
+                    <span class="text-muted">({{ eintraege|length }} Einträge)</span>
+                </span>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead>
+                        <tr>
+                            <th>Code</th>
+                            <th>Bezeichnung</th>
+                            {% if eintraege and eintraege[0].zusatz_1 %}
+                            <th>Zusatz 1</th>
+                            {% endif %}
+                            {% if eintraege and eintraege[0].zusatz_2 %}
+                            <th>Zusatz 2</th>
+                            {% endif %}
+                            <th class="text-center">Aktiv</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for e in eintraege %}
+                        <tr>
+                            <td><code>{{ e.code }}</code></td>
+                            <td>{{ e.bezeichnung }}</td>
+                            {% if eintraege[0].zusatz_1 %}
+                            <td>{{ e.zusatz_1 or '-' }}</td>
+                            {% endif %}
+                            {% if eintraege[0].zusatz_2 %}
+                            <td>{{ e.zusatz_2 or '-' }}</td>
+                            {% endif %}
+                            <td class="text-center">
+                                {% if e.aktiv %}
+                                <i class="ti ti-check text-success"></i>
+                                {% else %}
+                                <i class="ti ti-x text-danger"></i>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {% else %}
+        <div class="card">
+            <div class="card-body text-center py-5">
+                <i class="ti ti-arrow-left display-1 text-muted mb-3"></i>
+                <h4 class="text-muted">Kategorie auswählen</h4>
+                <p class="text-muted">Wählen Sie eine Kategorie aus der Liste links.</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<div class="alert alert-info mt-4">
+    <i class="ti ti-info-circle me-2"></i>
+    <strong>Info:</strong> Die Codelisten stammen aus dem NTG-Standard und wurden per Import-Script geladen.
+    Diese Daten sind read-only und werden bei Bedarf aktualisiert.
+</div>
+{% endblock %}

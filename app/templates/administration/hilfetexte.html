@@ -1,8 +1,15 @@
 {% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
 
 {% block title %}Hilfetexte - Administration - {{ branding.app_title }}{% endblock %}
 
 {% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Einstellungen', 'url': url_for('admin.einstellungen_uebersicht')},
+    {'label': 'Hilfetexte', 'icon': 'ti-help'}
+]) }}
+
 <h2 class="mb-4"><i class="ti ti-help text-primary"></i> Hilfetexte verwalten</h2>
 
 <div class="row">

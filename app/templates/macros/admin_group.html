@@ -1,0 +1,19 @@
+{# Admin-Gruppen-Header Makro für farbliche Strukturierung #}
+{# Verwendet farbigen Hintergrund über volle Breite mit weißem Text #}
+
+{% macro admin_group_header(title, icon, color_hex, prd_path=None) %}
+<div class="d-flex justify-content-between align-items-center mb-3 mt-5 px-3 py-2 rounded"
+     style="background-color: {{ color_hex }};">
+    <h5 class="mb-0 text-white">
+        <i class="ti ti-{{ icon }} me-2"></i>{{ title }}
+    </h5>
+    {% if prd_path and current_user.rolle == 'admin' %}
+    <button type="button" class="btn btn-sm btn-outline-light"
+            data-bs-toggle="modal" data-bs-target="#prdModal"
+            data-prd-path="{{ prd_path }}"
+            title="PRD-Dokumentation anzeigen">
+        <i class="ti ti-code"></i>
+    </button>
+    {% endif %}
+</div>
+{% endmacro %}

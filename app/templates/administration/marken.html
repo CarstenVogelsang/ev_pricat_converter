@@ -1,0 +1,76 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Marken - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Stammdaten', 'url': url_for('admin.stammdaten_uebersicht')},
+    {'label': 'Marken', 'icon': 'ti-tag'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="mb-0"><i class="ti ti-tag" style="color: #fd7e14;"></i> Marken</h2>
+    <div>
+        <span class="badge bg-secondary me-2">{{ marken|length }} Marken</span>
+        <a href="{{ url_for('admin.marke_form') }}" class="btn btn-primary btn-sm">
+            <i class="ti ti-plus me-1"></i> Neu
+        </a>
+    </div>
+</div>
+
+<div class="card">
+    {% if marken %}
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Markenname</th>
+                    <th>Hersteller</th>
+                    <th>GLN evendo</th>
+                    <th class="text-end">Aktionen</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for marke in marken %}
+                <tr>
+                    <td><strong>{{ marke.kurzbezeichnung }}</strong></td>
+                    <td>
+                        {% if marke.hersteller %}
+                        <a href="{{ url_for('admin.hersteller_form', id=marke.hersteller.id) }}">
+                            {{ marke.hersteller.kurzbezeichnung }}
+                        </a>
+                        {% else %}
+                        <span class="text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td><code>{{ marke.gln_evendo }}</code></td>
+                    <td class="text-end">
+                        <a href="{{ url_for('admin.marke_form', id=marke.id) }}"
+                           class="btn btn-sm btn-outline-primary" title="Bearbeiten">
+                            <i class="ti ti-edit"></i>
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <div class="card-body text-center py-5">
+        <i class="ti ti-tag-off display-1 text-muted mb-3"></i>
+        <h4 class="text-muted">Keine Marken vorhanden</h4>
+        <p class="text-muted">
+            Klicken Sie auf "Neu", um eine Marke anzulegen.
+        </p>
+    </div>
+    {% endif %}
+</div>
+
+<div class="alert alert-info mt-4">
+    <i class="ti ti-info-circle me-2"></i>
+    <strong>Hinweis:</strong> Marken werden aus PRICAT-Dateien importiert oder können manuell angelegt werden.
+    Die GLN evendo wird automatisch generiert.
+</div>
+{% endblock %}

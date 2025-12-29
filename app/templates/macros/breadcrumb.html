@@ -1,0 +1,47 @@
+{#
+    Breadcrumb-Navigation Macro (PRD-008)
+
+    Verwendung:
+    {% from "macros/breadcrumb.html" import breadcrumb %}
+
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden', 'url': url_for('kunden.liste'), 'icon': 'ti-users'},
+        {'label': kunde.firmierung}
+    ]) }}
+
+    Parameter:
+    - items: Liste von Dictionaries mit:
+        - label: Anzeigetext (erforderlich)
+        - url: Link-Ziel (optional - fehlt bei letztem Element)
+        - icon: Tabler-Icon Klasse ohne 'ti' Prefix (optional, z.B. 'ti-home')
+
+    Regeln:
+    - Erste Ebene: Immer "Dashboard" mit Link
+    - Letzte Ebene: Aktuelle Seite ohne Link (kein url)
+    - Icons nur für Hauptbereiche (Module)
+#}
+
+{% macro breadcrumb(items) %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb mb-0">
+        {% for item in items %}
+        {% if loop.last %}
+        {# Letztes Element: aktive Seite ohne Link #}
+        <li class="breadcrumb-item active" aria-current="page">
+            {% if item.icon %}<i class="ti {{ item.icon }} me-1"></i>{% endif %}
+            {{ item.label }}
+        </li>
+        {% else %}
+        {# Vorherige Elemente: mit Link #}
+        <li class="breadcrumb-item">
+            <a href="{{ item.url }}" class="text-decoration-none">
+                {% if item.icon %}<i class="ti {{ item.icon }} me-1"></i>{% endif %}
+                {{ item.label }}
+            </a>
+        </li>
+        {% endif %}
+        {% endfor %}
+    </ol>
+</nav>
+{% endmacro %}

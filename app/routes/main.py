@@ -53,10 +53,10 @@ def dashboard():
     return render_template('dashboard.html', apps=apps)
 
 
-@main_bp.route('/lieferanten')
+@main_bp.route('/pricat-converter')
 @login_required
-def lieferanten():
-    """Display list of suppliers with filter."""
+def pricat_converter():
+    """Display list of suppliers for PRICAT conversion."""
     filter_param = request.args.get('filter', 'aktiv')
 
     if filter_param == 'inaktiv':
@@ -70,7 +70,7 @@ def lieferanten():
         titel = 'Aktive Lieferanten'
         filter_param = 'aktiv'
 
-    return render_template('index.html', lieferanten=lieferanten, filter=filter_param, titel=titel)
+    return render_template('pricat_converter.html', lieferanten=lieferanten, filter=filter_param, titel=titel)
 
 
 @main_bp.route('/toggle-aktiv/<int:lieferant_id>', methods=['POST'])
@@ -86,7 +86,7 @@ def toggle_aktiv(lieferant_id):
 
     # Redirect back with current filter
     current_filter = request.form.get('current_filter', 'aktiv')
-    return redirect(url_for('main.lieferanten', filter=current_filter))
+    return redirect(url_for('main.pricat_converter', filter=current_filter))
 
 
 @main_bp.route('/ftp-check/<int:lieferant_id>', methods=['POST'])
@@ -108,7 +108,7 @@ def ftp_check(lieferant_id):
 
     # Redirect back with current filter
     current_filter = request.form.get('current_filter', 'aktiv')
-    return redirect(url_for('main.lieferanten', filter=current_filter))
+    return redirect(url_for('main.pricat_converter', filter=current_filter))
 
 
 @main_bp.route('/verarbeite-lokal/<int:lieferant_id>', methods=['POST'])
@@ -128,7 +128,7 @@ def verarbeite_lokal(lieferant_id):
 
     if not existing:
         flash(f'Keine lokale PRICAT-Datei für {lieferant.kurzbezeichnung} gefunden', 'warning')
-        return redirect(url_for('main.lieferanten'))
+        return redirect(url_for('main.pricat_converter'))
 
     local_pricat = sorted(existing, key=lambda p: p.stat().st_mtime)[-1]
 

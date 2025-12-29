@@ -1,0 +1,80 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Support-Teams - Administration{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Support-Tickets', 'url': url_for('support_admin.dashboard'), 'icon': 'ti-headset'},
+    {'label': 'Teams', 'icon': 'ti-users-group'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="ti ti-users me-2"></i>Support-Teams</h4>
+    <a href="{{ url_for('support_admin.team_erstellen') }}" class="btn btn-primary">
+        <i class="ti ti-plus me-1"></i> Neues Team
+    </a>
+</div>
+
+{% if teams %}
+<div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+    {% for team in teams %}
+    <div class="col">
+        <div class="card h-100 {{ 'border-secondary' if not team.aktiv else '' }}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span>
+                    <i class="{{ team.icon }} me-2"></i>{{ team.name }}
+                </span>
+                {% if not team.aktiv %}
+                <span class="badge bg-secondary">Inaktiv</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if team.beschreibung %}
+                <p class="card-text text-muted small">{{ team.beschreibung }}</p>
+                {% endif %}
+                <div class="mb-3">
+                    <strong>{{ team.mitglieder|length }}</strong>
+                    <span class="text-muted">Mitglieder</span>
+                </div>
+                {% if team.mitglieder %}
+                <div class="d-flex flex-wrap gap-1">
+                    {% for mitglied in team.mitglieder[:5] %}
+                    <span class="badge bg-light text-dark">
+                        {{ mitglied.user.vorname }} {{ mitglied.user.nachname[:1] }}.
+                        {% if mitglied.ist_teamleiter %}
+                        <i class="ti ti-star-filled text-warning"></i>
+                        {% endif %}
+                    </span>
+                    {% endfor %}
+                    {% if team.mitglieder|length > 5 %}
+                    <span class="badge bg-light text-muted">+{{ team.mitglieder|length - 5 }}</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <span class="text-muted small">Keine Mitglieder</span>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('support_admin.team_bearbeiten', team_id=team.id) }}"
+                   class="btn btn-sm btn-outline-primary">
+                    <i class="ti ti-edit"></i> Bearbeiten
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="ti ti-users fs-1 text-muted"></i>
+        <p class="mt-2 mb-3 text-muted">Noch keine Teams angelegt.</p>
+        <a href="{{ url_for('support_admin.team_erstellen') }}" class="btn btn-primary">
+            <i class="ti ti-plus me-1"></i> Erstes Team erstellen
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

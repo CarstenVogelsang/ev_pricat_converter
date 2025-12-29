@@ -18,6 +18,9 @@ class EmailTemplateService:
     - {{ firmenname }} - Customer company name
     - {{ link }} - Action link (magic link, password link, etc.)
     - {{ fragebogen_titel }} - Questionnaire title
+    - {{ briefanrede }} - Automatic salutation (based on customer's kommunikation_stil)
+    - {{ briefanrede_foermlich }} - Formal salutation (Sie-form)
+    - {{ briefanrede_locker }} - Informal salutation (Du-form)
     - {{ portal_name }} - Portal name from branding
     - {{ primary_color }} - Brand primary color
     - {{ logo_url }} - Brand logo URL
@@ -59,9 +62,13 @@ class EmailTemplateService:
         # Load branding
         branding = self.branding_service.get_branding_dict()
 
-        # Build full context with branding and footer
+        # Build full context with branding, footer, and briefanrede
+        # IMPORTANT: Defaults come FIRST, then context spreads LAST to allow overrides
         full_context = {
-            **context,
+            # Briefanrede defaults (can be overridden by context)
+            'briefanrede': kunde.briefanrede if kunde else 'Sehr geehrte Damen und Herren',
+            'briefanrede_foermlich': kunde.briefanrede_foermlich if kunde else 'Sehr geehrte Damen und Herren',
+            'briefanrede_locker': kunde.briefanrede_locker if kunde else 'Hallo',
             # Branding
             'branding': branding,
             'primary_color': branding.get('primary_color', '#0d6efd'),
@@ -71,6 +78,8 @@ class EmailTemplateService:
             'copyright_text': branding.get('copyright_text', ''),
             # Footer
             'footer': self._get_footer(kunde),
+            # Context LAST - allows sample_context to override defaults (e.g., in preview)
+            **context,
         }
 
         try:
@@ -81,6 +90,12 @@ class EmailTemplateService:
             # Render HTML body
             html_template = self._jinja_env.from_string(template.body_html)
             html = html_template.render(full_context)
+
+            # Inject font CSS for Quill classes into <head>
+            font_css = self.branding_service.get_font_css_for_email()
+            if font_css and '<head>' in html:
+                style_block = f'<style type="text/css">\n{font_css}\n</style>\n</head>'
+                html = html.replace('</head>', style_block)
 
             # Render text body (optional)
             text = None
@@ -163,6 +178,10 @@ class EmailTemplateService:
             'email': 'beispiel@example.com',
             'vorname': 'Max',
             'nachname': 'Mustermann',
+            # Briefanrede defaults (will be overridden if kunde is passed)
+            'briefanrede': 'Sehr geehrte Damen und Herren',
+            'briefanrede_foermlich': 'Sehr geehrte Damen und Herren',
+            'briefanrede_locker': 'Hallo zusammen',
         }
 
         context = {**default_sample, **(sample_context or {})}
