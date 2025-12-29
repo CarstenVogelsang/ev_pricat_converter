@@ -12,6 +12,7 @@ from app.models.branche import Branche
 from app.models.verband import Verband
 from app.models.kunde_branche import KundeBranche
 from app.models.kunde_verband import KundeVerband
+from app.models.lieferant_branche import LieferantBranche
 from app.models.help_text import HelpText
 
 # Branchenmodell V2: Rollen-System
@@ -56,7 +57,7 @@ __all__ = [
     'Kunde', 'KundeCI', 'KundeBenutzer',
     'KundeApiNutzung',
     'Branche', 'Verband',
-    'KundeBranche', 'KundeVerband',
+    'KundeBranche', 'KundeVerband', 'LieferantBranche',
     'HelpText',
     # Branchenmodell V2
     'BranchenRolle', 'BrancheBranchenRolle', 'KundeBranchenRolle',

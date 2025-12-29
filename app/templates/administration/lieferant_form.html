@@ -87,6 +87,54 @@
 
     {% if lieferant.id %}
     {# ═══════════════════════════════════════════════════════════════════════════ #}
+    {# Branchen-Zuordnung #}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="ti ti-category me-1"></i> Branchen</span>
+            <span class="badge bg-secondary">{{ lieferant.branchen|length }}/3</span>
+        </div>
+        <div class="card-body">
+            <p class="text-muted small mb-3">
+                <i class="ti ti-click me-1"></i> Klicken zum Zuordnen/Entfernen &bull;
+                <i class="ti ti-mouse me-1"></i> Rechtsklick für Hauptbranche &bull;
+                Max. 3 Branchen
+            </p>
+            <div class="d-flex flex-wrap gap-2">
+                {% for branche in handel_unterbranchen %}
+                {% set ist_zugeordnet = branche.id in zugeordnete_branche_ids %}
+                {% set ist_hauptbranche = lieferant.hauptbranche and lieferant.hauptbranche.id == branche.id %}
+                <button type="button"
+                        class="btn btn-{{ 'primary' if ist_zugeordnet else 'outline-secondary' }} position-relative branche-btn"
+                        style="width: 56px; height: 56px;"
+                        data-branche-id="{{ branche.id }}"
+                        data-bs-toggle="tooltip"
+                        data-bs-placement="top"
+                        title="{{ branche.name }}"
+                        onclick="toggleBranche({{ branche.id }}, {{ 'true' if ist_zugeordnet else 'false' }})"
+                        oncontextmenu="setHauptbranche({{ branche.id }}); return false;">
+                    <i class="ti ti-{{ branche.icon }}" style="font-size: 1.5rem;"></i>
+                    {% if ist_hauptbranche %}
+                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark" style="font-size: 0.65rem;">
+                        H
+                    </span>
+                    {% endif %}
+                </button>
+                {% endfor %}
+            </div>
+            {% if not handel_unterbranchen %}
+            <div class="alert alert-warning mb-0">
+                <i class="ti ti-alert-triangle me-1"></i>
+                Keine HANDEL-Unterbranchen gefunden. Bitte zuerst Branchen unter
+                <a href="{{ url_for('admin.branchen') }}">Administration → Branchen</a> anlegen.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+
+    {% if lieferant.id %}
+    {# ═══════════════════════════════════════════════════════════════════════════ #}
     {# PRICAT-Informationen (nur Anzeige) #}
     {# ═══════════════════════════════════════════════════════════════════════════ #}
     <div class="card mb-4">
@@ -150,5 +198,92 @@
 <form id="deleteForm" action="{{ url_for('admin.lieferant_delete', id=lieferant.id) }}" method="post">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 </form>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# JavaScript für Branchen-Zuordnung #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<script>
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+});
+
+// Toggle branch assignment (left click)
+async function toggleBranche(brancheId, istZugeordnet) {
+    const method = istZugeordnet ? 'DELETE' : 'POST';
+
+    try {
+        const response = await fetch(`/admin/lieferanten/{{ lieferant.id }}/branchen/${brancheId}`, {
+            method: method,
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            showToast('danger', data.error || 'Fehler bei Branchen-Zuordnung');
+        }
+    } catch (error) {
+        showToast('danger', 'Netzwerkfehler: ' + error.message);
+    }
+}
+
+// Set branch as Hauptbranche (right click)
+async function setHauptbranche(brancheId) {
+    try {
+        const response = await fetch(`/admin/lieferanten/{{ lieferant.id }}/branchen/${brancheId}/hauptbranche`, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': '{{ csrf_token() }}',
+                'Content-Type': 'application/json'
+            }
+        });
+
+        const data = await response.json();
+
+        if (response.ok) {
+            location.reload();
+        } else {
+            showToast('danger', data.error || 'Fehler beim Setzen der Hauptbranche');
+        }
+    } catch (error) {
+        showToast('danger', 'Netzwerkfehler: ' + error.message);
+    }
+}
+
+// Toast helper function
+function showToast(type, message) {
+    // Check if toast container exists
+    let container = document.querySelector('.toast-container');
+    if (!container) {
+        container = document.createElement('div');
+        container.className = 'toast-container position-fixed top-0 end-0 p-3';
+        container.style.zIndex = '1100';
+        document.body.appendChild(container);
+    }
+
+    const toastEl = document.createElement('div');
+    toastEl.className = `toast align-items-center text-bg-${type} border-0`;
+    toastEl.setAttribute('role', 'alert');
+    toastEl.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
+        </div>
+    `;
+    container.appendChild(toastEl);
+
+    const toast = new bootstrap.Toast(toastEl, { delay: 4000 });
+    toast.show();
+
+    toastEl.addEventListener('hidden.bs.toast', () => toastEl.remove());
+}
+</script>
 {% endif %}
 {% endblock %}

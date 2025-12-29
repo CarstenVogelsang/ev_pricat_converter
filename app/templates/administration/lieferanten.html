@@ -20,6 +20,60 @@
     </div>
 </div>
 
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Filter- und Suchleiste #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<div class="card mb-3">
+    <div class="card-body py-2">
+        <form method="get" class="row g-2 align-items-center">
+            {# Hauptbranche-Filter #}
+            <div class="col-auto">
+                <select name="branche" class="form-select form-select-sm"
+                        onchange="this.form.submit()" style="min-width: 160px;">
+                    <option value="">Alle Branchen</option>
+                    {% for branche in handel_unterbranchen %}
+                    <option value="{{ branche.id }}"
+                            {{ 'selected' if filter_branche == branche.id }}>
+                        {{ branche.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            {# Status-Filter #}
+            <div class="col-auto">
+                <select name="status" class="form-select form-select-sm"
+                        onchange="this.form.submit()" style="min-width: 120px;">
+                    <option value="">Alle Status</option>
+                    <option value="aktiv" {{ 'selected' if filter_status == 'aktiv' }}>Aktiv</option>
+                    <option value="inaktiv" {{ 'selected' if filter_status == 'inaktiv' }}>Inaktiv</option>
+                </select>
+            </div>
+
+            {# Reset-Button (nur wenn Filter aktiv) #}
+            {% if filter_branche or filter_status or suchbegriff %}
+            <div class="col-auto">
+                <a href="{{ url_for('admin.lieferanten') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-x"></i> Zurücksetzen
+                </a>
+            </div>
+            {% endif %}
+
+            {# Suchfeld (rechts ausgerichtet) #}
+            <div class="col-auto ms-auto">
+                <div class="input-group input-group-sm">
+                    <span class="input-group-text"><i class="ti ti-search"></i></span>
+                    <input type="text" name="q" class="form-control"
+                           placeholder="Name, VEDES-ID, GLN..."
+                           value="{{ suchbegriff }}"
+                           style="min-width: 200px;">
+                    <button type="submit" class="btn btn-primary">Suchen</button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
 <div class="card">
     {% if lieferanten %}
     <div class="table-responsive">
@@ -29,6 +83,7 @@
                     <th>Name</th>
                     <th>VEDES-ID</th>
                     <th>GLN</th>
+                    <th class="text-center">Branche</th>
                     <th class="text-center">Status</th>
                     <th class="text-end">Aktionen</th>
                 </tr>
@@ -39,6 +94,16 @@
                     <td><strong>{{ lieferant.kurzbezeichnung }}</strong></td>
                     <td><code>{{ lieferant.vedes_id }}</code></td>
                     <td><code>{{ lieferant.gln or '-' }}</code></td>
+                    <td class="text-center">
+                        {% if lieferant.hauptbranche %}
+                        <i class="ti ti-{{ lieferant.hauptbranche.icon }}"
+                           title="{{ lieferant.hauptbranche.name }}"
+                           data-bs-toggle="tooltip"
+                           style="font-size: 1.25rem; color: var(--bs-primary);"></i>
+                        {% else %}
+                        <span class="text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td class="text-center">
                         {% if lieferant.aktiv %}
                         <span class="badge bg-success">Aktiv</span>
@@ -73,4 +138,15 @@
     <strong>Hinweis:</strong> PRICAT-spezifische Einstellungen (FTP-Pfade, ELENA-URLs) werden über das
     <a href="{{ url_for('admin.pricat') }}">PRICAT-Converter-Modul</a> verwaltet.
 </div>
+
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+{# Tooltip-Initialisierung #}
+{# ═══════════════════════════════════════════════════════════════════════════ #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips for branch icons
+    const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
+    tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
+});
+</script>
 {% endblock %}

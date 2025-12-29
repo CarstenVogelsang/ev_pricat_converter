@@ -24,6 +24,35 @@ class Lieferant(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
+    # Branchen-Zuordnung (max. 3 HANDEL-Unterbranchen)
+    branchen = db.relationship(
+        'LieferantBranche',
+        back_populates='lieferant',
+        cascade='all, delete-orphan'
+    )
+
+    @property
+    def hauptbranche(self):
+        """Die Hauptbranche des Lieferanten.
+
+        Returns:
+            Branche object or None if no branches assigned
+        """
+        for lb in self.branchen:
+            if lb.ist_hauptbranche:
+                return lb.branche
+        # Fallback: erste zugeordnete Branche
+        return self.branchen[0].branche if self.branchen else None
+
+    @property
+    def alle_branchen(self):
+        """Alle zugeordneten Branchen.
+
+        Returns:
+            List of Branche objects
+        """
+        return [lb.branche for lb in self.branchen]
+
     def __repr__(self):
         return f'<Lieferant {self.kurzbezeichnung}>'
 

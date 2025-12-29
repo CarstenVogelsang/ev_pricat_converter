@@ -9,7 +9,7 @@ from werkzeug.utils import secure_filename
 import flask
 
 from app import db
-from app.models import Config, Lieferant, User, Kunde, KundeCI, Branche, Verband, HelpText, BranchenRolle, BrancheBranchenRolle, Modul, ModulZugriff, AuditLog, Rolle, LookupWert
+from app.models import Config, Lieferant, User, Kunde, KundeCI, Branche, Verband, HelpText, BranchenRolle, BrancheBranchenRolle, Modul, ModulZugriff, AuditLog, Rolle, LookupWert, LieferantBranche
 from app.models import ProduktLookup, Attributgruppe, EigenschaftDefinition, Produkt, ProduktStatus
 from app.services import FTPService, BrandingService, get_brevo_service
 from app.routes.auth import admin_required, mitarbeiter_required
@@ -2669,12 +2669,56 @@ def rollen():
 @login_required
 @admin_required
 def lieferanten():
-    """Lieferanten-Stammdaten verwalten."""
-    lieferanten_liste = Lieferant.query.order_by(Lieferant.kurzbezeichnung).all()
+    """Lieferanten-Stammdaten verwalten mit Filter und Suche."""
+    # Filter-Parameter aus Request
+    branche_id = request.args.get('branche', type=int)
+    status = request.args.get('status', '')
+    suchbegriff = request.args.get('q', '').strip()
+
+    # HANDEL-Unterbranchen für Filter-Dropdown laden
+    handel = Branche.query.filter_by(name='HANDEL', parent_id=None).first()
+    handel_unterbranchen = []
+    if handel:
+        handel_unterbranchen = Branche.query.filter_by(
+            parent_id=handel.id,
+            aktiv=True
+        ).order_by(Branche.sortierung).all()
+
+    # Query aufbauen mit Filtern
+    query = Lieferant.query
+
+    # Filter: Hauptbranche
+    if branche_id:
+        query = query.join(LieferantBranche).filter(
+            LieferantBranche.branche_id == branche_id,
+            LieferantBranche.ist_hauptbranche == True
+        )
+
+    # Filter: Status (aktiv/inaktiv)
+    if status == 'aktiv':
+        query = query.filter(Lieferant.aktiv == True)
+    elif status == 'inaktiv':
+        query = query.filter(Lieferant.aktiv == False)
+
+    # Suche: Name, VEDES-ID oder GLN
+    if suchbegriff:
+        query = query.filter(
+            db.or_(
+                Lieferant.kurzbezeichnung.ilike(f'%{suchbegriff}%'),
+                Lieferant.vedes_id.ilike(f'%{suchbegriff}%'),
+                Lieferant.gln.ilike(f'%{suchbegriff}%')
+            )
+        )
+
+    lieferanten_liste = query.order_by(Lieferant.kurzbezeichnung).all()
 
     return render_template(
         'administration/lieferanten.html',
         lieferanten=lieferanten_liste,
+        handel_unterbranchen=handel_unterbranchen,
+        filter_branche=branche_id,
+        filter_status=status,
+        suchbegriff=suchbegriff,
         admin_tab='stammdaten'
     )
 
@@ -2690,6 +2734,26 @@ def lieferant_form(id=None):
     else:
         lieferant = Lieferant()
 
+    # Load HANDEL sub-branches for branch assignment
+    handel = Branche.query.filter_by(name='HANDEL', parent_id=None).first()
+    handel_unterbranchen = []
+    if handel:
+        handel_unterbranchen = Branche.query.filter_by(
+            parent_id=handel.id,
+            aktiv=True
+        ).order_by(Branche.sortierung).all()
+
+    # Get assigned branch IDs
+    zugeordnete_branche_ids = [lb.branche_id for lb in lieferant.branchen] if lieferant.id else []
+
+    # Common template data
+    template_data = {
+        'lieferant': lieferant,
+        'admin_tab': 'stammdaten',
+        'handel_unterbranchen': handel_unterbranchen,
+        'zugeordnete_branche_ids': zugeordnete_branche_ids
+    }
+
     if request.method == 'POST':
         # Get form data
         kurzbezeichnung = request.form.get('kurzbezeichnung', '').strip()
@@ -2700,29 +2764,25 @@ def lieferant_form(id=None):
         # Validation
         if not kurzbezeichnung:
             flash('Kurzbezeichnung ist erforderlich.', 'danger')
-            return render_template('administration/lieferant_form.html',
-                                 lieferant=lieferant, admin_tab='stammdaten')
+            return render_template('administration/lieferant_form.html', **template_data)
 
         if not vedes_id:
             flash('VEDES-ID ist erforderlich.', 'danger')
-            return render_template('administration/lieferant_form.html',
-                                 lieferant=lieferant, admin_tab='stammdaten')
+            return render_template('administration/lieferant_form.html', **template_data)
 
         # Check for duplicate VEDES-ID (only for new entries or changed ID)
         if not lieferant.id or lieferant.vedes_id != vedes_id:
             existing = Lieferant.query.filter_by(vedes_id=vedes_id).first()
             if existing and existing.id != lieferant.id:
                 flash(f'VEDES-ID "{vedes_id}" existiert bereits.', 'danger')
-                return render_template('administration/lieferant_form.html',
-                                     lieferant=lieferant, admin_tab='stammdaten')
+                return render_template('administration/lieferant_form.html', **template_data)
 
         # Check for duplicate GLN
         if gln:
             existing_gln = Lieferant.query.filter_by(gln=gln).first()
             if existing_gln and existing_gln.id != lieferant.id:
                 flash(f'GLN "{gln}" existiert bereits.', 'danger')
-                return render_template('administration/lieferant_form.html',
-                                     lieferant=lieferant, admin_tab='stammdaten')
+                return render_template('administration/lieferant_form.html', **template_data)
 
         # Update fields
         lieferant.kurzbezeichnung = kurzbezeichnung
@@ -2741,8 +2801,129 @@ def lieferant_form(id=None):
             db.session.rollback()
             flash(f'Fehler beim Speichern: {str(e)}', 'danger')
 
-    return render_template('administration/lieferant_form.html',
-                         lieferant=lieferant, admin_tab='stammdaten')
+    return render_template('administration/lieferant_form.html', **template_data)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Lieferant-Branchen AJAX Endpoints
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@admin_bp.route('/lieferanten/<int:id>/branchen/<int:branche_id>', methods=['POST'])
+@login_required
+@admin_required
+def lieferant_branche_add(id, branche_id):
+    """Add a branch to a supplier (AJAX)."""
+    lieferant = Lieferant.query.get_or_404(id)
+    branche = Branche.query.get_or_404(branche_id)
+
+    # Validate: Only HANDEL sub-branches allowed
+    handel = Branche.query.filter_by(name='HANDEL', parent_id=None).first()
+    if not handel or branche.parent_id != handel.id:
+        return jsonify({'error': 'Nur HANDEL-Unterbranchen erlaubt'}), 400
+
+    # Check if already assigned
+    existing = LieferantBranche.query.filter_by(
+        lieferant_id=id,
+        branche_id=branche_id
+    ).first()
+    if existing:
+        return jsonify({'error': 'Branche bereits zugeordnet'}), 400
+
+    # Check max 3 branches
+    if len(lieferant.branchen) >= 3:
+        return jsonify({'error': 'Maximal 3 Branchen erlaubt'}), 400
+
+    # First branch becomes Hauptbranche automatically
+    ist_hauptbranche = len(lieferant.branchen) == 0
+
+    try:
+        lb = LieferantBranche(
+            lieferant_id=id,
+            branche_id=branche_id,
+            ist_hauptbranche=ist_hauptbranche
+        )
+        db.session.add(lb)
+        db.session.commit()
+        return jsonify({'success': True, 'ist_hauptbranche': ist_hauptbranche})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/lieferanten/<int:id>/branchen/<int:branche_id>', methods=['DELETE'])
+@login_required
+@admin_required
+def lieferant_branche_remove(id, branche_id):
+    """Remove a branch from a supplier (AJAX)."""
+    lb = LieferantBranche.query.filter_by(
+        lieferant_id=id,
+        branche_id=branche_id
+    ).first_or_404()
+
+    war_hauptbranche = lb.ist_hauptbranche
+
+    try:
+        db.session.delete(lb)
+        db.session.commit()
+
+        # If we removed the Hauptbranche, assign next one
+        if war_hauptbranche:
+            lieferant = Lieferant.query.get(id)
+            if lieferant.branchen:
+                lieferant.branchen[0].ist_hauptbranche = True
+                db.session.commit()
+
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
+@admin_bp.route('/lieferanten/<int:id>/branchen/<int:branche_id>/hauptbranche', methods=['POST'])
+@login_required
+@admin_required
+def lieferant_branche_hauptbranche(id, branche_id):
+    """Set a branch as Hauptbranche (AJAX)."""
+    lieferant = Lieferant.query.get_or_404(id)
+
+    # Check if branch is assigned
+    target_lb = LieferantBranche.query.filter_by(
+        lieferant_id=id,
+        branche_id=branche_id
+    ).first()
+
+    # If not assigned, add it first
+    if not target_lb:
+        branche = Branche.query.get_or_404(branche_id)
+
+        # Validate: Only HANDEL sub-branches
+        handel = Branche.query.filter_by(name='HANDEL', parent_id=None).first()
+        if not handel or branche.parent_id != handel.id:
+            return jsonify({'error': 'Nur HANDEL-Unterbranchen erlaubt'}), 400
+
+        # Check max 3 branches
+        if len(lieferant.branchen) >= 3:
+            return jsonify({'error': 'Maximal 3 Branchen erlaubt'}), 400
+
+        target_lb = LieferantBranche(
+            lieferant_id=id,
+            branche_id=branche_id,
+            ist_hauptbranche=False
+        )
+        db.session.add(target_lb)
+
+    try:
+        # Remove Hauptbranche from all others
+        for lb in lieferant.branchen:
+            lb.ist_hauptbranche = False
+
+        # Set new Hauptbranche
+        target_lb.ist_hauptbranche = True
+        db.session.commit()
+        return jsonify({'success': True})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
 
 
 @admin_bp.route('/lieferanten/<int:id>/delete', methods=['POST'])
