@@ -2241,20 +2241,25 @@ Bei Fragen stehen wir Ihnen gerne zur Verfügung.
             click.echo('ERROR: Roles not found. Run "flask seed" first.')
             return
 
+        # Use environment variable for production, fallback to dev password
+        initial_password = os.environ.get('INITIAL_ADMIN_PASSWORD', 'admin123')
+        if initial_password != 'admin123':
+            click.echo('Using INITIAL_ADMIN_PASSWORD from environment')
+
         users = [
             {
                 'email': 'carsten.vogelsang@e-vendo.de',
                 'vorname': 'Carsten',
                 'nachname': 'Vogelsang',
                 'rolle_name': 'admin',
-                'password': 'admin123'  # Should be changed on first login
+                'password': initial_password
             },
             {
                 'email': 'rainer.raschka@e-vendo.de',
                 'vorname': 'Rainer',
                 'nachname': 'Raschka',
                 'rolle_name': 'admin',
-                'password': 'admin123'  # Should be changed on first login
+                'password': initial_password
             }
         ]
 
