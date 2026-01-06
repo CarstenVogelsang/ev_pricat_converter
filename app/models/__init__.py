@@ -4,8 +4,8 @@ from app.models.hersteller import Hersteller
 from app.models.marke import Marke
 from app.models.config import Config
 from app.models.rolle import Rolle
-from app.models.user import User
-from app.models.kunde import Kunde, KundeCI
+from app.models.user import User, UserTyp
+from app.models.kunde import Kunde, KundeCI, KundeTyp
 from app.models.kunde_benutzer import KundeBenutzer
 from app.models.api_nutzung import KundeApiNutzung
 from app.models.branche import Branche
@@ -51,10 +51,30 @@ from app.models.eigenschaft_definition import EigenschaftDefinition, DatenTyp
 from app.models.produkt import Produkt, ProduktStatus
 from app.models.eigenschaft_wert import EigenschaftWert
 
+# Schulungen Module (PRD-010)
+from app.models.schulungsthema import Schulungsthema
+from app.models.schulung import Schulung, SchulungThema
+from app.models.schulungsdurchfuehrung import (
+    Schulungsdurchfuehrung, Schulungstermin, DurchfuehrungStatus
+)
+from app.models.schulungsbuchung import Schulungsbuchung, BuchungStatus
+
+# Projektverwaltung Module (PRD-011)
+from app.models.projekt import Projekt, ProjektTyp
+from app.models.komponente import (
+    Komponente, KomponenteTyp, KomponentePhase, KomponenteStatus
+)
+from app.models.task import Task, TaskStatus, TaskPrioritaet, TaskPhase
+from app.models.changelog_eintrag import (
+    ChangelogEintrag, ChangelogKategorie, ChangelogSichtbarkeit
+)
+from app.models.modul_erp import ModulErp, ModulErpKontext
+from app.models.task_kommentar import TaskKommentar, KommentarTyp
+
 __all__ = [
     'Lieferant', 'Hersteller', 'Marke', 'Config',
-    'Rolle', 'User',
-    'Kunde', 'KundeCI', 'KundeBenutzer',
+    'Rolle', 'User', 'UserTyp',
+    'Kunde', 'KundeCI', 'KundeTyp', 'KundeBenutzer',
     'KundeApiNutzung',
     'Branche', 'Verband',
     'KundeBranche', 'KundeVerband', 'LieferantBranche',
@@ -80,4 +100,16 @@ __all__ = [
     'EigenschaftDefinition', 'DatenTyp',
     'Produkt', 'ProduktStatus',
     'EigenschaftWert',
+    # Schulungen Module (PRD-010)
+    'Schulungsthema',
+    'Schulung', 'SchulungThema',
+    'Schulungsdurchfuehrung', 'Schulungstermin', 'DurchfuehrungStatus',
+    'Schulungsbuchung', 'BuchungStatus',
+    # Projektverwaltung Module (PRD-011)
+    'Projekt', 'ProjektTyp',
+    'Komponente', 'KomponenteTyp', 'KomponentePhase', 'KomponenteStatus',
+    'Task', 'TaskStatus', 'TaskPrioritaet', 'TaskPhase',
+    'ChangelogEintrag', 'ChangelogKategorie', 'ChangelogSichtbarkeit',
+    'ModulErp', 'ModulErpKontext',
+    'TaskKommentar', 'KommentarTyp',
 ]

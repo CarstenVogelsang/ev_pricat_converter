@@ -77,6 +77,18 @@
     icon=module.icon,
     color_hex=module.color_hex
 ) %}
+    {% if kunde.is_lead %}
+    <span class="badge bg-info fs-6 me-2">Lead</span>
+    <form action="{{ url_for('kunden.konvertieren', id=kunde.id) }}" method="POST" class="d-inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <button type="submit" class="btn btn-success"
+                onclick="return confirm('Lead zu Kunde konvertieren?')">
+            <i class="ti ti-user-check"></i> Zu Kunde konvertieren
+        </button>
+    </form>
+    {% else %}
+    <span class="badge bg-success fs-6 me-2">Kunde</span>
+    {% endif %}
     {% if current_user.is_internal %}
     <a href="{{ url_for('kunden.projekt', id=kunde.id) }}" class="btn btn-primary">
         <i class="ti ti-folder"></i> Projekt

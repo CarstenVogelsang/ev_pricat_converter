@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% from "macros/module_header.html" import module_header %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Leads importieren - {{ branding.app_title }}{% endblock %}
+
+{% set module = module_colors.get('kunden', {'color_hex': '#198754', 'icon': 'ti-users'}) %}
+
+{% block content %}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Kunden', 'url': url_for('kunden.liste'), 'icon': 'ti-users'},
+    {'label': 'Leads importieren'}
+]) }}
+{% call module_header(
+    title="Leads importieren",
+    icon="ti-upload",
+    color_hex=module.color_hex
+) %}
+    <a href="{{ url_for('kunden.liste') }}" class="btn btn-outline-secondary">
+        <i class="ti ti-arrow-left"></i> Zurück zur Liste
+    </a>
+{% endcall %}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-file-upload"></i> CSV-Datei hochladen
+            </div>
+            <div class="card-body">
+                <form method="POST" enctype="multipart/form-data">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="mb-3">
+                        <label for="csv_file" class="form-label">CSV-Datei auswählen</label>
+                        <input type="file" class="form-control" id="csv_file" name="csv_file"
+                               accept=".csv" required>
+                        <div class="form-text">
+                            Nur CSV-Dateien mit Semikolon-Trennung (;) und UTF-8-Kodierung.
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary">
+                        <i class="ti ti-upload"></i> Leads importieren
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-info-circle"></i> CSV-Format
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Die CSV-Datei muss folgende Spalten in der ersten Zeile (Header) enthalten:
+                </p>
+
+                <table class="table table-sm table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Spaltenname</th>
+                            <th>Pflicht</th>
+                            <th>Beispiel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><code>firmierung</code></td>
+                            <td><span class="badge bg-danger">Ja</span></td>
+                            <td>Musterfirma GmbH</td>
+                        </tr>
+                        <tr>
+                            <td><code>email</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>info@musterfirma.de</td>
+                        </tr>
+                        <tr>
+                            <td><code>telefon</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>030-12345678</td>
+                        </tr>
+                        <tr>
+                            <td><code>strasse</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>Musterstraße 1</td>
+                        </tr>
+                        <tr>
+                            <td><code>plz</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>12345</td>
+                        </tr>
+                        <tr>
+                            <td><code>ort</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>Berlin</td>
+                        </tr>
+                        <tr>
+                            <td><code>website_url</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>https://musterfirma.de</td>
+                        </tr>
+                        <tr>
+                            <td><code>notizen</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>Messe-Kontakt 2024</td>
+                        </tr>
+                    </tbody>
+                </table>
+
+                <div class="alert alert-info mb-0">
+                    <i class="ti ti-bulb"></i>
+                    <strong>Tipp:</strong> Leads werden automatisch mit dem Status "Lead" importiert.
+                    Duplikate (gleiche Firmierung) werden übersprungen.
+                </div>
+            </div>
+        </div>
+
+        <div class="card mt-4">
+            <div class="card-header">
+                <i class="ti ti-download"></i> Beispiel-CSV
+            </div>
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded mb-0"><code>firmierung;email;telefon;strasse;plz;ort;website_url;notizen
+Musterfirma GmbH;info@muster.de;030-12345;Musterstr. 1;12345;Berlin;;Messe-Kontakt
+Beispiel AG;kontakt@beispiel.de;;;;Hamburg;https://beispiel.de;</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,70 @@
+{% extends "schulungen/embed_base.html" %}
+
+{% block title %}Online-Schulungen{% endblock %}
+
+{% block content %}
+<div class="mb-3 d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><i class="ti ti-school text-purple"></i> Online-Schulungen</h5>
+    <form method="GET" class="d-flex gap-2" style="max-width: 300px;">
+        <input type="text" class="form-control form-control-sm" name="suche"
+               placeholder="Suchen..." value="{{ suche }}">
+        <button type="submit" class="btn btn-sm btn-outline-primary">
+            <i class="ti ti-search"></i>
+        </button>
+    </form>
+</div>
+
+<div class="row g-3">
+    {% for schulung in schulungen %}
+    <div class="col-md-6">
+        <div class="card schulung-card h-100">
+            <div class="card-header d-flex justify-content-between">
+                <strong>{{ schulung.titel }}</strong>
+                {% if schulung.hat_sonderpreis %}
+                <span class="badge bg-success">{{ "%.0f"|format(schulung.aktueller_preis) }} €</span>
+                {% else %}
+                <span class="badge bg-primary">{{ "%.0f"|format(schulung.preis) }} €</span>
+                {% endif %}
+            </div>
+            <div class="card-body py-2">
+                <small class="text-muted">
+                    <i class="ti ti-list"></i> {{ schulung.anzahl_themen }} Themen
+                    <span class="mx-1">•</span>
+                    <i class="ti ti-clock"></i> {{ schulung.gesamtdauer_formatiert }}
+                </small>
+
+                {% set naechste = schulung.naechste_durchfuehrung %}
+                {% if naechste %}
+                <div class="mt-2 p-2 bg-light rounded small">
+                    <i class="ti ti-calendar"></i>
+                    <strong>{{ naechste.start_datum.strftime('%d.%m.%Y') }}</strong>
+                    {% if naechste.ist_ausgebucht %}
+                    <span class="badge bg-danger ms-1">Ausgebucht</span>
+                    {% else %}
+                    <span class="badge bg-success ms-1">{{ naechste.freie_plaetze }} frei</span>
+                    {% endif %}
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer py-2">
+                <a href="{{ url_for('schulungen.embed_detail', id=schulung.id, theme=theme) }}"
+                   class="btn btn-sm btn-outline-primary">
+                    Details
+                </a>
+                {% if naechste and not naechste.ist_ausgebucht %}
+                <button onclick="buchenKlick('{{ url_for('schulungen.buchen', durchfuehrung_id=naechste.id, _external=True) }}')"
+                        class="btn btn-sm btn-primary">
+                    <i class="ti ti-ticket"></i> Buchen
+                </button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12 text-center py-4 text-muted">
+        <i class="ti ti-school" style="font-size: 2rem;"></i>
+        <p class="mt-2 mb-0">Keine Schulungen gefunden.</p>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

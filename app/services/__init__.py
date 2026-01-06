@@ -26,6 +26,11 @@ from app.services.fragebogen_service import (
 # Anwender-Support Module (PRD-007)
 from app.services.support_service import SupportService, get_support_service
 
+# Schulungen Module (PRD-010)
+from app.services.schulung_service import (
+    SchulungService, BuchungResult, StornoResult, get_schulung_service
+)
+
 __all__ = [
     # Parser
     'PricatParser', 'PricatData', 'ArticleData',
@@ -56,4 +61,6 @@ __all__ = [
     'FragebogenService', 'ValidationResult', 'EinladungResult', 'get_fragebogen_service',
     # Anwender-Support Module (PRD-007)
     'SupportService', 'get_support_service',
+    # Schulungen Module (PRD-010)
+    'SchulungService', 'BuchungResult', 'StornoResult', 'get_schulung_service',
 ]

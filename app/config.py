@@ -32,6 +32,7 @@ class Config:
 class DevelopmentConfig(Config):
     """Development configuration."""
     DEBUG = True
+    DEV_PORT = 5055
 
 
 class ProductionConfig(Config):

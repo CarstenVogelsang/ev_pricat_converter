@@ -66,6 +66,8 @@ Querschnittsfunktionen (Hilfetexte, Breadcrumb, etc.) gehören in `core/`.
 | Kunden-Dialog | [PRD-006](docs/prd/module/PRD-006-kunden-dialog/PRD-006-kunden-dialog.md) | Aktiv |
 | Anwender-Support | [PRD-007](docs/prd/module/PRD-007-anwender-support/PRD-007-anwender-support.md) | Aktiv |
 | Produktdaten | [PRD-009](docs/prd/module/PRD-009-produktdaten/PRD-009-produktdaten.md) | MVP |
+| Schulungen | [PRD-010](docs/prd/module/PRD-010-schulungen/PRD-010-schulungen.md) | In Entwicklung |
+| Projektverwaltung | [PRD-011](docs/prd/module/PRD-011-projektverwaltung/PRD-011-projektverwaltung.md) | POC |
 
 ### Basisfunktionalitäten (core/)
 
@@ -73,6 +75,7 @@ Querschnittsfunktionen (Hilfetexte, Breadcrumb, etc.) gehören in `core/`.
 |---------|-----|--------|
 | Hilfetexte | [PRD-005](docs/prd/core/PRD-005-hilfetexte/PRD-005-hilfetexte.md) | Aktiv |
 | Breadcrumb-Navigation | [PRD-008](docs/prd/core/PRD-008-breadcrumb-navigation/PRD-008-breadcrumb-navigation.md) | Aktiv |
+| View-Struktur-Richtlinien | [PRD-012](docs/prd/core/PRD-012-view-guidelines/PRD-012-view-guidelines.md) | Aktiv |
 
 Jedes Modul/Feature hat ein eigenes `CHANGELOG.md` im jeweiligen Ordner.
 
@@ -134,6 +137,67 @@ Jedes Modul hat oben rechts einen DEV-Button für Entwickler:
     <i class="ti ti-code"></i> DEV
 </a>
 {% endif %}
+```
+
+### Modul-Einstellungen
+
+Jedes Modul sollte eine eigene Einstellungen-Seite haben. Das Pattern ist einheitlich:
+
+**Route-Pattern:**
+```python
+@{modul}_admin_bp.route('/einstellungen', methods=['GET', 'POST'])
+@login_required
+@mitarbeiter_required
+def einstellungen():
+    from app.models import Config
+
+    if request.method == 'POST':
+        for key in request.form:
+            if key.startswith('{modul}_'):
+                Config.set_value(key, request.form[key])
+        flash('Einstellungen gespeichert', 'success')
+        return redirect(url_for('{modul}_admin.einstellungen'))
+
+    settings = {
+        'einstellung_name': Config.get_value('{modul}_einstellung_name', 'default'),
+    }
+    return render_template('administration/{modul}/einstellungen.html', settings=settings)
+```
+
+**Config-Key-Konvention:**
+```
+{modul_code}_{einstellung_name}
+```
+
+Beispiele:
+- `projektverwaltung_ki_prompt_suffix`
+- `schulungen_max_teilnehmer_default`
+- `dialog_antwort_frist_tage`
+
+**Template-Pfad:**
+```
+app/templates/administration/{modul}/einstellungen.html
+```
+
+**Navigation:**
+1. **Modul-Übersicht** (`/admin/module-uebersicht`): Nutze `admin_tile` Macro mit `settings_url` Parameter
+2. **Modul-Index**: Button mit Text "Einstellungen" in der Button-Gruppe
+
+```html
+{# In module_uebersicht.html #}
+{{ admin_tile(
+    'Modulname',
+    'Beschreibung',
+    'ti-icon',
+    url_for('{modul}_admin.index'),
+    color_hex='#hex',
+    settings_url=url_for('{modul}_admin.einstellungen')
+) }}
+
+{# In {modul}/index.html #}
+<a href="{{ url_for('{modul}_admin.einstellungen') }}" class="btn btn-outline-secondary">
+    <i class="ti ti-settings"></i> Einstellungen
+</a>
 ```
 
 ### Hilfetexte-System (PRD-005)
@@ -247,6 +311,53 @@ Die Breadcrumb zeigt dem Benutzer, wo er sich befindet und ermöglicht schnelle 
 
 **PRD:** [PRD-008-breadcrumb-navigation](docs/prd/core/PRD-008-breadcrumb-navigation/PRD-008-breadcrumb-navigation.md)
 
+### View-Struktur-Richtlinien (PRD-012)
+
+**WICHTIG:** Alle Views müssen den Richtlinien in [PRD-012-view-guidelines](docs/prd/core/PRD-012-view-guidelines/PRD-012-view-guidelines.md) folgen!
+
+**Kurzübersicht:**
+
+| Element | Position | Beschreibung |
+|---------|----------|--------------|
+| **Breadcrumb** | Ganz oben | Navigation mit Icons für Hauptbereiche |
+| **Titel + Buttons** | Unter Breadcrumb | Titel links, Aktions-Buttons rechts (`d-flex justify-content-between`) |
+| **Wichtige Felder** | Oben im Formular | Typ, Status, Aktiv - direkt nach Name/Titel |
+| **Filter** | Unter Titel | Nur bei Listen-Ansichten |
+| **Stammdaten** | Haupt-Card | In logischen Gruppen mit `<hr>` getrennt |
+| **Optionale Felder** | Unten | Notizen, Freitext am Ende |
+
+**View-Typen:**
+
+1. **Listen-Ansichten**: Breadcrumb → Header mit Buttons → Filter → Tabelle/Grid
+2. **Formular-Ansichten**: Breadcrumb → Header mit Buttons → Card mit Feldern
+3. **Detail-Ansichten**: Breadcrumb → Header → 2-spaltiges Layout (8-4)
+
+**Code-Pattern für Formular-Header:**
+
+```html
+<form method="POST">
+    {{ form.hidden_tag() }}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2 class="mb-0">{{ titel }}</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('modul.liste') }}" class="btn btn-outline-secondary">Abbrechen</a>
+            <button type="submit" class="btn btn-primary">
+                <i class="ti ti-check"></i> Speichern
+            </button>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <!-- Felder hier -->
+        </div>
+    </div>
+</form>
+```
+
+**PRD:** [PRD-012-view-guidelines](docs/prd/core/PRD-012-view-guidelines/PRD-012-view-guidelines.md)
+
 ## Arbeitsweise
 
 ### ⚠️ WICHTIG: PRD-Pflicht bei neuen Anforderungen
@@ -295,6 +406,116 @@ Format: [Keep a Changelog](https://keepachangelog.com/de/1.0.0/) mit Kategorien:
 - `Changed` - Änderungen an bestehenden Features
 - `Fixed` - Bugfixes
 - `Removed` - Entfernte Features
+
+## Projektverwaltung API (PRD-011)
+
+### ⚠️ WICHTIG: Tasks NUR via API bearbeiten!
+
+**NIEMALS** Tasks über die Browser-UI (Playwright) lesen oder bearbeiten!
+
+Verwende **IMMER** die REST-API:
+- **Task lesen:** `curl http://localhost:5001/api/tasks/by-nummer/{task_nummer}`
+- **Task aktualisieren:** `curl -X PATCH http://localhost:5001/api/tasks/{id} -H "Content-Type: application/json" -d '{"status": "review"}'`
+- **Task-Beschreibung ändern:** `curl -X PATCH http://localhost:5001/api/tasks/{id} -H "Content-Type: application/json" -d '{"beschreibung": "Neue Beschreibung"}'`
+
+**Warum?** Die API ist zuverlässiger, schneller und die Änderungen werden korrekt in der Datenbank gespeichert.
+
+PRD-Dokumente, Tasks und Changelogs sind in der Datenbank gespeichert und über eine REST-API abrufbar.
+
+### Daten abrufen
+
+```bash
+# Alle Komponenten mit IDs anzeigen
+curl http://localhost:5001/api/komponenten-uebersicht
+
+# PRD als Markdown lesen
+curl http://localhost:5001/api/komponenten/{id}/prd
+
+# Tasks für eine Komponente (filterbar)
+curl http://localhost:5001/api/komponenten/{id}/tasks
+curl http://localhost:5001/api/komponenten/{id}/tasks?phase=mvp
+curl http://localhost:5001/api/komponenten/{id}/tasks?status=in_arbeit
+
+# Changelog als Markdown
+curl http://localhost:5001/api/komponenten/{id}/changelog
+
+# Task über Task-Nummer abrufen (z.B. PRD011-T020)
+curl http://localhost:5001/api/tasks/by-nummer/PRD011-T020
+
+# Task Status ändern (z.B. auf "in_arbeit" setzen)
+curl -X PATCH http://localhost:5001/api/tasks/20 \
+     -H "Content-Type: application/json" \
+     -d '{"status": "in_arbeit"}'
+
+# Task als erledigt markieren (erstellt automatisch Changelog-Eintrag)
+curl -X POST http://localhost:5001/api/tasks/{id}/erledigen
+```
+
+### API-Endpoints
+
+| Endpoint | Methode | Beschreibung |
+|----------|---------|--------------|
+| `/api/projekte` | GET | Liste aller Projekte |
+| `/api/projekte/{id}` | GET | Projekt-Details inkl. Komponenten |
+| `/api/komponenten` | GET | Liste aller Komponenten (filterbar) |
+| `/api/komponenten/{id}` | GET | Komponenten-Details |
+| `/api/komponenten/{id}/prd` | GET | PRD als Markdown |
+| `/api/komponenten/{id}/tasks` | GET | Tasks (Query: `?phase=mvp&status=in_arbeit`) |
+| `/api/komponenten/{id}/changelog` | GET | Changelog als Markdown |
+| `/api/tasks/{id}` | GET | Task-Details |
+| `/api/tasks/by-nummer/{task_nummer}` | GET | Task über Task-Nummer (z.B. `PRD011-T020`) |
+| `/api/tasks/{id}` | PATCH | Task aktualisieren (status, zugewiesen_an, prioritaet) |
+| `/api/tasks/{id}/erledigen` | POST | Task abschließen (generiert Changelog) |
+| `/api/komponenten-uebersicht` | GET | Schnelle Übersicht aller Komponenten-IDs |
+
+### Fallback
+
+Falls die API nicht erreichbar ist oder keine Daten in der DB vorhanden sind, befinden sich die PRD-Dokumente weiterhin im Dateisystem unter `docs/prd/`.
+
+### Task-Workflow für Claude
+
+**WICHTIG:** Wenn du einen Task bearbeitest und fertig bist:
+
+1. **NICHT** `/api/tasks/{id}/erledigen` verwenden!
+2. **STATTDESSEN** Status auf "Review" setzen:
+
+   ```bash
+   curl -X PATCH http://localhost:5001/api/tasks/{id} \
+        -H "Content-Type: application/json" \
+        -d '{"status": "review"}'
+   ```
+
+**Warum?** Der Developer möchte:
+
+- Deine Arbeit reviewen
+- Ggf. Feedback geben oder weitere Todos anlegen
+- Den Task selbst auf "Erledigt" setzen
+
+**Ausnahme:** Nur wenn der User explizit sagt "Task abschließen" oder "erledigen", verwende `/api/tasks/{id}/erledigen`.
+
+### Task abschließen mit Changelog
+
+Wenn ein Task abgeschlossen wird und die Checkbox "Bei Erledigung Changelog-Eintrag erstellen" aktiviert ist (Default: `True`), wird automatisch ein Changelog-Eintrag in der Datenbank erstellt:
+
+```bash
+# Task als erledigt markieren (erstellt automatisch Changelog wenn aktiviert)
+curl -X POST http://localhost:5001/api/tasks/{id}/erledigen
+
+# Mit optionalen Parametern
+curl -X POST http://localhost:5001/api/tasks/{id}/erledigen \
+     -H "Content-Type: application/json" \
+     -d '{"changelog_kategorie": "fixed", "changelog_beschreibung": "Custom Beschreibung"}'
+```
+
+**Parameter für `/api/tasks/{id}/erledigen`:**
+
+| Parameter | Default | Beschreibung |
+|-----------|---------|--------------|
+| `create_changelog` | `true` | Changelog-Eintrag erstellen? |
+| `changelog_kategorie` | `added` | `added`, `changed`, `fixed`, `removed` |
+| `changelog_beschreibung` | Task-Titel | Optionale custom Beschreibung |
+
+**Wichtig:** Der Changelog-Eintrag wird in der Datenbank gespeichert und auf der Changelog-Seite der Komponente angezeigt.
 
 ## MCP-Server / Plugins
 

@@ -1,0 +1,112 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Einstellungen - Schulungen - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Schulungen', 'url': url_for('schulungen_admin.index'), 'icon': 'ti-school'},
+    {'label': 'Einstellungen'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>
+        <i class="ti ti-settings text-secondary"></i>
+        Schulungen - Einstellungen
+    </h4>
+    <a href="{{ url_for('schulungen_admin.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="ti ti-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="ti ti-adjustments"></i>
+                        Standardwerte für neue Schulungen
+                    </span>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="max_teilnehmer_default" class="form-label">
+                            Standard Max. Teilnehmer
+                        </label>
+                        <input type="number" class="form-control" id="max_teilnehmer_default"
+                               name="schulungen_max_teilnehmer_default"
+                               value="{{ settings.max_teilnehmer_default }}"
+                               min="1" max="100">
+                        <div class="form-text">
+                            Standardwert für die maximale Teilnehmerzahl bei neuen Schulungen.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="storno_frist_tage_default" class="form-label">
+                            Standard Stornofrist (Tage)
+                        </label>
+                        <input type="number" class="form-control" id="storno_frist_tage_default"
+                               name="schulungen_storno_frist_tage_default"
+                               value="{{ settings.storno_frist_tage_default }}"
+                               min="0" max="30">
+                        <div class="form-text">
+                            Anzahl Tage vor Schulungsbeginn, bis zu der eine Stornierung möglich ist.
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <div class="form-check">
+                            <input type="checkbox" class="form-check-input"
+                                   id="buchungsbestaetigung_email"
+                                   name="schulungen_buchungsbestaetigung_email"
+                                   value="true"
+                                   {% if settings.buchungsbestaetigung_email == 'true' %}checked{% endif %}>
+                            <label class="form-check-label" for="buchungsbestaetigung_email">
+                                Buchungsbestätigung per E-Mail senden
+                            </label>
+                        </div>
+                        <div class="form-text">
+                            Wenn aktiviert, erhalten Kunden automatisch eine E-Mail-Bestätigung nach der Buchung.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-help"></i> Hinweise
+            </div>
+            <div class="card-body">
+                <h6>Standardwerte</h6>
+                <p class="small text-muted">
+                    Diese Werte werden als Voreinstellung verwendet, wenn neue Schulungen
+                    erstellt werden. Sie können bei jeder Schulung individuell angepasst werden.
+                </p>
+
+                <hr>
+
+                <h6>E-Mail-Benachrichtigungen</h6>
+                <p class="small text-muted">
+                    Die E-Mail-Templates können unter
+                    <a href="{{ url_for('admin.email_templates') }}">Administration → E-Mail-Templates</a>
+                    angepasst werden.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

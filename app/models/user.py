@@ -1,9 +1,37 @@
 """User Model for authentication."""
 from datetime import datetime
+from enum import Enum
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_login import UserMixin
 
 from app import db
+
+
+class UserTyp(str, Enum):
+    """User type for distinguishing humans from AI agents.
+
+    Used for task assignment attribution in project management (PRD-011).
+    """
+    MENSCH = 'mensch'            # Human user
+    KI_CLAUDE = 'ki_claude'      # Anthropic Claude
+    KI_CODEX = 'ki_codex'        # OpenAI Codex
+    KI_ANDERE = 'ki_andere'      # Other AI agents
+
+    @classmethod
+    def choices(cls):
+        """Return list of (value, label) tuples for form selects."""
+        labels = {
+            cls.MENSCH: 'Mensch',
+            cls.KI_CLAUDE: 'KI: Claude',
+            cls.KI_CODEX: 'KI: Codex',
+            cls.KI_ANDERE: 'KI: Andere',
+        }
+        return [(t.value, labels[t]) for t in cls]
+
+    @classmethod
+    def ki_typen(cls):
+        """Return list of AI user type values."""
+        return [cls.KI_CLAUDE.value, cls.KI_CODEX.value, cls.KI_ANDERE.value]
 
 
 class User(UserMixin, db.Model):
@@ -24,6 +52,9 @@ class User(UserMixin, db.Model):
     # Anrede/Briefanrede settings (personenbezogen)
     anrede = db.Column(db.String(20), nullable=True)  # herr, frau, divers
     kommunikation_stil = db.Column(db.String(20), nullable=True)  # NULL = Kunde-Default
+
+    # User type for human/AI distinction (PRD-011)
+    user_typ = db.Column(db.String(20), default=UserTyp.MENSCH.value, nullable=False)
 
     # NEW: 1:N relationship to Kunden via junction table
     kunde_zuordnungen = db.relationship(
@@ -69,6 +100,11 @@ class User(UserMixin, db.Model):
         return self.is_admin or self.is_mitarbeiter
 
     @property
+    def is_ki(self):
+        """Check if user is an AI agent."""
+        return self.user_typ in UserTyp.ki_typen()
+
+    @property
     def full_name(self):
         """Return full name."""
         return f'{self.vorname} {self.nachname}'
@@ -104,6 +140,8 @@ class User(UserMixin, db.Model):
             'kommunikation_stil': self.kommunikation_stil,
             'rolle': self.rolle,
             'rolle_id': self.rolle_id,
+            'user_typ': self.user_typ,
+            'is_ki': self.is_ki,
             'aktiv': self.aktiv,
             'last_login': self.last_login.isoformat() if self.last_login else None
         }

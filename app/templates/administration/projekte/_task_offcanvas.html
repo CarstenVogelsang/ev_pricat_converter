@@ -1,0 +1,326 @@
+{# Task Editor Offcanvas Content - loaded via AJAX #}
+{% from "macros/markdown_editor.html" import markdown_editor %}
+{% from "macros/help.html" import help_icon with context %}
+<form onsubmit="return saveTask(this)" data-task-id="{{ task.id }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    {# Breadcrumb-Kopfzeile: Komponente → Task + Aktionen (PRD011-T056) #}
+    <div class="mb-3 d-flex align-items-end gap-2 flex-wrap">
+        {# Komponente Badge mit Label #}
+        <div>
+            <small class="text-muted d-block" style="font-size: 0.65rem;">Komponente</small>
+            <span class="badge bg-secondary fs-6">{{ task.komponente.name }}</span>
+        </div>
+        <i class="ti ti-arrow-right text-muted mb-1"></i>
+
+        {# Task-Nummer Badge mit Label #}
+        <div>
+            <small class="text-muted d-block" style="font-size: 0.65rem;">Task</small>
+            <span class="badge bg-secondary font-monospace fs-6" id="taskIdBadge">{{ task.task_nummer }}</span>
+        </div>
+
+        {# Action Buttons mit Tooltips #}
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                onclick="copyTaskAsPrompt({{ task.id }})"
+                title="Als KI-Prompt kopieren">
+            <i class="ti ti-clipboard-copy"></i>
+        </button>
+
+        {% if task.offene_review_kommentare > 0 %}
+        <button type="button" class="btn btn-sm btn-outline-warning"
+                onclick="copyReviewPrompt({{ task.id }})"
+                title="Review-Prompt generieren">
+            <i class="ti ti-clipboard-check"></i>
+            <span class="badge bg-warning text-dark">{{ task.offene_review_kommentare }}</span>
+        </button>
+        {% endif %}
+
+        <button type="button" class="btn btn-sm btn-outline-secondary"
+                data-bs-toggle="modal" data-bs-target="#moveTaskModal"
+                title="Task in andere Komponente verschieben">
+            <i class="ti ti-arrow-right"></i>
+        </button>
+    </div>
+
+    {# Referenz auf Ursprungs-Task (PRD011-T041) #}
+    {% if task.entstanden_aus %}
+    <div class="mb-3 alert alert-info py-2 d-flex align-items-center gap-2">
+        <i class="ti ti-git-branch"></i>
+        <span>Entstanden aus:
+            <a href="#" onclick="loadTask({{ task.entstanden_aus_id }}); return false;" class="fw-bold">
+                {{ task.entstanden_aus_nummer }}
+            </a>
+            <small class="text-muted">- {{ task.entstanden_aus.titel|truncate(35) }}</small>
+        </span>
+    </div>
+    {% endif %}
+
+    {# Abgeleitete Tasks anzeigen (PRD011-T041) #}
+    {% if task.anzahl_abgeleitete > 0 %}
+    <div class="mb-3 alert alert-secondary py-2 d-flex align-items-center gap-2">
+        <i class="ti ti-git-fork"></i>
+        <span>{{ task.anzahl_abgeleitete }} abgeleitete Task(s)</span>
+    </div>
+    {% endif %}
+
+    <div class="mb-3">
+        <label for="task-titel" class="form-label">Titel *</label>
+        <input type="text" class="form-control" id="task-titel" name="titel"
+               value="{{ task.titel }}" required>
+    </div>
+
+    <div class="mb-3">
+        <label for="task-beschreibung" class="form-label">Beschreibung</label>
+        {{ markdown_editor('beschreibung', task.beschreibung or '', rows=8,
+                           id='task-beschreibung',
+                           placeholder='Markdown wird unterstützt...') }}
+    </div>
+
+    <div class="row">
+        <div class="col-6 mb-3">
+            <label for="task-status" class="form-label">Status</label>
+            <select class="form-select" id="task-status" name="status">
+                {% for value, label in task_status_liste %}
+                <option value="{{ value }}" {% if task.status == value %}selected{% endif %}>
+                    {{ label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-6 mb-3">
+            <label for="task-prioritaet" class="form-label">Priorität</label>
+            <select class="form-select" id="task-prioritaet" name="prioritaet">
+                {% for value, label in task_prioritaet_liste %}
+                <option value="{{ value }}" {% if task.prioritaet == value %}selected{% endif %}>
+                    {{ label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-6 mb-3">
+            <label class="form-label">
+                Typ {{ help_icon('projekte.task.typ') }}
+            </label>
+            {# Custom Dropdown für Icons (PRD011-T029) #}
+            <div class="dropdown">
+                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center justify-content-between"
+                        type="button" id="task-typ-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span id="typ-display">
+                        <i class="ti {{ task.typ_icon }} text-{{ task.typ_farbe }} me-2"></i>
+                        {{ task.typ_label }}
+                    </span>
+                </button>
+                <ul class="dropdown-menu w-100" aria-labelledby="task-typ-dropdown">
+                    {% for eintrag in task_typen %}
+                    <li>
+                        <a class="dropdown-item {% if task.typ == eintrag.schluessel %}active{% endif %}"
+                           href="#"
+                           data-typ="{{ eintrag.schluessel }}"
+                           data-icon="{{ eintrag.icon }}"
+                           data-farbe="{{ eintrag.farbe }}"
+                           data-label="{{ eintrag.wert }}">
+                            <i class="ti {{ eintrag.icon }} text-{{ eintrag.farbe }} me-2"></i>
+                            {{ eintrag.wert }}
+                        </a>
+                    </li>
+                    {% endfor %}
+                </ul>
+                <input type="hidden" name="typ" id="task-typ" value="{{ task.typ }}">
+            </div>
+        </div>
+        <div class="col-6 mb-3">
+            <label for="task-phase" class="form-label">Phase</label>
+            <select class="form-select" id="task-phase" name="phase">
+                <option value="">-- Keine Phase --</option>
+                {% for value, label in task_phase_liste %}
+                <option value="{{ value }}" {% if task.phase == value %}selected{% endif %}>
+                    {{ label }}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-12 mb-3">
+            <label for="task-zugewiesen" class="form-label">Zugewiesen an</label>
+            <select class="form-select" id="task-zugewiesen" name="zugewiesen_an">
+                <option value="">-- Nicht zugewiesen --</option>
+                {% for user in users %}
+                <option value="{{ user.id }}" {% if task.zugewiesen_an == user.id %}selected{% endif %}>
+                    {{ user.full_name }}
+                    {% if user.user_typ != 'mensch' %}(KI){% endif %}
+                </option>
+                {% endfor %}
+            </select>
+        </div>
+    </div>
+
+    {% if task.status != 'erledigt' %}
+    <div class="mb-3">
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="create-changelog" name="create_changelog"
+                   {% if task.create_changelog_on_complete %}checked{% endif %}>
+            <label class="form-check-label" for="create-changelog">
+                Bei Erledigung Changelog-Eintrag erstellen
+            </label>
+        </div>
+    </div>
+    {% endif %}
+
+    {# Archivierung (PRD011-T030) #}
+    <div class="mb-3">
+        <div class="form-check">
+            <input type="checkbox" class="form-check-input" id="ist-archiviert" name="ist_archiviert"
+                   {% if task.ist_archiviert %}checked{% endif %}>
+            <label class="form-check-label" for="ist-archiviert">
+                <i class="ti ti-archive text-muted me-1"></i> Archiviert
+            </label>
+        </div>
+        <small class="text-muted">Archivierte Tasks werden im Backlog und Erledigt ausgeblendet.</small>
+    </div>
+
+    {# Task-Kommentare (PRD011-T055) #}
+    <div class="card mt-3 mb-3">
+        <div class="card-header d-flex justify-content-between align-items-center py-2">
+            <span>
+                <i class="ti ti-messages"></i> Kommentare
+                {% if task.anzahl_kommentare > 0 %}
+                <span class="badge bg-secondary ms-1">{{ task.anzahl_kommentare }}</span>
+                {% endif %}
+            </span>
+            <button type="button" class="btn btn-sm btn-outline-primary"
+                    onclick="toggleKommentarForm({{ task.id }})">
+                <i class="ti ti-plus"></i>
+            </button>
+        </div>
+        <div class="card-body p-0">
+            {# Neuer Kommentar Form (collapsed by default) #}
+            <div id="kommentar-form-{{ task.id }}" class="p-2 border-bottom bg-light" style="display: none;">
+                <div class="mb-2">
+                    <select class="form-select form-select-sm" id="kommentar-typ-{{ task.id }}">
+                        <option value="review">🔍 Review</option>
+                        <option value="frage">❓ Frage</option>
+                        <option value="hinweis">💡 Hinweis</option>
+                        <option value="kommentar" selected>💬 Kommentar</option>
+                    </select>
+                </div>
+                <textarea class="form-control form-control-sm mb-2"
+                          id="kommentar-inhalt-{{ task.id }}"
+                          rows="2" placeholder="Dein Kommentar..."></textarea>
+                <button type="button" class="btn btn-sm btn-primary"
+                        onclick="addKommentar({{ task.id }})">
+                    <i class="ti ti-send"></i> Hinzufügen
+                </button>
+            </div>
+
+            {# Kommentar-Liste #}
+            <div id="kommentare-list-{{ task.id }}" style="max-height: 250px; overflow-y: auto;">
+                {% for k in task.kommentare %}
+                <div class="border-bottom p-2 {% if k.erledigt %}bg-light{% endif %}" data-kommentar-id="{{ k.id }}">
+                    <div class="d-flex align-items-center gap-2 mb-1">
+                        {# Erledigt-Checkbox (PRD011-T055 V1 PFLICHT) #}
+                        <input type="checkbox"
+                               class="form-check-input flex-shrink-0"
+                               {% if k.erledigt %}checked{% endif %}
+                               onclick="toggleKommentarErledigt({{ k.id }}, {{ task.id }})"
+                               title="Als erledigt markieren">
+                        <span class="badge bg-{{ k.typ_farbe }} {% if k.erledigt %}opacity-50{% endif %}">
+                            <i class="ti {{ k.typ_icon }}"></i> {{ k.typ_label|upper }}
+                        </span>
+                        <small class="text-muted">
+                            {{ k.user.vorname if k.user else 'System' }}
+                            {% if k.erledigt %}<i class="ti ti-check text-success ms-1"></i>{% endif %}
+                        </small>
+                        {# Edit/Delete für eigene Kommentare (PRD011-T055 V1) #}
+                        {% if k.user_id == current_user.id %}
+                        <div class="ms-auto d-flex gap-1">
+                            <button type="button" class="btn btn-sm btn-link text-muted p-0"
+                                    onclick="editKommentar({{ k.id }}, {{ task.id }})" title="Bearbeiten">
+                                <i class="ti ti-pencil"></i>
+                            </button>
+                            <button type="button" class="btn btn-sm btn-link text-danger p-0"
+                                    onclick="deleteKommentar({{ k.id }}, {{ task.id }})" title="Löschen">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="ps-4 {% if k.erledigt %}text-muted text-decoration-line-through{% endif %}" style="font-size: 0.9rem;">
+                        {{ k.inhalt }}
+                    </div>
+                </div>
+                {% else %}
+                <div class="p-3 text-muted text-center">
+                    <i class="ti ti-message-off"></i> Keine Kommentare
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <hr>
+
+    <div class="d-flex justify-content-between align-items-center gap-2">
+        <button type="button" class="btn btn-outline-danger btn-sm" onclick="deleteTask({{ task.id }})">
+            <i class="ti ti-trash"></i> Löschen
+        </button>
+        <div class="d-flex gap-2">
+            {% if task.changelog_eintraege.count() > 0 %}
+            <a href="{{ url_for('projekte_admin.changelog_liste', id=task.komponente_id) }}"
+               class="btn btn-outline-success btn-sm" target="_blank"
+               title="Changelog-Einträge zu diesem Task anzeigen">
+                <i class="ti ti-eye"></i> Changelog
+            </a>
+            {% endif %}
+            <button type="submit" class="btn btn-primary">
+                <i class="ti ti-device-floppy"></i> Speichern
+            </button>
+        </div>
+    </div>
+
+    {% if task.created_at %}
+    <hr>
+    <small class="text-muted">
+        Erstellt: {{ task.created_at.strftime('%d.%m.%Y %H:%M') }}
+        {% if task.erledigt_am %}
+        <br>Erledigt: {{ task.erledigt_am.strftime('%d.%m.%Y %H:%M') }}
+        {% endif %}
+    </small>
+    {% endif %}
+</form>
+
+{# PRD011-T056: Modal für Task-Verschieben #}
+{# data-bs-backdrop="false" verhindert z-index Konflikte mit Offcanvas #}
+<div class="modal fade" id="moveTaskModal" tabindex="-1" data-bs-backdrop="false">
+    <div class="modal-dialog modal-sm">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title"><i class="ti ti-arrow-right"></i> Task verschieben</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p class="text-muted small mb-3">
+                    Die Task-Nummer ändert sich entsprechend der Zielkomponente.
+                </p>
+                <label class="form-label">Zielkomponente</label>
+                <select class="form-select" id="moveTaskKomponente">
+                    {% for komp in projekt.komponenten if komp.id != task.komponente_id %}
+                    <option value="{{ komp.id }}">
+                        {% if komp.prd_nummer %}PRD-{{ komp.prd_nummer }} - {% endif %}{{ komp.name }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary btn-sm" onclick="moveTask({{ task.id }})">
+                    <i class="ti ti-arrow-right"></i> Verschieben
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

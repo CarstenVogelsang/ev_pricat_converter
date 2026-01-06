@@ -9,7 +9,30 @@
     </div>
 
     <!-- Tab Navigation -->
-    <ul class="nav nav-tabs nav-fill mb-4">
+    <style>
+        .admin-tabs .nav-link {
+            font-size: 1.1rem;
+            font-weight: 500;
+            padding: 0.75rem 1.5rem;
+            color: #6c757d;
+            border-bottom: 3px solid transparent;
+        }
+        .admin-tabs .nav-link:hover {
+            color: #495057;
+            border-color: #dee2e6;
+        }
+        .admin-tabs .nav-link.active {
+            font-weight: 600;
+            color: #0d6efd;
+            background-color: rgba(13, 110, 253, 0.08);
+            border-color: #0d6efd;
+            border-bottom-width: 3px;
+        }
+        .admin-tabs .nav-link i {
+            font-size: 1.2rem;
+        }
+    </style>
+    <ul class="nav nav-tabs nav-fill mb-4 admin-tabs">
         <li class="nav-item">
             <a class="nav-link{% if admin_tab == 'system' or request.endpoint == 'admin.index' %} active{% endif %}"
                href="{{ url_for('admin.index') }}">

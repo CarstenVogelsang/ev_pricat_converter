@@ -1,0 +1,212 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Durchführung {{ durchfuehrung.start_datum.strftime('%d.%m.%Y') }} - Schulungen - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Schulungen', 'url': url_for('schulungen_admin.index'), 'icon': 'ti-school'},
+    {'label': 'Durchführungen', 'url': url_for('schulungen_admin.durchfuehrungen_liste'), 'icon': 'ti-calendar'},
+    {'label': durchfuehrung.start_datum.strftime('%d.%m.%Y')}
+]) }}
+
+<div class="row">
+    <!-- Linke Spalte: Details -->
+    <div class="col-lg-5 mb-4">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="ti ti-info-circle"></i> Details</span>
+                {% if durchfuehrung.status == 'geplant' %}
+                <span class="badge bg-info">Geplant</span>
+                {% elif durchfuehrung.status == 'aktiv' %}
+                <span class="badge bg-success">Aktiv</span>
+                {% elif durchfuehrung.status == 'abgeschlossen' %}
+                <span class="badge bg-secondary">Abgeschlossen</span>
+                {% elif durchfuehrung.status == 'abgesagt' %}
+                <span class="badge bg-danger">Abgesagt</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                <dl class="row mb-0">
+                    <dt class="col-sm-4">Schulung</dt>
+                    <dd class="col-sm-8">
+                        <strong>{{ durchfuehrung.schulung.titel }}</strong>
+                    </dd>
+
+                    <dt class="col-sm-4">Start</dt>
+                    <dd class="col-sm-8">{{ durchfuehrung.start_datum.strftime('%d.%m.%Y') }}</dd>
+
+                    <dt class="col-sm-4">Termine</dt>
+                    <dd class="col-sm-8">{{ durchfuehrung.wochentage_formatiert }} um {{ durchfuehrung.uhrzeit_formatiert }}</dd>
+
+                    <dt class="col-sm-4">Max. TN</dt>
+                    <dd class="col-sm-8">{{ durchfuehrung.schulung.max_teilnehmer }}</dd>
+
+                    <dt class="col-sm-4">Gebucht</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-success">{{ durchfuehrung.anzahl_gebucht }}</span>
+                        {% if durchfuehrung.ist_ausgebucht %}
+                        <span class="badge bg-danger">Ausgebucht</span>
+                        {% else %}
+                        <span class="text-muted">({{ durchfuehrung.freie_plaetze }} frei)</span>
+                        {% endif %}
+                    </dd>
+
+                    <dt class="col-sm-4">Warteliste</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-warning text-dark">{{ durchfuehrung.anzahl_warteliste }}</span>
+                    </dd>
+
+                    {% if durchfuehrung.teams_link %}
+                    <dt class="col-sm-4">Teams</dt>
+                    <dd class="col-sm-8">
+                        <a href="{{ durchfuehrung.teams_link }}" target="_blank" class="btn btn-sm btn-outline-primary">
+                            <i class="ti ti-video"></i> Meeting öffnen
+                        </a>
+                    </dd>
+                    {% endif %}
+                </dl>
+            </div>
+            <div class="card-footer">
+                <!-- Status-Aktionen -->
+                <form method="POST" action="{{ url_for('schulungen_admin.durchfuehrung_status', id=durchfuehrung.id) }}" class="d-inline">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    {% if durchfuehrung.status == 'geplant' %}
+                    <button type="submit" name="status" value="aktiv" class="btn btn-sm btn-success">
+                        <i class="ti ti-player-play"></i> Aktivieren
+                    </button>
+                    <button type="submit" name="status" value="abgesagt" class="btn btn-sm btn-outline-danger"
+                            onclick="return confirm('Durchführung wirklich absagen?');">
+                        <i class="ti ti-x"></i> Absagen
+                    </button>
+                    {% elif durchfuehrung.status == 'aktiv' %}
+                    <button type="submit" name="status" value="abgeschlossen" class="btn btn-sm btn-secondary">
+                        <i class="ti ti-check"></i> Abschließen
+                    </button>
+                    {% endif %}
+                </form>
+            </div>
+        </div>
+
+        {% if durchfuehrung.anmerkungen %}
+        <div class="card mt-3">
+            <div class="card-header">
+                <i class="ti ti-note"></i> Interne Anmerkungen
+            </div>
+            <div class="card-body">
+                {{ durchfuehrung.anmerkungen }}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Rechte Spalte: Teilnehmer -->
+    <div class="col-lg-7">
+        <!-- Gebuchte Teilnehmer -->
+        <div class="card mb-4">
+            <div class="card-header bg-success text-white">
+                <i class="ti ti-users"></i> Gebuchte Teilnehmer ({{ durchfuehrung.anzahl_gebucht }})
+            </div>
+            <div class="card-body p-0">
+                {% if durchfuehrung.teilnehmer_gebucht %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Kunde</th>
+                                <th>Gebucht am</th>
+                                <th>Preis</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for buchung in durchfuehrung.teilnehmer_gebucht %}
+                            <tr>
+                                <td>
+                                    <strong>{{ buchung.kunde.firmierung }}</strong>
+                                    {% if buchung.kunde.kundennummer %}
+                                    <br><small class="text-muted">{{ buchung.kunde.kundennummer }}</small>
+                                    {% endif %}
+                                </td>
+                                <td>{{ buchung.gebucht_am.strftime('%d.%m.%Y') }}</td>
+                                <td>{{ "%.2f"|format(buchung.preis_bei_buchung) }} €</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('schulungen_admin.buchung_stornieren', id=buchung.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Buchung wirklich stornieren?');">
+                                            <i class="ti ti-x"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-user-off"></i> Noch keine Buchungen
+                </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Warteliste -->
+        <div class="card">
+            <div class="card-header bg-warning text-dark">
+                <i class="ti ti-clock"></i> Warteliste ({{ durchfuehrung.anzahl_warteliste }})
+            </div>
+            <div class="card-body p-0">
+                {% if durchfuehrung.teilnehmer_warteliste %}
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Kunde</th>
+                                <th>Gebucht am</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for buchung in durchfuehrung.teilnehmer_warteliste %}
+                            <tr>
+                                <td>{{ loop.index }}</td>
+                                <td>
+                                    <strong>{{ buchung.kunde.firmierung }}</strong>
+                                </td>
+                                <td>{{ buchung.gebucht_am.strftime('%d.%m.%Y') }}</td>
+                                <td class="text-end">
+                                    <form method="POST" action="{{ url_for('schulungen_admin.buchung_freischalten', id=buchung.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-success" title="Freischalten">
+                                            <i class="ti ti-check"></i>
+                                        </button>
+                                    </form>
+                                    <form method="POST" action="{{ url_for('schulungen_admin.buchung_stornieren', id=buchung.id) }}" class="d-inline">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                        <button type="submit" class="btn btn-sm btn-outline-danger"
+                                                onclick="return confirm('Buchung stornieren?');">
+                                            <i class="ti ti-x"></i>
+                                        </button>
+                                    </form>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-check"></i> Keine Warteliste
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

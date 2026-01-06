@@ -451,6 +451,7 @@ def betreiber():
             _update_config('brand_app_title', request.form.get('app_title', ''))
             _update_config('brand_primary_color', request.form.get('primary_color', '#0d6efd'))
             _update_config('brand_secondary_color', request.form.get('secondary_color', '#6c757d'))
+            _update_config('brand_light_text_color', request.form.get('light_text_color', '#ffffff'))
             _update_config('copyright_text', request.form.get('copyright_text', ''))
             _update_config('copyright_url', request.form.get('copyright_url', ''))
 
@@ -2712,11 +2713,17 @@ def lieferanten():
 
     lieferanten_liste = query.order_by(Lieferant.kurzbezeichnung).all()
 
+    # Aktuelle Branche für Custom Dropdown Button-Preview
+    aktuelle_branche = None
+    if branche_id:
+        aktuelle_branche = Branche.query.get(branche_id)
+
     return render_template(
         'administration/lieferanten.html',
         lieferanten=lieferanten_liste,
         handel_unterbranchen=handel_unterbranchen,
         filter_branche=branche_id,
+        aktuelle_branche=aktuelle_branche,
         filter_status=status,
         suchbegriff=suchbegriff,
         admin_tab='stammdaten'

@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Schulungen - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Schulungen', 'icon': 'ti-school'}
+]) }}
+
+<!-- Header mit Aktions-Buttons -->
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h2 class="mb-0"><i class="ti ti-school text-purple"></i> Online-Schulungen</h2>
+    <div class="d-flex gap-2">
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('schulungen.meine_schulungen') }}" class="btn btn-outline-primary">
+            <i class="ti ti-calendar-event"></i> Meine Schulungen
+        </a>
+        {% endif %}
+        {% if schulungen_widget %}
+        <a href="{{ url_for('schulungen_admin.index') }}" class="btn btn-outline-secondary">
+            <i class="ti ti-settings"></i> Verwaltung
+        </a>
+        {% endif %}
+    </div>
+</div>
+
+<!-- KPI-Leiste (nur Admin/Mitarbeiter) -->
+{% if schulungen_widget %}
+<div class="d-flex flex-wrap gap-3 mb-4">
+    <div class="d-flex align-items-center bg-light rounded-pill px-3 py-2">
+        <span class="badge bg-primary rounded-pill me-2 fs-6">{{ schulungen_widget.buchungen_offen }}</span>
+        <small class="text-muted">Offene Buchungen</small>
+    </div>
+    <div class="d-flex align-items-center bg-light rounded-pill px-3 py-2">
+        <span class="badge bg-warning text-dark rounded-pill me-2 fs-6">{{ schulungen_widget.warteliste }}</span>
+        <small class="text-muted">Auf Warteliste</small>
+    </div>
+    <div class="d-flex align-items-center bg-light rounded-pill px-3 py-2">
+        <span class="badge bg-success rounded-pill me-2 fs-6">{{ schulungen_widget.naechste_termine|length }}</span>
+        <small class="text-muted">Nächste Termine</small>
+    </div>
+    <div class="d-flex align-items-center bg-light rounded-pill px-3 py-2">
+        <span class="badge bg-info rounded-pill me-2 fs-6">{{ schulungen_widget.schulungen_aktiv }}</span>
+        <small class="text-muted">Aktive Schulungen</small>
+    </div>
+</div>
+{% endif %}
+
+<!-- Suche -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="GET" class="row g-3">
+            <div class="col-md-10">
+                <input type="text" class="form-control" name="suche" placeholder="Schulung suchen..."
+                       value="{{ suche }}">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="ti ti-search"></i> Suchen
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Schulungen-Liste -->
+<div class="row">
+    {% for schulung in schulungen %}
+    <div class="col-lg-6 mb-4">
+        <div class="card h-100">
+            <div class="card-header d-flex justify-content-between align-items-start">
+                <div>
+                    <h5 class="mb-1">{{ schulung.titel }}</h5>
+                    <small class="text-muted">
+                        <i class="ti ti-list"></i> {{ schulung.anzahl_themen }} Themen
+                        <span class="mx-1">•</span>
+                        <i class="ti ti-clock"></i> {{ schulung.gesamtdauer_formatiert }}
+                    </small>
+                </div>
+                <div class="text-end">
+                    {% if schulung.hat_sonderpreis %}
+                    <span class="text-decoration-line-through text-muted">{{ "%.2f"|format(schulung.preis)|replace('.', ',') }} €</span>
+                    <br><span class="badge bg-success fs-6">{{ "%.2f"|format(schulung.aktueller_preis)|replace('.', ',') }} €</span>
+                    {% else %}
+                    <span class="badge bg-primary fs-6">{{ "%.2f"|format(schulung.preis)|replace('.', ',') }} €</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="card-body">
+                {% if schulung.beschreibung %}
+                <p class="card-text">{{ schulung.beschreibung[:200] }}{% if schulung.beschreibung|length > 200 %}...{% endif %}</p>
+                {% endif %}
+
+                {% set naechste = schulung.naechste_durchfuehrung %}
+                {% if naechste %}
+                <div class="alert alert-info mb-0 py-2">
+                    <i class="ti ti-calendar-event"></i>
+                    <strong>Nächster Start:</strong> {{ naechste.start_datum.strftime('%d.%m.%Y') }}
+                    <br><small>{{ naechste.wochentage_formatiert }} um {{ naechste.uhrzeit_formatiert }}</small>
+                    {% if naechste.ist_ausgebucht %}
+                    <span class="badge bg-danger ms-2">Ausgebucht</span>
+                    {% else %}
+                    <span class="badge bg-success ms-2">{{ naechste.freie_plaetze }} Plätze frei</span>
+                    {% endif %}
+                </div>
+                {% else %}
+                <div class="alert alert-secondary mb-0 py-2">
+                    <i class="ti ti-calendar-off"></i> Derzeit keine Termine verfügbar
+                </div>
+                {% endif %}
+            </div>
+            <div class="card-footer">
+                <a href="{{ url_for('schulungen.detail', id=schulung.id) }}" class="btn btn-outline-primary">
+                    <i class="ti ti-info-circle"></i> Details & Termine
+                </a>
+            </div>
+        </div>
+    </div>
+    {% else %}
+    <div class="col-12">
+        <div class="text-center py-5 text-muted">
+            <i class="ti ti-school" style="font-size: 4rem;"></i>
+            <p class="mt-3">
+                {% if suche %}
+                Keine Schulungen gefunden für "{{ suche }}".
+                {% else %}
+                Derzeit sind keine Schulungen verfügbar.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

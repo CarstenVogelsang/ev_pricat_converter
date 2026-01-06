@@ -106,7 +106,7 @@
                 </div>
                 <div class="card-body">
                     <div class="row">
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="primary_color" class="form-label">Primärfarbe</label>
                             <div class="input-group">
                                 <input type="color" class="form-control form-control-color" id="primary_color_picker"
@@ -116,9 +116,9 @@
                                        value="{{ branding.primary_color }}" pattern="^#[0-9A-Fa-f]{6}$"
                                        onchange="document.getElementById('primary_color_picker').value = this.value">
                             </div>
-                            <div class="form-text">Hauptfarbe für Header, Buttons, Links</div>
+                            <div class="form-text">Header, Buttons, Links</div>
                         </div>
-                        <div class="col-md-6">
+                        <div class="col-md-4">
                             <label for="secondary_color" class="form-label">Sekundärfarbe</label>
                             <div class="input-group">
                                 <input type="color" class="form-control form-control-color" id="secondary_color_picker"
@@ -128,7 +128,19 @@
                                        value="{{ branding.secondary_color }}" pattern="^#[0-9A-Fa-f]{6}$"
                                        onchange="document.getElementById('secondary_color_picker').value = this.value">
                             </div>
-                            <div class="form-text">Für sekundäre Elemente</div>
+                            <div class="form-text">Sekundäre Elemente</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label for="light_text_color" class="form-label">Helle Textfarbe</label>
+                            <div class="input-group">
+                                <input type="color" class="form-control form-control-color" id="light_text_color_picker"
+                                       value="{{ branding.light_text_color }}" title="Helle Textfarbe wählen"
+                                       onchange="document.getElementById('light_text_color').value = this.value">
+                                <input type="text" class="form-control" id="light_text_color" name="light_text_color"
+                                       value="{{ branding.light_text_color }}" pattern="^#[0-9A-Fa-f]{6}$"
+                                       onchange="document.getElementById('light_text_color_picker').value = this.value">
+                            </div>
+                            <div class="form-text">Text auf dunklem Hintergrund</div>
                         </div>
                     </div>
                 </div>

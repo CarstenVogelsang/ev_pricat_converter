@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Schulung buchen - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Schulungen', 'url': url_for('schulungen.liste'), 'icon': 'ti-school'},
+    {'label': schulung.titel, 'url': url_for('schulungen.detail', id=schulung.id)},
+    {'label': 'Buchen'}
+]) }}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4 class="mb-0"><i class="ti ti-ticket"></i> Buchung bestätigen</h4>
+            </div>
+            <div class="card-body">
+                <!-- Schulungsdetails -->
+                <div class="row mb-4">
+                    <div class="col-md-8">
+                        <h5>{{ schulung.titel }}</h5>
+                        <p class="text-muted mb-2">
+                            <i class="ti ti-calendar"></i> Start: <strong>{{ durchfuehrung.start_datum.strftime('%d.%m.%Y') }}</strong>
+                        </p>
+                        <p class="text-muted mb-2">
+                            <i class="ti ti-clock"></i> {{ durchfuehrung.wochentage_formatiert }} um {{ durchfuehrung.uhrzeit_formatiert }}
+                        </p>
+                        <p class="text-muted mb-0">
+                            <i class="ti ti-list"></i> {{ schulung.anzahl_themen }} Themen ({{ schulung.gesamtdauer_formatiert }})
+                        </p>
+                    </div>
+                    <div class="col-md-4 text-end">
+                        {% if schulung.hat_sonderpreis %}
+                        <span class="text-decoration-line-through text-muted d-block">{{ "%.2f"|format(schulung.preis) }} €</span>
+                        <h3 class="text-success">{{ "%.2f"|format(schulung.aktueller_preis) }} €</h3>
+                        {% else %}
+                        <h3 class="text-primary">{{ "%.2f"|format(schulung.aktueller_preis) }} €</h3>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <hr>
+
+                <!-- Verfügbarkeit -->
+                {% if durchfuehrung.ist_ausgebucht %}
+                <div class="alert alert-warning">
+                    <i class="ti ti-alert-triangle"></i>
+                    <strong>Diese Schulung ist ausgebucht.</strong>
+                    <br>Sie können sich auf die Warteliste setzen lassen. Wir benachrichtigen Sie, wenn ein Platz frei wird.
+                </div>
+                {% else %}
+                <div class="alert alert-success">
+                    <i class="ti ti-check"></i>
+                    <strong>{{ durchfuehrung.freie_plaetze }} Plätze verfügbar</strong>
+                </div>
+                {% endif %}
+
+                <!-- Kundendaten -->
+                <div class="bg-light p-3 rounded mb-4">
+                    <h6><i class="ti ti-user"></i> Buchung für:</h6>
+                    <p class="mb-0">
+                        <strong>{{ current_user.kunde.firmierung }}</strong>
+                        {% if current_user.kunde.kundennummer %}
+                        <br><small class="text-muted">Kundennummer: {{ current_user.kunde.kundennummer }}</small>
+                        {% endif %}
+                    </p>
+                </div>
+
+                <!-- Storno-Hinweis -->
+                <div class="alert alert-info">
+                    <i class="ti ti-info-circle"></i>
+                    <strong>Stornierung möglich bis {{ schulung.storno_frist_tage }} Tage vor Schulungsbeginn.</strong>
+                </div>
+
+                <!-- Buchungs-Button -->
+                <form method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                    <div class="d-grid gap-2">
+                        {% if durchfuehrung.ist_ausgebucht %}
+                        <button type="submit" class="btn btn-warning btn-lg">
+                            <i class="ti ti-clock"></i> Auf Warteliste setzen
+                        </button>
+                        {% else %}
+                        <button type="submit" class="btn btn-primary btn-lg">
+                            <i class="ti ti-check"></i> Verbindlich buchen
+                        </button>
+                        {% endif %}
+                        <a href="{{ url_for('schulungen.detail', id=schulung.id) }}" class="btn btn-outline-secondary">
+                            <i class="ti ti-arrow-left"></i> Zurück
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

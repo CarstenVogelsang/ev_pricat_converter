@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Schulungen{% endblock %}</title>
+
+    <!-- Bootstrap 5 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Tabler Icons -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.44.0/tabler-icons.min.css">
+
+    <style>
+        body {
+            background: transparent;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            padding: 1rem;
+        }
+
+        /* Theme: Dark Mode */
+        {% if theme == 'dark' %}
+        body {
+            background: #1a1a2e;
+            color: #eee;
+        }
+        .card {
+            background: #16213e;
+            border-color: #0f3460;
+        }
+        .card-header {
+            background: #0f3460 !important;
+            border-color: #0f3460;
+        }
+        .list-group-item {
+            background: #16213e;
+            border-color: #0f3460;
+            color: #eee;
+        }
+        .text-muted {
+            color: #aaa !important;
+        }
+        {% endif %}
+
+        /* Kompakte Darstellung für iframe */
+        .card {
+            box-shadow: none;
+            border-radius: 8px;
+        }
+        .card-header {
+            padding: 0.75rem 1rem;
+        }
+        .card-body {
+            padding: 1rem;
+        }
+
+        /* Schulung-Karten */
+        .schulung-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            transition: all 0.2s ease;
+        }
+    </style>
+</head>
+<body>
+    {% block content %}{% endblock %}
+
+    <script>
+    // Buchung in neuem Fenster öffnen
+    function buchenKlick(url) {
+        window.open(url, '_blank', 'width=800,height=600');
+    }
+    </script>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

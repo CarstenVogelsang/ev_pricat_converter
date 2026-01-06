@@ -1,0 +1,216 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ 'Schulung bearbeiten' if schulung else 'Neue Schulung' }} - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Schulungen', 'url': url_for('schulungen_admin.index'), 'icon': 'ti-school'},
+    {'label': schulung.titel if schulung else 'Neue Schulung'}
+]) }}
+
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>
+                <i class="ti ti-school"></i>
+                {{ 'Schulung bearbeiten' if schulung else 'Neue Schulung anlegen' }}
+            </span>
+            <div>
+                <a href="{{ url_for('schulungen_admin.index') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-arrow-left"></i> Zurück
+                </a>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="ti ti-device-floppy"></i> Speichern
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <!-- Linke Spalte: Grunddaten -->
+                <div class="col-lg-6">
+                    <h5 class="mb-3"><i class="ti ti-info-circle"></i> Grunddaten</h5>
+
+                    <div class="mb-3">
+                        <label for="titel" class="form-label">Titel *</label>
+                        <input type="text" class="form-control" id="titel" name="titel" required
+                               value="{{ schulung.titel if schulung else form_data.get('titel', '') }}"
+                               placeholder="z.B. ERP Grundlagen für Einsteiger">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="artikelnummer" class="form-label">Artikelnummer</label>
+                        <input type="text" class="form-control" id="artikelnummer" name="artikelnummer"
+                               value="{{ schulung.artikelnummer if schulung else form_data.get('artikelnummer', '') }}"
+                               placeholder="z.B. ART-SCHUL-001">
+                        <div class="form-text">Artikel-Nummer unter der die Schulung im e-vendo ERP System angelegt ist.</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="beschreibung" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="beschreibung" name="beschreibung" rows="4"
+                                  placeholder="Ausführliche Beschreibung (Markdown)">{{ schulung.beschreibung if schulung else form_data.get('beschreibung', '') }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="max_teilnehmer" class="form-label">Max. Teilnehmer</label>
+                            <input type="number" class="form-control" id="max_teilnehmer" name="max_teilnehmer"
+                                   min="1" max="100"
+                                   value="{{ schulung.max_teilnehmer if schulung else form_data.get('max_teilnehmer', '10') }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="storno_frist_tage" class="form-label">Storno-Frist (Tage)</label>
+                            <input type="number" class="form-control" id="storno_frist_tage" name="storno_frist_tage"
+                                   min="0" max="30"
+                                   value="{{ schulung.storno_frist_tage if schulung else form_data.get('storno_frist_tage', '7') }}">
+                        </div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="aktiv" name="aktiv"
+                               {{ 'checked' if (schulung and schulung.aktiv) or (not schulung and form_data.get('aktiv', 'on') == 'on') else '' }}>
+                        <label class="form-check-label" for="aktiv">
+                            Aktiv (öffentlich sichtbar)
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Rechte Spalte: Preise und Themen -->
+                <div class="col-lg-6">
+                    <h5 class="mb-3"><i class="ti ti-currency-euro"></i> Preise</h5>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="preis" class="form-label">Standardpreis (€) *</label>
+                            <input type="text" class="form-control" id="preis" name="preis" required
+                                   value="{{ '%.2f'|format(schulung.preis)|replace('.', ',') if schulung else form_data.get('preis', '') }}"
+                                   placeholder="z.B. 499,00">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="sonderpreis" class="form-label">Sonderpreis (€)</label>
+                            <input type="text" class="form-control" id="sonderpreis" name="sonderpreis"
+                                   value="{{ '%.2f'|format(schulung.sonderpreis)|replace('.', ',') if schulung and schulung.sonderpreis else form_data.get('sonderpreis', '') }}"
+                                   placeholder="z.B. 399,00">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="aktionszeitraum_von" class="form-label">Sonderpreis gültig von</label>
+                            <input type="date" class="form-control" id="aktionszeitraum_von" name="aktionszeitraum_von"
+                                   value="{{ schulung.aktionszeitraum_von.strftime('%Y-%m-%d') if schulung and schulung.aktionszeitraum_von else form_data.get('aktionszeitraum_von', '') }}">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label for="aktionszeitraum_bis" class="form-label">Sonderpreis gültig bis</label>
+                            <input type="date" class="form-control" id="aktionszeitraum_bis" name="aktionszeitraum_bis"
+                                   value="{{ schulung.aktionszeitraum_bis.strftime('%Y-%m-%d') if schulung and schulung.aktionszeitraum_bis else form_data.get('aktionszeitraum_bis', '') }}">
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <h5 class="mb-3"><i class="ti ti-list"></i> Themen (Reihenfolge)</h5>
+
+                    <div id="themen-container">
+                        {% set selected_themen = schulung.thema_verknuepfungen if schulung else [] %}
+                        {% for vk in selected_themen %}
+                        <div class="input-group mb-2 thema-row">
+                            <span class="input-group-text" style="cursor: grab;"><i class="ti ti-grip-vertical"></i></span>
+                            <select class="form-select" name="thema_ids">
+                                <option value="">-- Thema wählen --</option>
+                                {% for thema in themen %}
+                                <option value="{{ thema.id }}" {{ 'selected' if thema.id == vk.thema_id else '' }}>
+                                    {{ thema.titel }} ({{ thema.dauer_formatiert }})
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-danger btn-remove-thema">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </div>
+                        {% endfor %}
+                        {% if not selected_themen %}
+                        <div class="input-group mb-2 thema-row">
+                            <span class="input-group-text" style="cursor: grab;"><i class="ti ti-grip-vertical"></i></span>
+                            <select class="form-select" name="thema_ids">
+                                <option value="">-- Thema wählen --</option>
+                                {% for thema in themen %}
+                                <option value="{{ thema.id }}">{{ thema.titel }} ({{ thema.dauer_formatiert }})</option>
+                                {% endfor %}
+                            </select>
+                            <button type="button" class="btn btn-outline-danger btn-remove-thema">
+                                <i class="ti ti-trash"></i>
+                            </button>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-add-thema">
+                        <i class="ti ti-plus"></i> Thema hinzufügen
+                    </button>
+
+                    {% if not themen %}
+                    <div class="alert alert-warning mt-3">
+                        <i class="ti ti-alert-triangle"></i>
+                        Keine Themen vorhanden.
+                        <a href="{{ url_for('schulungen_admin.thema_neu') }}">Jetzt Thema anlegen</a>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% if schulung %}
+        <div class="card-footer d-flex justify-content-between">
+            <small class="text-muted">
+                Erstellt: {{ schulung.created_at.strftime('%d.%m.%Y %H:%M') if schulung.created_at else '-' }}
+                {% if schulung.updated_at %}| Geändert: {{ schulung.updated_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+            </small>
+            <form method="POST" action="{{ url_for('schulungen_admin.schulung_loeschen', id=schulung.id) }}"
+                  onsubmit="return confirm('Schulung wirklich löschen? Dies kann nicht rückgängig gemacht werden.');">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                    <i class="ti ti-trash"></i> Löschen
+                </button>
+            </form>
+        </div>
+        {% endif %}
+    </div>
+</form>
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+<script>
+// Drag & Drop für Themen-Sortierung
+new Sortable(document.getElementById('themen-container'), {
+    animation: 150,
+    handle: '.input-group-text',
+    ghostClass: 'bg-light',
+    chosenClass: 'border-primary'
+});
+
+// Thema hinzufügen
+document.getElementById('btn-add-thema').addEventListener('click', function() {
+    const container = document.getElementById('themen-container');
+    const firstRow = container.querySelector('.thema-row');
+    const newRow = firstRow.cloneNode(true);
+    newRow.querySelector('select').value = '';
+    container.appendChild(newRow);
+});
+
+// Thema entfernen
+document.getElementById('themen-container').addEventListener('click', function(e) {
+    if (e.target.closest('.btn-remove-thema')) {
+        const rows = this.querySelectorAll('.thema-row');
+        if (rows.length > 1) {
+            e.target.closest('.thema-row').remove();
+        } else {
+            e.target.closest('.thema-row').querySelector('select').value = '';
+        }
+    }
+});
+</script>
+{% endblock %}

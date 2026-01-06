@@ -1,0 +1,100 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ 'Durchführung bearbeiten' if durchfuehrung else 'Neue Durchführung' }} - Schulungen - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Schulungen', 'url': url_for('schulungen_admin.index'), 'icon': 'ti-school'},
+    {'label': 'Durchführungen', 'url': url_for('schulungen_admin.durchfuehrungen_liste'), 'icon': 'ti-calendar'},
+    {'label': 'Neue Durchführung' if not durchfuehrung else durchfuehrung.start_datum.strftime('%d.%m.%Y')}
+]) }}
+
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>
+                <i class="ti ti-calendar-plus"></i>
+                {{ 'Durchführung bearbeiten' if durchfuehrung else 'Neue Durchführung anlegen' }}
+            </span>
+            <div>
+                <a href="{{ url_for('schulungen_admin.durchfuehrungen_liste') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-arrow-left"></i> Zurück
+                </a>
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="ti ti-device-floppy"></i> Speichern
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-6">
+                    <h5 class="mb-3"><i class="ti ti-school"></i> Schulung & Termin</h5>
+
+                    <div class="mb-3">
+                        <label for="schulung_id" class="form-label">Schulung *</label>
+                        <select class="form-select" id="schulung_id" name="schulung_id" required>
+                            <option value="">-- Schulung wählen --</option>
+                            {% for s in schulungen %}
+                            <option value="{{ s.id }}"
+                                    {{ 'selected' if (durchfuehrung and durchfuehrung.schulung_id == s.id) or vorausgewaehlte_schulung_id == s.id else '' }}>
+                                {{ s.titel }} ({{ s.anzahl_themen }} Themen, {{ s.gesamtdauer_formatiert }})
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="start_datum" class="form-label">Startdatum *</label>
+                        <input type="date" class="form-control" id="start_datum" name="start_datum" required
+                               value="{{ durchfuehrung.start_datum.strftime('%Y-%m-%d') if durchfuehrung else form_data.get('start_datum', '') }}">
+                    </div>
+
+                    <div class="mb-3">
+                        <label class="form-label">Wochentage *</label>
+                        <div class="d-flex flex-wrap gap-2">
+                            {% set wochentage_liste = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'] %}
+                            {% set selected_wochentage = durchfuehrung.terminmuster.wochentage if durchfuehrung and durchfuehrung.terminmuster else form_data.get('wochentage', []) %}
+                            {% for tag in wochentage_liste %}
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="wochentage" value="{{ tag }}"
+                                       id="wt_{{ tag }}" {{ 'checked' if tag in selected_wochentage else '' }}>
+                                <label class="form-check-label" for="wt_{{ tag }}">{{ tag }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="uhrzeit" class="form-label">Uhrzeit *</label>
+                        <input type="time" class="form-control" id="uhrzeit" name="uhrzeit"
+                               value="{{ durchfuehrung.terminmuster.uhrzeit if durchfuehrung and durchfuehrung.terminmuster else form_data.get('uhrzeit', '14:00') }}">
+                    </div>
+                </div>
+
+                <div class="col-lg-6">
+                    <h5 class="mb-3"><i class="ti ti-video"></i> Teams-Meeting</h5>
+
+                    <div class="mb-3">
+                        <label for="teams_link" class="form-label">Microsoft Teams Link</label>
+                        <input type="url" class="form-control" id="teams_link" name="teams_link"
+                               value="{{ durchfuehrung.teams_link if durchfuehrung else form_data.get('teams_link', '') }}"
+                               placeholder="https://teams.microsoft.com/l/meetup-join/...">
+                        <div class="form-text">Link aus Teams-Kalendertermin kopieren</div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="anmerkungen" class="form-label">Interne Anmerkungen</label>
+                        <textarea class="form-control" id="anmerkungen" name="anmerkungen" rows="4"
+                                  placeholder="Notizen für Mitarbeiter (nicht öffentlich)">{{ durchfuehrung.anmerkungen if durchfuehrung else form_data.get('anmerkungen', '') }}</textarea>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}

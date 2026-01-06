@@ -407,10 +407,11 @@ class FragebogenService:
             Created FragebogenTeilnahme
 
         Raises:
-            ValueError: If Kunde has no user or is already added
+            ValueError: If Kunde/Lead has no contact email or is already added
         """
-        if not kunde.user_id:
-            raise ValueError(f'Kunde "{kunde.firmierung}" hat keinen User-Account')
+        # Support both Kunden (with user) and Leads (without user, but with email)
+        if not kunde.kann_fragebogen_erhalten():
+            raise ValueError(f'{kunde.firmierung}: Keine E-Mail-Adresse hinterlegt')
 
         # Check if already exists
         existing = FragebogenTeilnahme.query.filter_by(
@@ -492,16 +493,19 @@ class FragebogenService:
 
         for teilnahme in teilnahmen:
             kunde = teilnahme.kunde
-            user = kunde.user
 
-            if not user:
-                errors.append(f'{kunde.firmierung}: Kein User-Account')
+            # Use unified contact properties - works for both Kunden and Leads
+            to_email = kunde.kontakt_email
+            to_name = kunde.kontakt_name
+
+            if not to_email:
+                errors.append(f'{kunde.firmierung}: Keine E-Mail-Adresse')
                 failed_count += 1
                 continue
 
             result = brevo.send_fragebogen_einladung(
-                to_email=user.email,
-                to_name=user.full_name,
+                to_email=to_email,
+                to_name=to_name,
                 fragebogen_titel=fragebogen.titel,
                 magic_token=teilnahme.token,
                 kunde_firmierung=kunde.firmierung
@@ -516,7 +520,7 @@ class FragebogenService:
                 log_mittel(
                     modul='dialog',
                     aktion=aktion,
-                    details=f'Einladung zu "{fragebogen.titel}" an {user.email} ({kunde.firmierung}) gesendet. Message-ID: {result.message_id or "n/a"}',
+                    details=f'Einladung zu "{fragebogen.titel}" an {to_email} ({kunde.firmierung}) gesendet. Message-ID: {result.message_id or "n/a"}',
                     entity_type='FragebogenTeilnahme',
                     entity_id=teilnahme.id
                 )
@@ -528,7 +532,7 @@ class FragebogenService:
                 log_mittel(
                     modul='dialog',
                     aktion='einladung_fehlgeschlagen',
-                    details=f'Einladung zu "{fragebogen.titel}" an {user.email} ({kunde.firmierung}) fehlgeschlagen: {result.error}',
+                    details=f'Einladung zu "{fragebogen.titel}" an {to_email} ({kunde.firmierung}) fehlgeschlagen: {result.error}',
                     entity_type='FragebogenTeilnahme',
                     entity_id=teilnahme.id
                 )

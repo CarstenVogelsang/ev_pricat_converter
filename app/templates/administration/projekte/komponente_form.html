@@ -1,0 +1,370 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{% if komponente %}Komponente bearbeiten{% else %}Neue Komponente{% endif %} - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Projektverwaltung', 'url': url_for('projekte_admin.index'), 'icon': 'ti-folder'},
+    {'label': projekt.name ~ ' (' ~ ('Kunde' if projekt.ist_kundenprojekt else 'intern') ~ ')', 'url': url_for('projekte_admin.projekt_detail', id=projekt.id)},
+    {'label': komponente.name if komponente else 'Neue Komponente'}
+]) }}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="ti ti-{% if komponente %}edit{% else %}plus{% endif %}"></i>
+                        {% if komponente %}Komponente bearbeiten{% else %}Neue Komponente{% endif %}
+                    </span>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-8 mb-3">
+                            <label for="name" class="form-label">Name *</label>
+                            <input type="text" class="form-control" id="name" name="name"
+                                   value="{{ komponente.name if komponente else request.form.get('name', '') }}" required>
+                        </div>
+                        <div class="col-md-4 mb-3">
+                            <label for="prd_nummer" class="form-label">PRD-Nummer</label>
+                            <div class="input-group">
+                                <span class="input-group-text">PRD-</span>
+                                <input type="text" class="form-control" id="prd_nummer" name="prd_nummer"
+                                       placeholder="011"
+                                       value="{{ komponente.prd_nummer if komponente else (request.form.get('prd_nummer') or naechste_prd_nummer|default('')) }}">
+                            </div>
+                        </div>
+                    </div>
+
+                    {# PRD011-T053: Zeile 1 - Typ + verknüpfte Module #}
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="typ" class="form-label">Typ</label>
+                            {# PRD011-T047: Icon-Dropdown für Kundenprojekte #}
+                            {% if projekt.ist_kundenprojekt and komponente_typen and komponente_typen|length > 0 and komponente_typen[0].schluessel is defined %}
+                            <div class="dropdown">
+                                {% set current_typ = komponente.typ if komponente else (request.form.get('typ') or 'modul_erp') %}
+                                {% set current_lookup = komponente_typen|selectattr('schluessel', 'equalto', current_typ)|first %}
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center justify-content-between"
+                                        type="button" id="typ-dropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span id="typ-display">
+                                        {% if current_lookup %}
+                                        <i class="ti {{ current_lookup.icon }} text-{{ current_lookup.farbe }} me-2"></i>
+                                        {{ current_lookup.wert }}
+                                        {% else %}
+                                        <i class="ti ti-package text-secondary me-2"></i>
+                                        Typ wählen
+                                        {% endif %}
+                                    </span>
+                                </button>
+                                <ul class="dropdown-menu w-100" aria-labelledby="typ-dropdown">
+                                    {% for typ in komponente_typen %}
+                                    <li>
+                                        <a class="dropdown-item {% if current_typ == typ.schluessel %}active{% endif %}"
+                                           href="#"
+                                           data-typ="{{ typ.schluessel }}"
+                                           data-icon="{{ typ.icon }}"
+                                           data-farbe="{{ typ.farbe }}"
+                                           data-label="{{ typ.wert }}">
+                                            <i class="ti {{ typ.icon }} text-{{ typ.farbe }} me-2"></i>
+                                            {{ typ.wert }}
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                                <input type="hidden" name="typ" id="typ" value="{{ current_typ }}">
+                            </div>
+                            {% else %}
+                            {# Standard-Select für interne Projekte #}
+                            <select class="form-select" id="typ" name="typ">
+                                {% for value, label in komponente_typen %}
+                                <option value="{{ value }}" {% if (komponente and komponente.typ == value) or request.form.get('typ') == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% endif %}
+                        </div>
+                        {# PRD011-T054: ev247-Modul mit Icons aus DB #}
+                        <div class="col-md-4 mb-3" id="modul-select-container" style="display: none;">
+                            <label class="form-label">
+                                <i class="ti ti-layout-grid text-info me-1"></i> ev247-Modul
+                            </label>
+                            {% set current_modul = module|selectattr('id', 'equalto', komponente.modul_id)|first if komponente and komponente.modul_id else none %}
+                            <div class="dropdown" id="modul-dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center justify-content-between"
+                                        type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span id="modul-display">
+                                        {% if current_modul %}
+                                        <i class="ti {{ current_modul.icon }} me-2" style="color: {{ current_modul.color_hex }};"></i>
+                                        {{ current_modul.name }}
+                                        {% else %}
+                                        <i class="ti ti-x text-muted me-2"></i>-- Kein Modul --
+                                        {% endif %}
+                                    </span>
+                                </button>
+                                <ul class="dropdown-menu w-100">
+                                    <li>
+                                        <a class="dropdown-item {% if not current_modul %}active{% endif %}" href="#"
+                                           data-value="" data-icon="ti-x" data-color="">
+                                            <i class="ti ti-x text-muted me-2"></i>-- Kein Modul --
+                                        </a>
+                                    </li>
+                                    {% for modul in module %}
+                                    <li>
+                                        <a class="dropdown-item {% if current_modul and current_modul.id == modul.id %}active{% endif %}" href="#"
+                                           data-value="{{ modul.id }}" data-icon="{{ modul.icon }}" data-color="{{ modul.color_hex }}">
+                                            <i class="ti {{ modul.icon }} me-2" style="color: {{ modul.color_hex }};"></i>
+                                            {{ modul.name }}
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <input type="hidden" name="modul_id" id="modul_id" value="{{ komponente.modul_id if komponente and komponente.modul_id else '' }}">
+                            <div class="form-text">Für Rollenbasierte Sichtbarkeit</div>
+                        </div>
+                        {# PRD011-T054: ERP-Modul mit Icons aus DB #}
+                        {% if projekt.ist_kundenprojekt and erp_module %}
+                        <div class="col-md-4 mb-3" id="erp-modul-container" style="display: none;">
+                            <label class="form-label">
+                                <i class="ti ti-plug text-primary me-1"></i> ERP-Modul
+                            </label>
+                            {% set current_erp = erp_module|selectattr('id', 'equalto', komponente.erp_modul_id)|first if komponente and komponente.erp_modul_id else none %}
+                            <div class="dropdown" id="erp-modul-dropdown">
+                                <button class="btn btn-outline-secondary dropdown-toggle w-100 text-start d-flex align-items-center justify-content-between"
+                                        type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    <span id="erp-modul-display">
+                                        {% if current_erp %}
+                                        <i class="ti {{ current_erp.icon }} text-primary me-2"></i>
+                                        {{ current_erp.bezeichnung }}
+                                        {% else %}
+                                        <i class="ti ti-x text-muted me-2"></i>-- Kein ERP-Modul --
+                                        {% endif %}
+                                    </span>
+                                </button>
+                                <ul class="dropdown-menu w-100">
+                                    <li>
+                                        <a class="dropdown-item {% if not current_erp %}active{% endif %}" href="#"
+                                           data-value="" data-icon="ti-x">
+                                            <i class="ti ti-x text-muted me-2"></i>-- Kein ERP-Modul --
+                                        </a>
+                                    </li>
+                                    {% for erp in erp_module %}
+                                    <li>
+                                        <a class="dropdown-item {% if current_erp and current_erp.id == erp.id %}active{% endif %}" href="#"
+                                           data-value="{{ erp.id }}" data-icon="{{ erp.icon }}" data-label="{{ erp.bezeichnung }}">
+                                            <i class="ti {{ erp.icon }} text-primary me-2"></i>
+                                            {{ erp.bezeichnung }}
+                                            <span class="text-muted small ms-1">({{ erp.kontext_label }})</span>
+                                        </a>
+                                    </li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                            <input type="hidden" name="erp_modul_id" id="erp_modul_id" value="{{ komponente.erp_modul_id if komponente and komponente.erp_modul_id else '' }}">
+                            <div class="form-text">e-vendo ERP/Shop-Modul für Aufträge</div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {# PRD011-T053: Zeile 2 - Phase #}
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="aktuelle_phase" class="form-label">Aktuelle Phase</label>
+                            <select class="form-select" id="aktuelle_phase" name="aktuelle_phase">
+                                {% for value, label in komponente_phasen %}
+                                <option value="{{ value }}" {% if (komponente and komponente.aktuelle_phase == value) or request.form.get('aktuelle_phase') == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    {% if komponente %}
+                    <div class="row">
+                        <div class="col-md-4 mb-3">
+                            <label for="status" class="form-label">Status</label>
+                            <select class="form-select" id="status" name="status">
+                                {% for value, label in komponente_status %}
+                                <option value="{{ value }}" {% if komponente.status == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-8 mb-3">
+                            <label for="icon" class="form-label">Icon</label>
+                            <div class="input-group">
+                                <span class="input-group-text">
+                                    <i class="ti {{ komponente.icon if komponente else 'ti-package' }}" id="icon-preview"></i>
+                                </span>
+                                <input type="text" class="form-control" id="icon" name="icon"
+                                       value="{{ komponente.icon if komponente else 'ti-package' }}">
+                            </div>
+                            <div class="form-text">z.B. ti-package, ti-school, ti-file-text</div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if not komponente %}
+                    <div class="mb-3">
+                        <label for="prd_inhalt" class="form-label">PRD-Inhalt (Markdown)</label>
+                        <textarea class="form-control font-monospace" id="prd_inhalt" name="prd_inhalt"
+                                  rows="10" placeholder="# PRD-XXX - Name
+
+## Übersicht
+
+## Features
+
+## Datenmodell
+">{{ request.form.get('prd_inhalt', '') }}</textarea>
+                    </div>
+                    {% endif %}
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('projekte_admin.projekt_detail', id=projekt.id) }}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> Abbrechen
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typInput = document.getElementById('typ');
+    const modulContainer = document.getElementById('modul-select-container');
+    const erpModulContainer = document.getElementById('erp-modul-container');
+
+    // PRD011-T054: Generic icon dropdown handler
+    function initIconDropdown(dropdownId, hiddenInputId, displayId, colorStyle) {
+        const dropdown = document.getElementById(dropdownId);
+        if (!dropdown) return;
+
+        dropdown.querySelectorAll('.dropdown-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const value = this.dataset.value;
+                const icon = this.dataset.icon || 'ti-x';
+                const color = this.dataset.color || '';
+                const label = this.dataset.label || this.textContent.trim();
+
+                // Update hidden input
+                document.getElementById(hiddenInputId).value = value;
+
+                // Update display with icon
+                let iconHtml;
+                if (colorStyle === 'inline' && color) {
+                    iconHtml = '<i class="ti ' + icon + ' me-2" style="color: ' + color + ';"></i>';
+                } else if (colorStyle === 'class') {
+                    iconHtml = '<i class="ti ' + icon + ' text-primary me-2"></i>';
+                } else {
+                    iconHtml = '<i class="ti ' + icon + ' text-muted me-2"></i>';
+                }
+                document.getElementById(displayId).innerHTML = iconHtml + label;
+
+                // Update active state
+                dropdown.querySelectorAll('.dropdown-item').forEach(function(i) {
+                    i.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+    }
+
+    // PRD011-T054: Initialize both module dropdowns
+    initIconDropdown('modul-dropdown', 'modul_id', 'modul-display', 'inline');
+    initIconDropdown('erp-modul-dropdown', 'erp_modul_id', 'erp-modul-display', 'class');
+
+    function toggleModulSelect() {
+        const typValue = typInput.value;
+
+        // PRD011-T053: ev247-Modul für 'modul' (intern) oder 'modul_ev247' (Kunde)
+        if (typValue === 'modul' || typValue === 'modul_ev247') {
+            modulContainer.style.display = 'block';
+        } else {
+            modulContainer.style.display = 'none';
+            document.getElementById('modul_id').value = '';
+            // Reset display to default
+            const modulDisplay = document.getElementById('modul-display');
+            if (modulDisplay) {
+                modulDisplay.innerHTML = '<i class="ti ti-x text-muted me-2"></i>-- Kein Modul --';
+            }
+        }
+
+        // PRD011-T053: ERP-Modul nur für 'modul_erp' (Kundenprojekte)
+        if (erpModulContainer) {
+            if (typValue === 'modul_erp') {
+                erpModulContainer.style.display = 'block';
+            } else {
+                erpModulContainer.style.display = 'none';
+                document.getElementById('erp_modul_id').value = '';
+                // Reset display to default
+                const erpDisplay = document.getElementById('erp-modul-display');
+                if (erpDisplay) {
+                    erpDisplay.innerHTML = '<i class="ti ti-x text-muted me-2"></i>-- Kein ERP-Modul --';
+                }
+            }
+        }
+    }
+
+    // PRD011-T047: Handle icon dropdown for customer projects
+    const typDropdown = document.getElementById('typ-dropdown');
+    if (typDropdown) {
+        // Custom dropdown for customer projects
+        document.querySelectorAll('#typ-dropdown + .dropdown-menu .dropdown-item').forEach(function(item) {
+            item.addEventListener('click', function(e) {
+                e.preventDefault();
+                const typ = this.dataset.typ;
+                const icon = this.dataset.icon;
+                const farbe = this.dataset.farbe;
+                const label = this.dataset.label;
+
+                // Update hidden input
+                typInput.value = typ;
+
+                // Update display
+                document.getElementById('typ-display').innerHTML =
+                    '<i class="ti ' + icon + ' text-' + farbe + ' me-2"></i>' + label;
+
+                // Update active state
+                document.querySelectorAll('#typ-dropdown + .dropdown-menu .dropdown-item').forEach(function(i) {
+                    i.classList.remove('active');
+                });
+                this.classList.add('active');
+
+                // Trigger modul visibility toggle
+                toggleModulSelect();
+            });
+        });
+    } else {
+        // Standard select for internal projects
+        typInput.addEventListener('change', toggleModulSelect);
+    }
+
+    toggleModulSelect();
+
+    // Icon preview
+    const iconInput = document.getElementById('icon');
+    const iconPreview = document.getElementById('icon-preview');
+    if (iconInput && iconPreview) {
+        iconInput.addEventListener('input', function() {
+            iconPreview.className = 'ti ' + this.value;
+        });
+    }
+});
+</script>
+{% endblock %}

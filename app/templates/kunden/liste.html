@@ -12,10 +12,13 @@
     {'label': 'Kunden', 'icon': 'ti-users'}
 ]) }}
 {% call module_header(
-    title="Kunden",
+    title="Kunden & Leads",
     icon=module.icon,
     color_hex=module.color_hex
 ) %}
+    <a href="{{ url_for('kunden.lead_import') }}" class="btn btn-outline-secondary">
+        <i class="ti ti-upload"></i> Leads importieren
+    </a>
     <a href="{{ url_for('kunden.neu') }}" class="btn btn-primary">
         <i class="ti ti-plus"></i> Neuer Kunde
     </a>
@@ -47,7 +50,7 @@
                     {% endfor %}
                 </select>
             </div>
-            <div class="col-md-3">
+            <div class="col-md-2">
                 <label for="filterStatus" class="form-label">Status</label>
                 <select class="form-select" id="filterStatus" name="status" onchange="this.form.submit()">
                     <option value="alle" {{ 'selected' if filter_status == 'alle' }}>Alle</option>
@@ -55,8 +58,16 @@
                     <option value="inaktiv" {{ 'selected' if filter_status == 'inaktiv' }}>Inaktiv</option>
                 </select>
             </div>
-            <div class="col-md-3">
-                {% if filter_branche or filter_verband or filter_status != 'alle' %}
+            <div class="col-md-2">
+                <label for="filterTyp" class="form-label">Typ</label>
+                <select class="form-select" id="filterTyp" name="typ" onchange="this.form.submit()">
+                    <option value="alle" {{ 'selected' if filter_typ == 'alle' }}>Alle</option>
+                    <option value="kunde" {{ 'selected' if filter_typ == 'kunde' }}>Kunden</option>
+                    <option value="lead" {{ 'selected' if filter_typ == 'lead' }}>Leads</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                {% if filter_branche or filter_verband or filter_status != 'alle' or filter_typ != 'alle' %}
                 <a href="{{ url_for('kunden.liste') }}" class="btn btn-outline-secondary">
                     <i class="ti ti-x"></i> Filter zurücksetzen
                 </a>
@@ -76,7 +87,7 @@
                 <th>Verbände</th>
                 <th>Website</th>
                 <th>CI</th>
-                <th>Status</th>
+                <th>Typ</th>
                 <th class="text-end">Aktionen</th>
             </tr>
         </thead>
@@ -136,9 +147,12 @@
                     {% endif %}
                 </td>
                 <td>
-                    {% if kunde.aktiv %}
-                    <span class="badge bg-success">Aktiv</span>
+                    {% if kunde.is_lead %}
+                    <span class="badge bg-info">Lead</span>
                     {% else %}
+                    <span class="badge bg-success">Kunde</span>
+                    {% endif %}
+                    {% if not kunde.aktiv %}
                     <span class="badge bg-secondary">Inaktiv</span>
                     {% endif %}
                 </td>

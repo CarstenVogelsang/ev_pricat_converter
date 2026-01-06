@@ -48,6 +48,22 @@
         url_for('dialog_admin.index'),
         color_hex='#20c997'
     ) }}
+    {{ admin_tile(
+        'Schulungen',
+        'Online-Schulungen erstellen und verwalten',
+        'ti-school',
+        url_for('schulungen_admin.index'),
+        color_hex='#6f42c1',
+        settings_url=url_for('schulungen_admin.einstellungen')
+    ) }}
+    {{ admin_tile(
+        'Projektverwaltung',
+        'PRDs, Tasks und Changelogs verwalten',
+        'ti-folder',
+        url_for('projekte_admin.index'),
+        color_hex='#dc3545',
+        settings_url=url_for('projekte_admin.einstellungen')
+    ) }}
 </div>
 
 <style>

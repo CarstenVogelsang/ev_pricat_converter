@@ -1,0 +1,148 @@
+{#
+    Markdown Editor Macro with Image Upload Support
+
+    Features:
+    - Edit/Preview toggle
+    - Drag & Drop image upload
+    - Paste image from clipboard (Ctrl+V)
+    - Auto-resizes images to max 1200px width
+
+    Usage:
+        {% from "macros/markdown_editor.html" import markdown_editor %}
+
+        {{ markdown_editor('beschreibung', task.beschreibung or '', rows=8,
+                           placeholder='Markdown wird unterstützt...') }}
+
+    Requires:
+        - Include marked.js for rich preview (optional, has fallback)
+        - CSS styles (included inline or in your stylesheet)
+#}
+
+{% macro markdown_editor(name, value='', rows=8, placeholder='', id=None, required=False) %}
+<div class="markdown-editor" data-upload-url="{{ url_for('api_upload.upload_image') }}">
+    <textarea
+        name="{{ name }}"
+        id="{{ id or name }}"
+        class="form-control"
+        rows="{{ rows }}"
+        placeholder="{{ placeholder }}"
+        {% if required %}required{% endif %}
+        style="min-height: 120px;">{{ value }}</textarea>
+    <div class="markdown-preview d-none"></div>
+    <div class="markdown-dropzone d-none">
+        <i class="ti ti-upload"></i> Bild hier ablegen
+    </div>
+</div>
+{% endmacro %}
+
+
+{# Include this macro once per page to load the required scripts and styles #}
+{% macro markdown_editor_assets() %}
+<style>
+.markdown-editor {
+    position: relative;
+}
+
+.markdown-editor .markdown-editor-toolbar {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.markdown-editor .markdown-preview {
+    border: 1px solid #dee2e6;
+    border-radius: 0.375rem;
+    padding: 0.75rem;
+    min-height: 120px;
+    background: #fff;
+    overflow: auto;
+}
+
+.markdown-editor .markdown-preview img {
+    max-width: 100%;
+    height: auto;
+    cursor: pointer;
+    border-radius: 0.25rem;
+}
+
+.markdown-editor .markdown-preview img:hover {
+    opacity: 0.9;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+}
+
+.markdown-editor .markdown-dropzone {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(13, 110, 253, 0.9);
+    color: white;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.25rem;
+    border-radius: 0.375rem;
+    z-index: 10;
+    pointer-events: none;
+}
+
+.markdown-editor .markdown-dropzone i {
+    font-size: 2rem;
+    margin-bottom: 0.5rem;
+}
+
+/* Preview styling */
+.markdown-editor .markdown-preview h1,
+.markdown-editor .markdown-preview h2,
+.markdown-editor .markdown-preview h3 {
+    margin-top: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.markdown-editor .markdown-preview h1:first-child,
+.markdown-editor .markdown-preview h2:first-child,
+.markdown-editor .markdown-preview h3:first-child {
+    margin-top: 0;
+}
+
+.markdown-editor .markdown-preview code {
+    background: #f1f3f5;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.875em;
+}
+
+.markdown-editor .markdown-preview pre {
+    background: #f1f3f5;
+    padding: 0.75rem;
+    border-radius: 0.375rem;
+    overflow-x: auto;
+}
+
+.markdown-editor .markdown-preview pre code {
+    background: none;
+    padding: 0;
+}
+
+.markdown-editor .markdown-preview ul,
+.markdown-editor .markdown-preview ol {
+    padding-left: 1.5rem;
+}
+
+.markdown-editor .markdown-preview blockquote {
+    border-left: 3px solid #dee2e6;
+    padding-left: 1rem;
+    margin-left: 0;
+    color: #6c757d;
+}
+</style>
+
+{# Optional: Include marked.js for rich markdown rendering #}
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+
+{# Markdown Editor JS #}
+<script src="{{ url_for('static', filename='js/markdown-editor.js') }}"></script>
+{% endmacro %}

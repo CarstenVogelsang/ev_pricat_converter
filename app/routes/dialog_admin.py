@@ -19,6 +19,7 @@ Routes:
 """
 from flask import Blueprint, render_template, request, jsonify, flash, redirect, url_for, abort
 from flask_login import login_required, current_user
+from sqlalchemy import or_, and_
 
 from app.models import (
     Fragebogen, FragebogenTeilnahme, Kunde,
@@ -264,10 +265,19 @@ def teilnehmer(id):
     """Manage questionnaire participants."""
     fragebogen = Fragebogen.query.get_or_404(id)
 
-    # Get available kunden (those with user and not yet added)
+    # Get available kunden/leads (those who can receive questionnaires and not yet added)
+    # - Kunden with user account (user_id is set)
+    # - Leads with email address (typ='lead' and email is set)
     existing_kunde_ids = [t.kunde_id for t in fragebogen.teilnahmen]
     verfuegbare_kunden = Kunde.query.filter(
-        Kunde.user_id.isnot(None),
+        or_(
+            Kunde.user_id.isnot(None),  # Kunden with user account
+            and_(
+                Kunde.typ == 'lead',     # Leads...
+                Kunde.email.isnot(None), # ...with email
+                Kunde.email != ''
+            )
+        ),
         ~Kunde.id.in_(existing_kunde_ids) if existing_kunde_ids else True
     ).order_by(Kunde.firmierung).all()
 
@@ -290,8 +300,14 @@ def add_teilnehmer(id):
     service = get_fragebogen_service()
 
     try:
-        service.add_teilnehmer(fragebogen, kunde)
-        flash(f'{kunde.firmierung} wurde hinzugefügt.', 'success')
+        teilnahme = service.add_teilnehmer(fragebogen, kunde)
+
+        # PRD006-T057: Einladungs-E-Mail automatisch versenden
+        result = service.send_einladungen(fragebogen, [teilnahme])
+        if result.success and result.sent_count > 0:
+            flash(f'{kunde.firmierung} wurde hinzugefügt und Einladung versendet.', 'success')
+        else:
+            flash(f'{kunde.firmierung} wurde hinzugefügt, aber E-Mail konnte nicht versendet werden.', 'warning')
     except ValueError as e:
         flash(str(e), 'danger')
 

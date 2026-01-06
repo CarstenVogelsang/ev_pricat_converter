@@ -1,0 +1,221 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}PRD Editor - {{ komponente.name }} - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Projektverwaltung', 'url': url_for('projekte_admin.index'), 'icon': 'ti-folder'},
+    {'label': projekt.name ~ ' (' ~ ('Kunde' if projekt.ist_kundenprojekt else 'intern') ~ ')', 'url': url_for('projekte_admin.projekt_detail', id=projekt.id)},
+    {'label': 'PRD Editor'}
+]) }}
+
+<style>
+    .prd-editor-container {
+        display: flex;
+        gap: 1rem;
+        height: calc(100vh - 280px);
+        min-height: 500px;
+    }
+    .prd-editor-panel {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    .prd-editor-panel .card {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+    }
+    .prd-editor-panel .card-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        padding: 0;
+    }
+    #prd-editor {
+        flex: 1;
+        width: 100%;
+        border: none;
+        resize: none;
+        padding: 1rem;
+        font-family: 'Fira Code', 'Monaco', 'Consolas', monospace;
+        font-size: 0.9rem;
+        line-height: 1.6;
+    }
+    #prd-preview {
+        flex: 1;
+        overflow-y: auto;
+        padding: 1rem;
+    }
+    #prd-preview h1 { font-size: 1.75rem; border-bottom: 2px solid #dee2e6; padding-bottom: 0.5rem; }
+    #prd-preview h2 { font-size: 1.4rem; border-bottom: 1px solid #dee2e6; padding-bottom: 0.3rem; margin-top: 1.5rem; }
+    #prd-preview h3 { font-size: 1.2rem; margin-top: 1rem; }
+    #prd-preview table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    #prd-preview th, #prd-preview td { border: 1px solid #dee2e6; padding: 0.5rem; text-align: left; }
+    #prd-preview th { background: #f8f9fa; }
+    #prd-preview code { background: #f1f3f4; padding: 0.2rem 0.4rem; border-radius: 0.25rem; font-size: 0.85em; }
+    #prd-preview pre { background: #1e1e1e; color: #d4d4d4; padding: 1rem; border-radius: 0.5rem; overflow-x: auto; }
+    #prd-preview pre code { background: transparent; padding: 0; color: inherit; }
+    #prd-preview blockquote { border-left: 4px solid #0d6efd; padding-left: 1rem; color: #6c757d; margin: 1rem 0; }
+    .view-toggle .btn.active {
+        background-color: #0d6efd;
+        color: white;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">
+        <i class="ti ti-file-text text-primary"></i>
+        {% if komponente.prd_nummer %}PRD-{{ komponente.prd_nummer }} -{% endif %}
+        {{ komponente.name }}
+    </h4>
+    <div class="d-flex gap-2">
+        <!-- View Toggle (Mobile) -->
+        <div class="btn-group btn-group-sm view-toggle d-md-none">
+            <button type="button" class="btn btn-outline-secondary active" onclick="toggleView('editor')">
+                <i class="ti ti-code"></i>
+            </button>
+            <button type="button" class="btn btn-outline-secondary" onclick="toggleView('preview')">
+                <i class="ti ti-eye"></i>
+            </button>
+        </div>
+        <a href="{{ url_for('projekte_admin.projekt_detail', id=projekt.id, komponente=komponente.id) }}"
+           class="btn btn-outline-secondary btn-sm">
+            <i class="ti ti-arrow-left"></i> Zurück
+        </a>
+    </div>
+</div>
+
+<form method="post" id="prd-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="prd-editor-container">
+        <!-- Editor Panel -->
+        <div class="prd-editor-panel" id="editor-panel">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center py-2">
+                    <span><i class="ti ti-code"></i> Markdown Editor</span>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+                <div class="card-body">
+                    <textarea id="prd-editor" name="prd_inhalt" placeholder="# PRD-XXX - Titel
+
+## Übersicht
+Kurze Beschreibung des Moduls...
+
+## Features
+- Feature 1
+- Feature 2
+
+## Datenmodell
+| Feld | Typ | Beschreibung |
+|------|-----|--------------|
+| id   | int | Primary Key  |
+">{{ komponente.prd_inhalt or '' }}</textarea>
+                </div>
+            </div>
+        </div>
+
+        <!-- Preview Panel -->
+        <div class="prd-editor-panel d-none d-md-flex" id="preview-panel">
+            <div class="card">
+                <div class="card-header py-2">
+                    <i class="ti ti-eye"></i> Vorschau
+                </div>
+                <div class="card-body">
+                    <div id="prd-preview">
+                        {% if komponente.prd_inhalt %}
+                        {{ komponente.prd_inhalt|markdown }}
+                        {% else %}
+                        <p class="text-muted text-center py-5">
+                            <i class="ti ti-file-text" style="font-size: 3rem;"></i>
+                            <br>Beginne mit dem Schreiben...
+                        </p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<!-- Marked.js for Markdown parsing -->
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const editor = document.getElementById('prd-editor');
+    const preview = document.getElementById('prd-preview');
+    let debounceTimer;
+
+    // Configure marked
+    marked.setOptions({
+        breaks: true,
+        gfm: true
+    });
+
+    // Live preview update
+    editor.addEventListener('input', function() {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(function() {
+            updatePreview();
+        }, 300);
+    });
+
+    function updatePreview() {
+        const markdown = editor.value;
+        if (markdown.trim()) {
+            preview.innerHTML = marked.parse(markdown);
+        } else {
+            preview.innerHTML = '<p class="text-muted text-center py-5"><i class="ti ti-file-text" style="font-size: 3rem;"></i><br>Beginne mit dem Schreiben...</p>';
+        }
+    }
+
+    // Keyboard shortcuts
+    editor.addEventListener('keydown', function(e) {
+        // Ctrl/Cmd + S to save
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+            e.preventDefault();
+            document.getElementById('prd-form').submit();
+        }
+
+        // Tab key for indentation
+        if (e.key === 'Tab') {
+            e.preventDefault();
+            const start = this.selectionStart;
+            const end = this.selectionEnd;
+            this.value = this.value.substring(0, start) + '    ' + this.value.substring(end);
+            this.selectionStart = this.selectionEnd = start + 4;
+        }
+    });
+});
+
+// Mobile view toggle
+function toggleView(view) {
+    const editorPanel = document.getElementById('editor-panel');
+    const previewPanel = document.getElementById('preview-panel');
+    const buttons = document.querySelectorAll('.view-toggle .btn');
+
+    buttons.forEach(btn => btn.classList.remove('active'));
+
+    if (view === 'editor') {
+        editorPanel.classList.remove('d-none');
+        previewPanel.classList.add('d-none');
+        buttons[0].classList.add('active');
+    } else {
+        editorPanel.classList.add('d-none');
+        previewPanel.classList.remove('d-none');
+        previewPanel.classList.add('d-flex');
+        buttons[1].classList.add('active');
+        // Update preview when switching
+        document.getElementById('prd-preview').innerHTML =
+            marked.parse(document.getElementById('prd-editor').value || '');
+    }
+}
+</script>
+{% endblock %}

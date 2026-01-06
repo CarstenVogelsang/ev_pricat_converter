@@ -1,0 +1,162 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+{% from "macros/help.html" import help_icon with context %}
+
+{% block title %}Schulungen - Administration - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Schulungen', 'icon': 'ti-school'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="ti ti-school text-purple"></i> Schulungen verwalten</h2>
+    <div class="btn-group">
+        <a href="{{ url_for('schulungen_admin.einstellungen') }}" class="btn btn-outline-secondary">
+            <i class="ti ti-settings"></i> Einstellungen
+        </a>
+        <a href="{{ url_for('schulungen_admin.schulung_neu') }}" class="btn btn-primary">
+            <i class="ti ti-plus"></i> Neue Schulung
+        </a>
+        <a href="{{ url_for('schulungen_admin.themen_liste') }}" class="btn btn-outline-secondary">
+            <i class="ti ti-list"></i> Themen
+        </a>
+        <a href="{{ url_for('schulungen_admin.durchfuehrungen_liste') }}" class="btn btn-outline-secondary">
+            <i class="ti ti-calendar"></i> Durchführungen
+        </a>
+        <a href="{{ url_for('schulungen_admin.buchungen_liste') }}" class="btn btn-outline-secondary">
+            <i class="ti ti-ticket"></i> Buchungen
+        </a>
+    </div>
+</div>
+
+<!-- Statistik-Karten -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card bg-success text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ stats.schulungen_aktiv }}</h3>
+                <small>Aktive Schulungen</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-secondary text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ stats.themen_count }}</h3>
+                <small>Themen</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-primary text-white">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ stats.buchungen_offen }}</h3>
+                <small>Offene Buchungen</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card bg-warning text-dark">
+            <div class="card-body text-center">
+                <h3 class="mb-0">{{ stats.warteliste_count }}</h3>
+                <small>Auf Warteliste</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Schulungen-Liste -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="ti ti-school"></i> Alle Schulungen ({{ schulungen|length }})</span>
+        <a href="{{ url_for('schulungen_admin.export_buchungen') }}" class="btn btn-sm btn-outline-success">
+            <i class="ti ti-file-spreadsheet"></i> Excel-Export
+        </a>
+    </div>
+    <div class="card-body p-0">
+        {% if schulungen %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Titel</th>
+                        <th>Themen</th>
+                        <th>Preis</th>
+                        <th>Max. TN</th>
+                        <th>Nächster Termin</th>
+                        <th class="text-center">Status</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for schulung in schulungen %}
+                    <tr>
+                        <td>
+                            <strong>{{ schulung.titel }}</strong>
+                            {% if schulung.artikelnummer %}
+                            <br><small class="text-muted">Art.-Nr.: {{ schulung.artikelnummer }}</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ schulung.anzahl_themen }} Themen</span>
+                            <br><small class="text-muted">{{ schulung.gesamtdauer_formatiert }}</small>
+                        </td>
+                        <td>
+                            {% if schulung.hat_sonderpreis %}
+                            <span class="text-decoration-line-through text-muted">{{ "%.2f"|format(schulung.preis)|replace('.', ',') }} €</span>
+                            <br><span class="text-success fw-bold">{{ "%.2f"|format(schulung.aktueller_preis)|replace('.', ',') }} €</span>
+                            {% else %}
+                            {{ "%.2f"|format(schulung.preis)|replace('.', ',') }} €
+                            {% endif %}
+                        </td>
+                        <td>{{ schulung.max_teilnehmer }}</td>
+                        <td>
+                            {% set naechste = schulung.naechste_durchfuehrung %}
+                            {% if naechste %}
+                            <a href="{{ url_for('schulungen_admin.durchfuehrung_detail', id=naechste.id) }}">
+                                {{ naechste.start_datum.strftime('%d.%m.%Y') }}
+                            </a>
+                            <br><small class="text-muted">{{ naechste.freie_plaetze }} Plätze frei</small>
+                            {% else %}
+                            <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            {% if schulung.aktiv %}
+                            <span class="badge bg-success">Aktiv</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Inaktiv</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            <div class="btn-group btn-group-sm">
+                                <a href="{{ url_for('schulungen_admin.durchfuehrung_neu', schulung_id=schulung.id) }}"
+                                   class="btn btn-outline-primary" title="Neue Durchführung">
+                                    <i class="ti ti-calendar-plus"></i>
+                                </a>
+                                <a href="{{ url_for('schulungen_admin.schulung_bearbeiten', id=schulung.id) }}"
+                                   class="btn btn-outline-secondary" title="Bearbeiten">
+                                    <i class="ti ti-edit"></i>
+                                </a>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-5 text-muted">
+            <i class="ti ti-school" style="font-size: 3rem;"></i>
+            <p class="mt-2">Noch keine Schulungen vorhanden.</p>
+            <a href="{{ url_for('schulungen_admin.schulung_neu') }}" class="btn btn-primary">
+                <i class="ti ti-plus"></i> Erste Schulung anlegen
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,9 +1,9 @@
 {# Admin-Kachel Makro für Tab-Übersichten #}
 
-{% macro admin_tile(name, description, icon, url, color='primary', color_hex='#0d6efd') %}
+{% macro admin_tile(name, description, icon, url, color='primary', color_hex='#0d6efd', settings_url=None) %}
 <div class="col">
-    <a href="{{ url }}" class="card h-100 text-decoration-none admin-tile">
-        <div class="card-body">
+    <div class="card h-100 admin-tile">
+        <a href="{{ url }}" class="card-body text-decoration-none">
             <div class="d-flex align-items-center mb-3">
                 <div class="rounded-circle p-3 me-3" style="background-color: {{ color_hex }}20;">
                     <i class="ti {{ icon }} fs-2" style="color: {{ color_hex }};"></i>
@@ -11,8 +11,15 @@
                 <h5 class="card-title mb-0 text-dark">{{ name }}</h5>
             </div>
             <p class="card-text text-muted small mb-0">{{ description }}</p>
+        </a>
+        {% if settings_url %}
+        <div class="card-footer bg-transparent border-0 pt-0">
+            <a href="{{ settings_url }}" class="btn btn-sm btn-outline-secondary w-100">
+                <i class="ti ti-settings"></i> Einstellungen
+            </a>
         </div>
-    </a>
+        {% endif %}
+    </div>
 </div>
 {% endmacro %}
 

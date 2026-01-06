@@ -1,7 +1,14 @@
 """Kunde (Customer) and KundeCI (Corporate Identity) models."""
 from datetime import datetime
+from enum import Enum
 
 from app import db
+
+
+class KundeTyp(Enum):
+    """Type of Kunde record - distinguishes customers from leads."""
+    KUNDE = 'kunde'    # Full customer with user accounts
+    LEAD = 'lead'      # Prospect without user account (can receive questionnaires via email)
 
 
 class Kunde(db.Model):
@@ -32,6 +39,10 @@ class Kunde(db.Model):
 
     notizen = db.Column(db.Text)
     aktiv = db.Column(db.Boolean, default=True)
+
+    # Lead vs Kunde distinction - allows tracking prospects without user accounts
+    typ = db.Column(db.String(20), nullable=False, default=KundeTyp.KUNDE.value, index=True)
+
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at = db.Column(db.DateTime, onupdate=datetime.utcnow)
 
@@ -152,6 +163,55 @@ class Kunde(db.Model):
             return ', '.join(parts)
         return self.adresse or ''
 
+    # ========== Lead/Kunde Type Properties ==========
+
+    @property
+    def is_lead(self) -> bool:
+        """Check if this is a Lead (prospect without user account)."""
+        return self.typ == KundeTyp.LEAD.value
+
+    @property
+    def is_kunde(self) -> bool:
+        """Check if this is a full Kunde (customer with user account)."""
+        return self.typ == KundeTyp.KUNDE.value
+
+    @property
+    def kontakt_email(self) -> str | None:
+        """Get contact email for this Kunde/Lead.
+
+        For Leads: Always uses kunde.email (they don't have user accounts)
+        For Kunden: Uses hauptbenutzer.email if available, falls back to kunde.email
+        """
+        if self.is_lead:
+            return self.email
+        user = self.hauptbenutzer
+        if user and user.email:
+            return user.email
+        return self.email
+
+    @property
+    def kontakt_name(self) -> str:
+        """Get contact name for addressing in emails.
+
+        For Leads: Uses firmierung (company name)
+        For Kunden: Uses user full_name if available, falls back to firmierung
+        """
+        if self.is_lead:
+            return self.firmierung
+        user = self.hauptbenutzer
+        if user and user.full_name:
+            return user.full_name
+        return self.firmierung
+
+    def kann_fragebogen_erhalten(self) -> bool:
+        """Check if this Kunde/Lead can receive questionnaire invitations.
+
+        Returns True if a contact email is available for sending invitations.
+        Leads: Need email field set
+        Kunden: Need user with email OR email field set
+        """
+        return bool(self.kontakt_email)
+
     # ========== Briefanrede Properties ==========
 
     @property
@@ -260,6 +320,9 @@ class Kunde(db.Model):
             'email': self.email,
             'notizen': self.notizen,
             'aktiv': self.aktiv,
+            'typ': self.typ,
+            'is_lead': self.is_lead,
+            'kontakt_email': self.kontakt_email,
             'has_ci': self.ci is not None,
             'branchen': [b.to_dict() for b in self.alle_branchen],
             'verbaende': [v.to_dict() for v in self.alle_verbaende],

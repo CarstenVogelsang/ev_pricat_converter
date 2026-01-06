@@ -1,0 +1,91 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+{% from "macros/help.html" import help_icon with context %}
+
+{% block title %}Einstellungen - Projektverwaltung - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Projektverwaltung', 'url': url_for('projekte_admin.index'), 'icon': 'ti-folder'},
+    {'label': 'Einstellungen'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>
+        <i class="ti ti-settings text-secondary"></i>
+        Projektverwaltung - Einstellungen
+    </h4>
+    <a href="{{ url_for('projekte_admin.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="ti ti-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="ti ti-robot"></i>
+                        KI-Prompt Einstellungen
+                    </span>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="ki_prompt_suffix" class="form-label">
+                            Arbeitsanweisungen (Prompt-Suffix)
+                        </label>
+                        <textarea class="form-control font-monospace" id="ki_prompt_suffix"
+                                  name="ki_prompt_suffix" rows="10"
+                                  placeholder="Diese Anweisungen werden an jeden generierten KI-Prompt angehängt...">{{ ki_prompt_suffix }}</textarea>
+                        <div class="form-text">
+                            <i class="ti ti-info-circle"></i>
+                            Dieser Text wird an jeden Task-Prompt angehängt, der mit dem
+                            <i class="ti ti-clipboard-copy"></i>-Button kopiert wird.
+                            <br>
+                            <strong>Verfügbare Platzhalter:</strong> <code>{task_id}</code> wird durch die Task-ID ersetzt.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-help"></i> Hinweise
+            </div>
+            <div class="card-body">
+                <h6>Prompt-Format</h6>
+                <p class="small text-muted">
+                    Der generierte Prompt enthält:
+                </p>
+                <ul class="small text-muted">
+                    <li>Task-Nummer (z.B. PRD011-T032)</li>
+                    <li>Typ mit Beschreibung</li>
+                    <li>Priorität und Phase</li>
+                    <li>Task-Beschreibung</li>
+                    <li>Arbeitsanweisungen (dieser Suffix)</li>
+                </ul>
+
+                <hr>
+
+                <h6>Beispiel-Anweisungen</h6>
+                <pre class="bg-light p-2 small" style="white-space: pre-wrap;">Bei Unklarheiten Rückfragen stellen.
+
+Nach Erledigung Task auf "Review" setzen:
+curl -X PATCH .../api/tasks/{task_id}
+  -d '{"status": "review"}'</pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

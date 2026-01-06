@@ -116,8 +116,13 @@ Serialisiert den Lieferanten für JSON-Responses.
 
 **Features (implementiert 2025-12-29):**
 - Tabelle mit Spalten: Name, VEDES-ID, GLN, Branche, Status, Aktionen
-- **Filter:**
-  - Branche-Dropdown (alle HANDEL-Unterbranchen)
+- **Custom Branchen-Selector:**
+  - Bootstrap Dropdown mit Tabler Icons
+  - Header "HANDEL (Hauptbranche)" zeigt Tree-Struktur
+  - Icon + Name pro Branche (größere Darstellung mit `py-2`)
+  - Häkchen bei aktiver Auswahl
+  - Hidden Input Pattern für Form-Submit
+- **Weitere Filter:**
   - Status-Dropdown (Aktiv/Inaktiv/Alle)
   - Auto-Submit bei Auswahl
 - **Suche:**
@@ -177,6 +182,21 @@ Serialisiert den Lieferanten für JSON-Responses.
 ---
 
 ## Änderungshistorie
+
+### 2025-12-29: Custom Branchen-Selector mit Icons
+
+**Änderungen an Routes:**
+
+- `aktuelle_branche` Variable für Dropdown-Button-Preview hinzugefügt
+
+**Änderungen an Templates:**
+
+- `lieferanten.html`: Einfaches `<select>` durch Custom Bootstrap Dropdown ersetzt
+- Icons (Tabler) vor jedem Branchennamen
+- Header "HANDEL (Hauptbranche)" für Tree-Struktur
+- JavaScript `selectBranche()` Funktion für Form-Submit
+
+**Begründung:** Bessere UX durch visuelle Icons und Hierarchie-Darstellung. Standard-HTML-Selects unterstützen keine Icons.
 
 ### 2025-12-29: Branchen-Zuordnung & Filter
 

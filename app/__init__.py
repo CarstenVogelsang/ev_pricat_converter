@@ -68,6 +68,11 @@ def create_app(config_name=None):
     from app.routes.benutzer import benutzer_bp
     from app.routes.support import support_bp
     from app.routes.support_admin import support_admin_bp
+    from app.routes.schulungen import schulungen_bp
+    from app.routes.schulungen_admin import schulungen_admin_bp
+    from app.routes.api_projekte import api_projekte_bp
+    from app.routes.projekte_admin import projekte_admin_bp
+    from app.routes.api_upload import api_upload_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
@@ -85,6 +90,15 @@ def create_app(config_name=None):
     # PRD-007: Anwender-Support
     app.register_blueprint(support_bp)
     app.register_blueprint(support_admin_bp)
+    # PRD-010: Schulungen
+    app.register_blueprint(schulungen_bp)
+    app.register_blueprint(schulungen_admin_bp)
+    # PRD-011: Projektverwaltung
+    app.register_blueprint(api_projekte_bp)
+    csrf.exempt(api_projekte_bp)  # API-Endpoints brauchen kein CSRF (für Claude Code)
+    app.register_blueprint(projekte_admin_bp)
+    # Markdown Image Upload API
+    app.register_blueprint(api_upload_bp)
 
     # Initialize Flask-Admin (under /db-admin, requires admin role)
     from app.admin import init_admin
@@ -251,6 +265,11 @@ def register_cli_commands(app):
             ('brevo_daily_limit', '300', 'Max. E-Mails pro Tag (Brevo Free Plan)'),
             ('brevo_emails_sent_today', '0', 'Heute gesendete E-Mails (auto-reset)'),
             ('brevo_last_reset_date', '', 'Letztes Quota-Reset-Datum (YYYY-MM-DD)'),
+            # PRD-011: Projektverwaltung KI-Prompt
+            ('projektverwaltung_ki_prompt_suffix', '''Bei Unklarheiten zur Anforderung bitte Rückfragen stellen. Nach Erledigung den Task via API auf "Review" setzen:
+`curl -X PATCH http://localhost:5001/api/tasks/{task_id} -H "Content-Type: application/json" -d '{"status": "review"}'`
+
+Falls "Bei Erledigung Changelog-Eintrag erstellen" aktiviert ist, wird automatisch ein Changelog erstellt.''', 'KI-Prompt Suffix für Projektverwaltung Tasks'),
         ]
 
         for key, value, beschreibung in config_defaults:
@@ -669,6 +688,27 @@ Analysiert alle eingegangenen Antworten:
 Die Auswertung kann als CSV oder Excel exportiert werden.
 
 **Tipp**: Für aussagekräftige Ergebnisse sollten mindestens 5 Antworten vorliegen.'''
+            ),
+            # PRD-011: Task-Klassifizierung Hilfetexte (PRD011-T029: mit Icons)
+            (
+                'projekte.task.typ',
+                'Task-Klassifizierung',
+                '''## Task-Klassifizierung
+
+Wähle den passenden Typ für diesen Task:
+
+| | Typ | Beschreibung |
+|:---:|-----|--------------|
+| <i class="ti ti-sparkles text-info"></i> | **Funktion** | Neuentwicklung einer fachlichen oder technischen Funktion |
+| <i class="ti ti-trending-up text-success"></i> | **Verbesserung** | Optimierung bestehender Funktionen (UX, Performance) |
+| <i class="ti ti-bug text-danger"></i> | **Fehlerbehebung** | Behebung eines reproduzierbaren Fehlers |
+| <i class="ti ti-tool text-secondary"></i> | **Technische Aufgabe** | Refactoring, Architektur, Infrastruktur |
+| <i class="ti ti-shield-exclamation text-warning"></i> | **Sicherheitsproblem** | Zugriffskontrolle, Datenschutz, Sicherheitslücken |
+| <i class="ti ti-search text-purple"></i> | **Recherche** | Analyse- oder Evaluierungsaufgabe |
+| <i class="ti ti-file-text text-dark"></i> | **Dokumentation** | Benutzer- oder Entwickler-Dokumentation |
+| <i class="ti ti-test-pipe text-cyan"></i> | **Test / QS** | Tests, Testkonzepte, manuelle Prüfungen |
+
+**Tipp**: Die Klassifizierung hilft bei der Priorisierung und Auswertung von Tasks.'''
             ),
         ]
         for schluessel, titel, inhalt in hilfetexte_data:
@@ -1171,6 +1211,385 @@ Ticket anzeigen: {{ link }}
 
 {{ copyright_text }}'''
             },
+            # PRD-010: Schulungen E-Mail Templates
+            {
+                'schluessel': 'schulung_buchung_bestaetigung',
+                'name': 'Schulung Buchungsbestätigung',
+                'beschreibung': 'Bestätigung einer Schulungsbuchung (PRD-010)',
+                'betreff': 'Buchungsbestätigung: {{ schulung_titel }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #6f42c1; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">
+                                ✅ Buchungsbestätigung
+                            </h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                                {{ briefanrede }},
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Ihre Buchung für die Schulung <strong style="color: #333333;">{{ schulung_titel }}</strong> wurde bestätigt.
+                            </p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="10" style="background-color: #f8f9fa; border-radius: 6px; margin: 0 0 20px 0;">
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px; border-bottom: 1px solid #e9ecef;">
+                                        <strong>📅 Startdatum:</strong> {{ start_datum }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px; border-bottom: 1px solid #e9ecef;">
+                                        <strong>🕐 Uhrzeit:</strong> {{ uhrzeit }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px; border-bottom: 1px solid #e9ecef;">
+                                        <strong>📆 Wochentage:</strong> {{ wochentage }}
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px;">
+                                        <strong>💶 Preis:</strong> {{ preis }}
+                                    </td>
+                                </tr>
+                            </table>
+                            {% if teams_link %}
+                            <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0 0 15px 0;">
+                                <strong>Teams-Link:</strong><br>
+                                <a href="{{ teams_link }}" style="color: #6f42c1;">{{ teams_link }}</a>
+                            </p>
+                            {% endif %}
+                            <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 20px 0 0 0;">
+                                Kostenfreie Stornierung möglich bis: <strong>{{ storno_frist }}</strong>
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''Buchungsbestätigung
+
+{{ briefanrede }},
+
+Ihre Buchung für die Schulung "{{ schulung_titel }}" wurde bestätigt.
+
+Startdatum: {{ start_datum }}
+Uhrzeit: {{ uhrzeit }}
+Wochentage: {{ wochentage }}
+Preis: {{ preis }}
+{% if teams_link %}
+Teams-Link: {{ teams_link }}
+{% endif %}
+
+Kostenfreie Stornierung möglich bis: {{ storno_frist }}
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
+            {
+                'schluessel': 'schulung_warteliste',
+                'name': 'Schulung Warteliste',
+                'beschreibung': 'Benachrichtigung bei Wartelisten-Platzierung (PRD-010)',
+                'betreff': 'Warteliste: {{ schulung_titel }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #ffc107; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #333333; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">
+                                ⏳ Warteliste
+                            </h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                                {{ briefanrede }},
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Die Schulung <strong style="color: #333333;">{{ schulung_titel }}</strong> ist aktuell ausgebucht. Sie wurden auf die Warteliste gesetzt.
+                            </p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="10" style="background-color: #fff3cd; border-radius: 6px; margin: 0 0 20px 0;">
+                                <tr>
+                                    <td style="color: #856404; font-size: 14px;">
+                                        <strong>📅 Gewünschter Termin:</strong> {{ start_datum }}<br>
+                                        <strong>🕐 Uhrzeit:</strong> {{ uhrzeit }}
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0;">
+                                Sobald ein Platz frei wird, werden Sie automatisch benachrichtigt und Ihre Buchung wird bestätigt.
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''Warteliste
+
+{{ briefanrede }},
+
+Die Schulung "{{ schulung_titel }}" ist aktuell ausgebucht. Sie wurden auf die Warteliste gesetzt.
+
+Gewünschter Termin: {{ start_datum }}
+Uhrzeit: {{ uhrzeit }}
+
+Sobald ein Platz frei wird, werden Sie automatisch benachrichtigt und Ihre Buchung wird bestätigt.
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
+            {
+                'schluessel': 'schulung_warteliste_freigabe',
+                'name': 'Schulung von Warteliste freigeschaltet',
+                'beschreibung': 'Benachrichtigung wenn Platz frei wird (PRD-010)',
+                'betreff': '🎉 Platz frei: {{ schulung_titel }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #198754; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">
+                                🎉 Platz freigeworden!
+                            </h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                                {{ briefanrede }},
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Gute Nachrichten! Ein Platz ist frei geworden und Ihre Buchung für <strong style="color: #333333;">{{ schulung_titel }}</strong> wurde bestätigt.
+                            </p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="10" style="background-color: #d1e7dd; border-radius: 6px; margin: 0 0 20px 0;">
+                                <tr>
+                                    <td style="color: #0f5132; font-size: 14px;">
+                                        <strong>📅 Startdatum:</strong> {{ start_datum }}<br>
+                                        <strong>🕐 Uhrzeit:</strong> {{ uhrzeit }}<br>
+                                        <strong>📆 Wochentage:</strong> {{ wochentage }}<br>
+                                        <strong>💶 Preis:</strong> {{ preis }}
+                                    </td>
+                                </tr>
+                            </table>
+                            {% if teams_link %}
+                            <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0 0 15px 0;">
+                                <strong>Teams-Link:</strong><br>
+                                <a href="{{ teams_link }}" style="color: #198754;">{{ teams_link }}</a>
+                            </p>
+                            {% endif %}
+                            <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 20px 0 0 0;">
+                                Kostenfreie Stornierung möglich bis: <strong>{{ storno_frist }}</strong>
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''Platz freigeworden!
+
+{{ briefanrede }},
+
+Gute Nachrichten! Ein Platz ist frei geworden und Ihre Buchung für "{{ schulung_titel }}" wurde bestätigt.
+
+Startdatum: {{ start_datum }}
+Uhrzeit: {{ uhrzeit }}
+Wochentage: {{ wochentage }}
+Preis: {{ preis }}
+{% if teams_link %}
+Teams-Link: {{ teams_link }}
+{% endif %}
+
+Kostenfreie Stornierung möglich bis: {{ storno_frist }}
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
+            {
+                'schluessel': 'schulung_storniert',
+                'name': 'Schulung Stornierungsbestätigung',
+                'beschreibung': 'Bestätigung einer Stornierung (PRD-010)',
+                'betreff': 'Stornierung: {{ schulung_titel }}',
+                'body_html': '''<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f5f5f5; font-family: Arial, sans-serif;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background-color: #f5f5f5;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <table role="presentation" width="600" cellspacing="0" cellpadding="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background-color: #6c757d; padding: 30px; text-align: center;">
+                            {% if logo_url %}
+                            <img src="{{ logo_url }}" alt="{{ portal_name }}" height="40" style="max-height: 40px;">
+                            {% else %}
+                            <h1 style="color: #ffffff; margin: 0; font-size: 24px;">{{ portal_name }}</h1>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px;">
+                            <h2 style="color: #333333; margin: 0 0 20px 0; font-size: 22px;">
+                                ❌ Stornierungsbestätigung
+                            </h2>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 15px 0;">
+                                {{ briefanrede }},
+                            </p>
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 20px 0;">
+                                Ihre Buchung für die Schulung <strong style="color: #333333;">{{ schulung_titel }}</strong> wurde storniert.
+                            </p>
+                            <table role="presentation" width="100%" cellspacing="0" cellpadding="10" style="background-color: #f8f9fa; border-radius: 6px; margin: 0 0 20px 0;">
+                                <tr>
+                                    <td style="color: #333333; font-size: 14px;">
+                                        <strong>📅 Termin:</strong> {{ start_datum }}<br>
+                                        <strong>🕐 Uhrzeit:</strong> {{ uhrzeit }}
+                                    </td>
+                                </tr>
+                            </table>
+                            <p style="color: #666666; font-size: 14px; line-height: 1.6; margin: 0;">
+                                Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+                            </p>
+                        </td>
+                    </tr>
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 25px 30px; border-top: 1px solid #e9ecef;">
+                            <p style="color: #6c757d; font-size: 13px; line-height: 1.5; margin: 0;">
+                                {{ footer | safe }}
+                            </p>
+                            {% if copyright_text %}
+                            <p style="color: #999999; font-size: 12px; margin: 15px 0 0 0;">
+                                {{ copyright_text }}
+                            </p>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>''',
+                'body_text': '''Stornierungsbestätigung
+
+{{ briefanrede }},
+
+Ihre Buchung für die Schulung "{{ schulung_titel }}" wurde storniert.
+
+Termin: {{ start_datum }}
+Uhrzeit: {{ uhrzeit }}
+
+Bei Fragen stehen wir Ihnen gerne zur Verfügung.
+
+{{ footer }}
+
+{{ copyright_text }}'''
+            },
         ]
 
         for template_data in email_templates_data:
@@ -1275,6 +1694,111 @@ Ticket anzeigen: {{ link }}
                 else:
                     click.echo(f"LookupWert already exists: {kategorie}.{schluessel}")
 
+        # PRD-011: Task type classification in LookupWert
+        # Format: (kategorie, schluessel, wert, icon, farbe, sortierung)
+        task_typ_lookups = [
+            ('task_typ', 'funktion', 'Funktion', 'ti-sparkles', 'info', 1),
+            ('task_typ', 'verbesserung', 'Verbesserung', 'ti-trending-up', 'success', 2),
+            ('task_typ', 'fehlerbehebung', 'Fehlerbehebung', 'ti-bug', 'danger', 3),
+            ('task_typ', 'technisch', 'Technische Aufgabe', 'ti-tool', 'secondary', 4),
+            ('task_typ', 'sicherheit', 'Sicherheitsproblem', 'ti-shield-exclamation', 'warning', 5),
+            ('task_typ', 'recherche', 'Recherche', 'ti-search', 'purple', 6),
+            ('task_typ', 'dokumentation', 'Dokumentation', 'ti-file-text', 'dark', 7),
+            ('task_typ', 'test', 'Test / QS', 'ti-test-pipe', 'cyan', 8),
+        ]
+
+        for kategorie, schluessel, wert, icon, farbe, sortierung in task_typ_lookups:
+            existing = LookupWert.query.filter_by(
+                kategorie=kategorie,
+                schluessel=schluessel
+            ).first()
+            if not existing:
+                lookup_entry = LookupWert(
+                    kategorie=kategorie,
+                    schluessel=schluessel,
+                    wert=wert,
+                    icon=icon,
+                    farbe=farbe,
+                    sortierung=sortierung,
+                    aktiv=True
+                )
+                db.session.add(lookup_entry)
+                click.echo(f"Created LookupWert: {kategorie}.{schluessel}")
+            else:
+                click.echo(f"LookupWert already exists: {kategorie}.{schluessel}")
+
+        # PRD011-T047: Component types for customer projects
+        # PRD011-T053: modul_erp (ERP-Modul) + modul_ev247 (ev247-Plattform)
+        komponente_typ_kunde_lookups = [
+            ('komponente_typ_kunde', 'modul_erp', 'Modul (ERP)', 'ti-plug', 'primary', 10),
+            ('komponente_typ_kunde', 'modul_ev247', 'Modul (ev247)', 'ti-layout-grid', 'info', 15),
+            ('komponente_typ_kunde', 'online_shop', 'Online-Shop', 'ti-shopping-cart', 'success', 20),
+            ('komponente_typ_kunde', 'seo_sea', 'SEO/SEA', 'ti-chart-line', 'warning', 30),
+            ('komponente_typ_kunde', 'onboarding', 'Onboarding', 'ti-user-check', 'cyan', 40),
+            ('komponente_typ_kunde', 'stammdaten', 'Stammdaten', 'ti-database', 'secondary', 50),
+            ('komponente_typ_kunde', 'hosting', 'Hosting', 'ti-server', 'dark', 60),
+            ('komponente_typ_kunde', 'schnittstelle', 'Schnittstelle', 'ti-arrows-exchange', 'danger', 70),
+        ]
+
+        for kategorie, schluessel, wert, icon, farbe, sortierung in komponente_typ_kunde_lookups:
+            existing = LookupWert.query.filter_by(
+                kategorie=kategorie,
+                schluessel=schluessel
+            ).first()
+            if not existing:
+                lookup_entry = LookupWert(
+                    kategorie=kategorie,
+                    schluessel=schluessel,
+                    wert=wert,
+                    icon=icon,
+                    farbe=farbe,
+                    sortierung=sortierung,
+                    aktiv=True
+                )
+                db.session.add(lookup_entry)
+                click.echo(f"Created LookupWert: {kategorie}.{schluessel}")
+            else:
+                click.echo(f"LookupWert already exists: {kategorie}.{schluessel}")
+
+        # PRD011-T053: Remove old entries (replaced by modul_erp + modul_ev247)
+        for old_schluessel in ['modul', 'modul_kundenauftrag']:
+            old_lookup = LookupWert.query.filter_by(
+                kategorie='komponente_typ_kunde',
+                schluessel=old_schluessel
+            ).first()
+            if old_lookup:
+                db.session.delete(old_lookup)
+                click.echo(f"Deleted old LookupWert: komponente_typ_kunde.{old_schluessel}")
+
+        # PRD011-T052: Seed ERP modules (e-vendo ERP/Shop system modules)
+        # PRD011-T054: Added icon column for visual representation
+        from app.models import ModulErp
+        erp_module_data = [
+            # (artikelnummer, bezeichnung, kontext, sortierung, icon)
+            ('CLOUD-S-AMA', 'Amazon Marktplatz Schnittstelle', 'erp', 10, 'ti-brand-amazon'),
+            ('CLOUD-S-OTTO', 'Otto Marktplatz Schnittstelle', 'erp', 20, 'ti-building-store'),
+        ]
+        for artikelnummer, bezeichnung, kontext, sortierung, icon in erp_module_data:
+            existing = ModulErp.query.filter_by(artikelnummer=artikelnummer).first()
+            if not existing:
+                erp_modul = ModulErp(
+                    artikelnummer=artikelnummer,
+                    bezeichnung=bezeichnung,
+                    kontext=kontext,
+                    sortierung=sortierung,
+                    icon=icon,
+                    aktiv=True
+                )
+                db.session.add(erp_modul)
+                click.echo(f"Created ModulErp: {artikelnummer}")
+            else:
+                # PRD011-T054: Update icon if changed
+                if existing.icon != icon:
+                    existing.icon = icon
+                    click.echo(f"Updated ModulErp icon: {artikelnummer} -> {icon}")
+                else:
+                    click.echo(f"ModulErp already exists: {artikelnummer}")
+
         # Create Module (unified module management - replaces SubApp)
         from app.models import Modul, ModulZugriff, ModulTyp
         # Format: (code, name, beschreibung, icon, color, color_hex, route_endpoint, sort_order, typ, zeige_dashboard)
@@ -1307,6 +1831,12 @@ Ticket anzeigen: {{ link }}
             # PRD-007: Anwender-Support Modul
             ('support', 'Anwender-Support', 'Support-Tickets erstellen und verwalten',
              'ti-headset', 'info', '#17a2b8', 'support.meine_tickets', 60, ModulTyp.KUNDENPROJEKT.value, True),
+            # PRD-010: Schulungen Modul
+            ('schulungen', 'Schulungen', 'Online-Schulungen buchen und verwalten',
+             'ti-school', 'purple', '#6f42c1', 'schulungen.liste', 70, ModulTyp.KUNDENPROJEKT.value, True),
+            # PRD-011: Projektverwaltung Modul (intern)
+            ('projekte', 'Projektverwaltung', 'PRDs, Tasks und Changelogs verwalten',
+             'ti-folder', 'danger', '#dc3545', 'projekte_admin.index', 80, ModulTyp.BASIS.value, False),
         ]
         for code, name, beschreibung, icon, color, color_hex, route_endpoint, sort_order, typ, zeige_dashboard in module_data:
             existing = Modul.query.filter_by(code=code).first()
@@ -1342,6 +1872,10 @@ Ticket anzeigen: {{ link }}
             ('dialog', ['admin', 'mitarbeiter', 'kunde']),
             # PRD-007: Anwender-Support
             ('support', ['admin', 'mitarbeiter', 'kunde']),
+            # PRD-010: Schulungen
+            ('schulungen', ['admin', 'mitarbeiter', 'kunde']),
+            # PRD-011: Projektverwaltung (nur intern)
+            ('projekte', ['admin', 'mitarbeiter']),
         ]
         for code, role_names in modul_access_mappings:
             modul = Modul.query.filter_by(code=code).first()
@@ -1746,3 +2280,42 @@ Ticket anzeigen: {{ link }}
 
         db.session.commit()
         click.echo('Users seeded successfully!')
+
+        # Create Claude AI user and assign to Betreiber
+        from app.models import Kunde, KundeBenutzer, UserTyp
+
+        claude = User.query.filter_by(email='claude@anthropic.com').first()
+        if not claude:
+            mitarbeiter_rolle = Rolle.query.filter_by(name='mitarbeiter').first()
+            if not mitarbeiter_rolle:
+                click.echo('WARNING: mitarbeiter role not found, cannot create Claude user')
+            else:
+                claude = User(
+                    email='claude@anthropic.com',
+                    vorname='Claude',
+                    nachname='AI',
+                    rolle_id=mitarbeiter_rolle.id,
+                    user_typ=UserTyp.KI_CLAUDE.value,
+                    aktiv=True
+                )
+                # KI users don't need a real password, but field is required
+                claude.set_password('ki-user-no-login')
+                db.session.add(claude)
+                db.session.commit()
+                click.echo('Created KI user: Claude (Anthropic)')
+
+                # Assign Claude to Betreiber (system operator)
+                betreiber = Kunde.query.filter_by(ist_systemkunde=True).first()
+                if betreiber:
+                    zuordnung = KundeBenutzer(
+                        kunde_id=betreiber.id,
+                        user_id=claude.id,
+                        ist_hauptbenutzer=False
+                    )
+                    db.session.add(zuordnung)
+                    db.session.commit()
+                    click.echo(f'Assigned Claude to Betreiber: {betreiber.firmierung}')
+                else:
+                    click.echo('WARNING: No Betreiber found (ist_systemkunde=True)')
+        else:
+            click.echo('KI user Claude already exists')

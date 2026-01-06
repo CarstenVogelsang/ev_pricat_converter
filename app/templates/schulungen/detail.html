@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ schulung.titel }} - Schulungen - {{ branding.app_title }}{% endblock %}
+
+{% block content %}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Schulungen', 'url': url_for('schulungen.liste'), 'icon': 'ti-school'},
+    {'label': schulung.titel}
+]) }}
+
+<div class="row">
+    <!-- Linke Spalte: Details -->
+    <div class="col-lg-8 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <h4 class="mb-0"><i class="ti ti-school text-purple"></i> {{ schulung.titel }}</h4>
+            </div>
+            <div class="card-body">
+                {% if schulung.beschreibung %}
+                <div class="mb-4">
+                    {{ schulung.beschreibung | safe }}
+                </div>
+                {% endif %}
+
+                <h5><i class="ti ti-list"></i> Themen ({{ schulung.anzahl_themen }})</h5>
+                <ul class="list-group mb-4">
+                    {% for thema in schulung.themen_sortiert %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        <div>
+                            <strong>{{ loop.index }}. {{ thema.titel }}</strong>
+                            {% if thema.beschreibung %}
+                            <br><small class="text-muted">{{ thema.beschreibung[:100] }}{% if thema.beschreibung|length > 100 %}...{% endif %}</small>
+                            {% endif %}
+                        </div>
+                        <span class="badge bg-secondary">{{ thema.dauer_formatiert }}</span>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item text-muted">Keine Themen definiert</li>
+                    {% endfor %}
+                </ul>
+
+                <div class="row text-center">
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h4 class="mb-0 text-primary">{{ schulung.gesamtdauer_formatiert }}</h4>
+                            <small class="text-muted">Gesamtdauer</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h4 class="mb-0 text-primary">{{ schulung.max_teilnehmer }}</h4>
+                            <small class="text-muted">Max. Teilnehmer</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="p-3 bg-light rounded">
+                            <h4 class="mb-0 text-primary">{{ schulung.storno_frist_tage }} Tage</h4>
+                            <small class="text-muted">Storno-Frist</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rechte Spalte: Preis & Termine -->
+    <div class="col-lg-4">
+        <!-- Preis -->
+        <div class="card mb-4">
+            <div class="card-header bg-primary text-white">
+                <i class="ti ti-currency-euro"></i> Preis
+            </div>
+            <div class="card-body text-center">
+                {% if schulung.hat_sonderpreis %}
+                <p class="text-decoration-line-through text-muted mb-0">{{ "%.2f"|format(schulung.preis)|replace('.', ',') }} €</p>
+                <h2 class="text-success mb-0">{{ "%.2f"|format(schulung.aktueller_preis)|replace('.', ',') }} €</h2>
+                <small class="text-muted">Sonderpreis</small>
+                {% else %}
+                <h2 class="text-primary mb-0">{{ "%.2f"|format(schulung.preis)|replace('.', ',') }} €</h2>
+                <small class="text-muted">pro Teilnehmer</small>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Termine -->
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-calendar"></i> Verfügbare Termine
+            </div>
+            <div class="card-body p-0">
+                {% if durchfuehrungen %}
+                <ul class="list-group list-group-flush">
+                    {% for df in durchfuehrungen %}
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <strong>{{ df.start_datum.strftime('%d.%m.%Y') }}</strong>
+                                <br><small class="text-muted">{{ df.wochentage_formatiert }} um {{ df.uhrzeit_formatiert }}</small>
+                            </div>
+                            <div class="text-end">
+                                {% if df.ist_ausgebucht %}
+                                <span class="badge bg-danger">Ausgebucht</span>
+                                <br>
+                                {% if current_user.is_authenticated %}
+                                <a href="{{ url_for('schulungen.buchen', durchfuehrung_id=df.id) }}"
+                                   class="btn btn-sm btn-outline-warning mt-1">
+                                    Warteliste
+                                </a>
+                                {% endif %}
+                                {% else %}
+                                <span class="badge bg-success">{{ df.freie_plaetze }} Plätze</span>
+                                <br>
+                                {% if current_user.is_authenticated %}
+                                <a href="{{ url_for('schulungen.buchen', durchfuehrung_id=df.id) }}"
+                                   class="btn btn-sm btn-primary mt-1">
+                                    Jetzt buchen
+                                </a>
+                                {% else %}
+                                <a href="{{ url_for('auth.login', next=url_for('schulungen.buchen', durchfuehrung_id=df.id)) }}"
+                                   class="btn btn-sm btn-outline-primary mt-1">
+                                    Anmelden & buchen
+                                </a>
+                                {% endif %}
+                                {% endif %}
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <div class="text-center py-4 text-muted">
+                    <i class="ti ti-calendar-off"></i>
+                    <p class="mb-0">Derzeit keine Termine</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

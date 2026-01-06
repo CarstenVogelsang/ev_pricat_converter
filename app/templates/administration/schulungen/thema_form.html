@@ -1,0 +1,98 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ 'Thema bearbeiten' if thema else 'Neues Thema' }} - Schulungen - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Schulungen', 'url': url_for('schulungen_admin.index'), 'icon': 'ti-school'},
+    {'label': 'Themen', 'url': url_for('schulungen_admin.themen_liste'), 'icon': 'ti-list'},
+    {'label': thema.titel if thema else 'Neues Thema'}
+]) }}
+
+<form method="POST">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>
+                <i class="ti ti-list"></i>
+                {{ 'Thema bearbeiten' if thema else 'Neues Thema anlegen' }}
+            </span>
+            <div>
+                <a href="{{ url_for('schulungen_admin.themen_liste') }}" class="btn btn-sm btn-outline-secondary">
+                    <i class="ti ti-arrow-left"></i> Zurück
+                </a>
+                {% if thema %}
+                <button type="button" class="btn btn-sm btn-outline-secondary"
+                        onclick="document.getElementById('form-duplizieren').submit();">
+                    <i class="ti ti-copy"></i> Duplizieren
+                </button>
+                {% endif %}
+                <button type="submit" class="btn btn-sm btn-primary">
+                    <i class="ti ti-device-floppy"></i> Speichern
+                </button>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-lg-8">
+                    <div class="mb-3">
+                        <label for="titel" class="form-label">Titel *</label>
+                        <input type="text" class="form-control" id="titel" name="titel" required
+                               value="{{ thema.titel if thema else form_data.get('titel', '') }}"
+                               placeholder="z.B. ERP Grundlagen">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="beschreibung" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="beschreibung" name="beschreibung" rows="4"
+                                  placeholder="Ausführliche Beschreibung (Markdown)">{{ thema.beschreibung if thema else form_data.get('beschreibung', '') }}</textarea>
+                    </div>
+                </div>
+
+                <div class="col-lg-4">
+                    <div class="mb-3">
+                        <label for="dauer_minuten" class="form-label">Dauer (Minuten) *</label>
+                        <input type="number" class="form-control" id="dauer_minuten" name="dauer_minuten"
+                               min="15" max="480" step="15"
+                               value="{{ thema.dauer_minuten if thema else form_data.get('dauer_minuten', '45') }}">
+                        <div class="form-text">Typisch: 45, 60, 90, 120 Minuten</div>
+                    </div>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" id="aktiv" name="aktiv"
+                               {{ 'checked' if (thema and thema.aktiv) or (not thema and form_data.get('aktiv', 'on') == 'on') else '' }}>
+                        <label class="form-check-label" for="aktiv">
+                            Aktiv (verwendbar in Schulungen)
+                        </label>
+                    </div>
+
+                    {% if thema and thema.anzahl_schulungen > 0 %}
+                    <div class="alert alert-info">
+                        <i class="ti ti-info-circle"></i>
+                        Dieses Thema wird in <strong>{{ thema.anzahl_schulungen }}</strong> Schulung(en) verwendet.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        {% if thema %}
+        <div class="card-footer text-muted">
+            <small>
+                Erstellt: {{ thema.created_at.strftime('%d.%m.%Y %H:%M') if thema.created_at else '-' }}
+                {% if thema.updated_at %}| Geändert: {{ thema.updated_at.strftime('%d.%m.%Y %H:%M') }}{% endif %}
+            </small>
+        </div>
+        {% endif %}
+    </div>
+</form>
+
+{% if thema %}
+<form id="form-duplizieren" method="POST" action="{{ url_for('schulungen_admin.thema_duplizieren', id=thema.id) }}" style="display: none;">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+</form>
+{% endif %}
+{% endblock %}

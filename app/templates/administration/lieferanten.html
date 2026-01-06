@@ -26,18 +26,61 @@
 <div class="card mb-3">
     <div class="card-body py-2">
         <form method="get" class="row g-2 align-items-center">
-            {# Hauptbranche-Filter #}
+            {# Hauptbranche-Filter (Custom Dropdown mit Icons) #}
             <div class="col-auto">
-                <select name="branche" class="form-select form-select-sm"
-                        onchange="this.form.submit()" style="min-width: 160px;">
-                    <option value="">Alle Branchen</option>
-                    {% for branche in handel_unterbranchen %}
-                    <option value="{{ branche.id }}"
-                            {{ 'selected' if filter_branche == branche.id }}>
-                        {{ branche.name }}
-                    </option>
-                    {% endfor %}
-                </select>
+                <div class="dropdown">
+                    {# Hidden Input für Form-Submit #}
+                    <input type="hidden" name="branche" id="brancheFilter" value="{{ filter_branche or '' }}">
+
+                    {# Dropdown Button mit aktueller Auswahl #}
+                    <button class="btn btn-outline-secondary btn-sm dropdown-toggle d-flex align-items-center" type="button"
+                            id="brancheDropdown"
+                            data-bs-toggle="dropdown"
+                            data-bs-auto-close="true"
+                            style="min-width: 200px;">
+                        {% if filter_branche and aktuelle_branche %}
+                        <i class="ti ti-{{ aktuelle_branche.icon }} me-2"></i>
+                        <span class="me-auto">{{ aktuelle_branche.name }}</span>
+                        {% else %}
+                        <i class="ti ti-category me-2 text-muted"></i>
+                        <span class="me-auto">Alle Branchen</span>
+                        {% endif %}
+                    </button>
+
+                    {# Dropdown Menu #}
+                    <div class="dropdown-menu p-0 shadow" style="min-width: 280px;" aria-labelledby="brancheDropdown">
+                        {# Header: HANDEL (Hauptbranche) #}
+                        <div class="dropdown-header bg-light border-bottom py-2">
+                            <i class="ti ti-building-store me-2"></i>
+                            <strong>HANDEL</strong>
+                            <small class="text-muted ms-1">(Hauptbranche)</small>
+                        </div>
+
+                        {# Reset Option: Alle Branchen #}
+                        <a href="#" class="dropdown-item py-2 d-flex align-items-center {{ 'active' if not filter_branche }}"
+                           onclick="selectBranche('', 'Alle Branchen', 'category'); return false;">
+                            <i class="ti ti-category me-2 text-muted" style="width: 24px;"></i>
+                            <span>Alle Branchen</span>
+                            {% if not filter_branche %}
+                            <i class="ti ti-check ms-auto text-success"></i>
+                            {% endif %}
+                        </a>
+
+                        <div class="dropdown-divider my-0"></div>
+
+                        {# Branchen-Liste mit Icons #}
+                        {% for branche in handel_unterbranchen %}
+                        <a href="#" class="dropdown-item py-2 d-flex align-items-center {{ 'active' if filter_branche == branche.id }}"
+                           onclick="selectBranche('{{ branche.id }}', '{{ branche.name }}', '{{ branche.icon }}'); return false;">
+                            <i class="ti ti-{{ branche.icon }} me-2" style="width: 24px; font-size: 1.1rem;"></i>
+                            <span>{{ branche.name }}</span>
+                            {% if filter_branche == branche.id %}
+                            <i class="ti ti-check ms-auto text-success"></i>
+                            {% endif %}
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
             </div>
 
             {# Status-Filter #}
@@ -140,7 +183,7 @@
 </div>
 
 {# ═══════════════════════════════════════════════════════════════════════════ #}
-{# Tooltip-Initialisierung #}
+{# JavaScript: Tooltip-Initialisierung + Custom Dropdown #}
 {# ═══════════════════════════════════════════════════════════════════════════ #}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
@@ -148,5 +191,23 @@ document.addEventListener('DOMContentLoaded', function() {
     const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]');
     tooltipTriggerList.forEach(el => new bootstrap.Tooltip(el));
 });
+
+/**
+ * Custom Branchen-Dropdown Handler
+ * Aktualisiert den Hidden Input und submitted das Form
+ */
+function selectBranche(id, name, icon) {
+    // Hidden Input aktualisieren
+    document.getElementById('brancheFilter').value = id;
+
+    // Button-Text visuell aktualisieren (vor Submit)
+    const btn = document.getElementById('brancheDropdown');
+    const iconClass = icon ? `ti-${icon}` : 'ti-category';
+    const iconColor = id ? '' : 'text-muted';
+    btn.innerHTML = `<i class="ti ${iconClass} me-2 ${iconColor}"></i><span class="me-auto">${name}</span>`;
+
+    // Form absenden
+    btn.closest('form').submit();
+}
 </script>
 {% endblock %}

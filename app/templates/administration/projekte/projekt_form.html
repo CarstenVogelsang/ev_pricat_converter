@@ -1,0 +1,94 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{% if projekt %}Projekt bearbeiten{% else %}Neues Projekt{% endif %} - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Projektverwaltung', 'url': url_for('projekte_admin.index'), 'icon': 'ti-folder'},
+    {'label': projekt.name if projekt else 'Neues Projekt'}
+]) }}
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="ti ti-{% if projekt %}edit{% else %}plus{% endif %}"></i>
+                        {% if projekt %}Projekt bearbeiten{% else %}Neues Projekt{% endif %}
+                    </span>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="name" class="form-label">Name *</label>
+                        <input type="text" class="form-control" id="name" name="name"
+                               value="{{ projekt.name if projekt else request.form.get('name', '') }}" required>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="beschreibung" class="form-label">Beschreibung</label>
+                        <textarea class="form-control" id="beschreibung" name="beschreibung" rows="3">{{ projekt.beschreibung if projekt else request.form.get('beschreibung', '') }}</textarea>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label for="typ" class="form-label">Typ</label>
+                            <select class="form-select" id="typ" name="typ">
+                                {% for value, label in projekt_typen %}
+                                <option value="{{ value }}" {% if (projekt and projekt.typ == value) or request.form.get('typ') == value %}selected{% endif %}>
+                                    {{ label }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="col-md-6 mb-3" id="kunde-select-container" style="display: none;">
+                            <label for="kunde_id" class="form-label">Kunde</label>
+                            <select class="form-select" id="kunde_id" name="kunde_id">
+                                <option value="">-- Kein Kunde --</option>
+                                {% for kunde in kunden %}
+                                <option value="{{ kunde.id }}" {% if projekt and projekt.kunde_id == kunde.id %}selected{% endif %}>
+                                    {{ kunde.firmierung }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer">
+                    <a href="{{ url_for('projekte_admin.index') }}" class="btn btn-outline-secondary">
+                        <i class="ti ti-arrow-left"></i> Abbrechen
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const typSelect = document.getElementById('typ');
+    const kundeContainer = document.getElementById('kunde-select-container');
+
+    function toggleKundeSelect() {
+        if (typSelect.value === 'kunde') {
+            kundeContainer.style.display = 'block';
+        } else {
+            kundeContainer.style.display = 'none';
+        }
+    }
+
+    typSelect.addEventListener('change', toggleKundeSelect);
+    toggleKundeSelect(); // Initial check
+});
+</script>
+{% endblock %}

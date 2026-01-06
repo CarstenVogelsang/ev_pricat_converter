@@ -10,6 +10,7 @@ class BrandingConfig:
     logo_url: str
     primary_color: str
     secondary_color: str
+    light_text_color: str  # Text auf dunklem Hintergrund (Navbar)
     app_title: str
     copyright_text: str
     copyright_url: str
@@ -25,6 +26,7 @@ class BrandingService:
     # Default values
     DEFAULT_PRIMARY_COLOR = '#0d6efd'
     DEFAULT_SECONDARY_COLOR = '#6c757d'
+    DEFAULT_LIGHT_TEXT_COLOR = '#ffffff'  # Weiß für Text auf dunklem Hintergrund
     DEFAULT_APP_TITLE = 'ev247'
     DEFAULT_COPYRIGHT_TEXT = '© 2025 e-vendo AG'
     DEFAULT_COPYRIGHT_URL = 'https://www.e-vendo.de'
@@ -80,6 +82,7 @@ class BrandingService:
             logo_url=logo_url,
             primary_color=Config.get_value('brand_primary_color', self.DEFAULT_PRIMARY_COLOR),
             secondary_color=Config.get_value('brand_secondary_color', self.DEFAULT_SECONDARY_COLOR),
+            light_text_color=Config.get_value('brand_light_text_color', self.DEFAULT_LIGHT_TEXT_COLOR),
             app_title=Config.get_value('brand_app_title', self.DEFAULT_APP_TITLE),
             copyright_text=Config.get_value('copyright_text', self.DEFAULT_COPYRIGHT_TEXT),
             copyright_url=Config.get_value('copyright_url', self.DEFAULT_COPYRIGHT_URL),
@@ -184,6 +187,7 @@ class BrandingService:
             'logo_url': branding.logo_url,
             'primary_color': branding.primary_color,
             'secondary_color': branding.secondary_color,
+            'light_text_color': branding.light_text_color,
             'app_title': branding.app_title,
             'copyright_text': branding.copyright_text,
             'copyright_url': branding.copyright_url,

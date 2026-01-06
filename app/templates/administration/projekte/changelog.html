@@ -1,0 +1,141 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Changelog - {{ komponente.name }} - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Projektverwaltung', 'url': url_for('projekte_admin.index'), 'icon': 'ti-folder'},
+    {'label': projekt.name ~ ' (' ~ ('Kunde' if projekt.ist_kundenprojekt else 'intern') ~ ')', 'url': url_for('projekte_admin.projekt_detail', id=projekt.id)},
+    {'label': 'Changelog'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>
+        <i class="ti ti-history text-secondary"></i>
+        Changelog:
+        {% if komponente.prd_nummer %}PRD-{{ komponente.prd_nummer }} -{% endif %}
+        {{ komponente.name }}
+    </h4>
+    <a href="{{ url_for('projekte_admin.projekt_detail', id=projekt.id, komponente=komponente.id) }}"
+       class="btn btn-outline-secondary btn-sm">
+        <i class="ti ti-arrow-left"></i> Zurück zum Board
+    </a>
+</div>
+
+<div class="row">
+    <!-- Neuer Eintrag Form -->
+    <div class="col-lg-4 mb-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-plus"></i> Neuer Eintrag
+            </div>
+            <div class="card-body">
+                <form method="post" action="{{ url_for('projekte_admin.changelog_neu', komponente_id=komponente.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <div class="mb-3">
+                        <label for="version" class="form-label">Version</label>
+                        <input type="text" class="form-control" id="version" name="version"
+                               value="{{ komponente.aktuelle_phase }}" placeholder="z.B. POC, MVP, V1">
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="kategorie" class="form-label">Kategorie</label>
+                        <select class="form-select" id="kategorie" name="kategorie">
+                            {% for value, label in kategorien %}
+                            <option value="{{ value }}">{{ label }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="beschreibung" class="form-label">Beschreibung *</label>
+                        <textarea class="form-control" id="beschreibung" name="beschreibung"
+                                  rows="3" required placeholder="Was wurde geändert?"></textarea>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="sichtbarkeit" class="form-label">Sichtbarkeit</label>
+                        <select class="form-select" id="sichtbarkeit" name="sichtbarkeit">
+                            <option value="intern">Intern (nur Mitarbeiter)</option>
+                            <option value="oeffentlich">Öffentlich (auch Kunden)</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="ti ti-plus"></i> Eintrag hinzufügen
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Changelog Liste -->
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <span><i class="ti ti-list"></i> Änderungshistorie</span>
+                <span class="badge bg-secondary">{{ eintraege|length }} Einträge</span>
+            </div>
+            <div class="card-body p-0">
+                {% if eintraege %}
+                <div class="list-group list-group-flush">
+                    {% set current_version = namespace(value=None) %}
+                    {% for eintrag in eintraege %}
+                        {% if eintrag.version != current_version.value %}
+                            {% set current_version.value = eintrag.version %}
+                            <div class="list-group-item bg-light">
+                                <strong>
+                                    <i class="ti ti-tag"></i>
+                                    {{ eintrag.version|upper }}
+                                </strong>
+                            </div>
+                        {% endif %}
+                        <div class="list-group-item">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1">
+                                    <span class="badge
+                                        {% if eintrag.kategorie == 'added' %}bg-success
+                                        {% elif eintrag.kategorie == 'changed' %}bg-primary
+                                        {% elif eintrag.kategorie == 'fixed' %}bg-warning text-dark
+                                        {% elif eintrag.kategorie == 'removed' %}bg-danger
+                                        {% elif eintrag.kategorie == 'deprecated' %}bg-secondary
+                                        {% elif eintrag.kategorie == 'security' %}bg-dark
+                                        {% endif %} me-2">
+                                        {{ eintrag.kategorie|upper }}
+                                    </span>
+                                    {{ eintrag.beschreibung }}
+                                    {% if eintrag.task %}
+                                    <br>
+                                    <small class="text-muted">
+                                        <i class="ti ti-subtask"></i>
+                                        Aus Task: {{ eintrag.task.titel }}
+                                    </small>
+                                    {% endif %}
+                                </div>
+                                <div class="text-end text-nowrap">
+                                    <small class="text-muted">
+                                        {{ eintrag.erstellt_am.strftime('%d.%m.%Y') }}
+                                        {% if eintrag.sichtbarkeit == 'intern' %}
+                                        <br><span class="badge bg-light text-dark">intern</span>
+                                        {% endif %}
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-5 text-muted">
+                    <i class="ti ti-history" style="font-size: 3rem;"></i>
+                    <p class="mt-2">Noch keine Changelog-Einträge.</p>
+                    <p><small>Einträge werden automatisch erstellt, wenn Tasks als erledigt markiert werden.</small></p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

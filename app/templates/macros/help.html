@@ -37,7 +37,7 @@
 </button>
 
 <!-- Help Modal for {{ schluessel }} -->
-<div class="modal fade" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade help-modal" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -68,6 +68,10 @@
     color: inherit;
     font-size: inherit;
 }
+/* Help Modal über Offcanvas und anderen Layern anzeigen (PRD011-T029) */
+.modal.help-modal {
+    z-index: 1060 !important;
+}
 </style>
 {% endif %}
 {% endmacro %}
@@ -90,7 +94,7 @@
 {% macro help_modal(schluessel) %}
 {% set help = get_help_text(schluessel) %}
 {% if help and help.aktiv %}
-<div class="modal fade" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade help-modal" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">
@@ -136,7 +140,7 @@
 </button>
 
 <!-- Help Modal for {{ schluessel }} -->
-<div class="modal fade" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
+<div class="modal fade help-modal" id="helpModal_{{ schluessel|replace('.', '_') }}" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content">
             <div class="modal-header">

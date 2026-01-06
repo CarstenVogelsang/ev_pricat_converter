@@ -47,9 +47,18 @@
                         <tbody>
                             {% for teilnahme in fragebogen.teilnahmen %}
                             <tr>
-                                <td>{{ teilnahme.kunde.firmierung }}</td>
                                 <td>
-                                    {% if teilnahme.kunde.user %}
+                                    {{ teilnahme.kunde.firmierung }}
+                                    {% if teilnahme.kunde.is_lead %}
+                                    <span class="badge bg-info ms-1">Lead</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if teilnahme.kunde.is_lead %}
+                                    {# Lead: E-Mail direkt vom Kunde-Modell #}
+                                    <small class="text-muted">{{ teilnahme.kunde.email or '-' }}</small>
+                                    {% elif teilnahme.kunde.user %}
+                                    {# Kunde: E-Mail vom User #}
                                     {{ teilnahme.kunde.user.full_name }}<br>
                                     <small class="text-muted">{{ teilnahme.kunde.user.email }}</small>
                                     {% else %}
@@ -120,17 +129,21 @@
                     <form method="post" action="{{ url_for('dialog_admin.add_teilnehmer', id=fragebogen.id) }}">
                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                         <div class="mb-3">
-                            <label for="kunde_id" class="form-label">Kunde auswählen</label>
+                            <label for="kunde_id" class="form-label">Kunde/Lead auswählen</label>
                             <select class="form-select" id="kunde_id" name="kunde_id" required>
-                                <option value="">-- Kunde wählen --</option>
+                                <option value="">-- Auswählen --</option>
                                 {% for kunde in verfuegbare_kunden %}
                                 <option value="{{ kunde.id }}">
                                     {{ kunde.firmierung }}
-                                    {% if kunde.user %}({{ kunde.user.email }}){% endif %}
+                                    {% if kunde.is_lead %}
+                                    [Lead] ({{ kunde.email or 'keine E-Mail' }})
+                                    {% elif kunde.user %}
+                                    ({{ kunde.user.email }})
+                                    {% endif %}
                                 </option>
                                 {% endfor %}
                             </select>
-                            <small class="text-muted">Nur Kunden mit User-Account</small>
+                            <small class="text-muted">Kunden mit User-Account oder Leads mit E-Mail</small>
                         </div>
                         <button type="submit" class="btn btn-primary w-100">
                             <i class="ti ti-plus"></i> Hinzufügen
@@ -139,8 +152,8 @@
                     {% else %}
                     <div class="text-center text-muted py-3">
                         <i class="ti ti-user-off" style="font-size: 2rem;"></i>
-                        <p class="mb-0 mt-2">Keine weiteren Kunden verfügbar</p>
-                        <small>Alle Kunden mit User-Account wurden bereits hinzugefügt oder haben keinen User-Account.</small>
+                        <p class="mb-0 mt-2">Keine weiteren Teilnehmer verfügbar</p>
+                        <small>Alle Kunden/Leads mit E-Mail-Adresse wurden bereits hinzugefügt.</small>
                     </div>
                     {% endif %}
                 </div>
@@ -152,11 +165,14 @@
                 </div>
                 <div class="card-body">
                     <p class="small text-muted mb-2">
-                        <strong>Voraussetzung:</strong> Ein Kunde kann nur hinzugefügt werden,
-                        wenn er einen User-Account hat.
+                        <strong>Voraussetzung:</strong> Teilnehmer benötigen eine E-Mail-Adresse
+                        für den Fragebogen-Versand.
+                    </p>
+                    <p class="small text-muted mb-2">
+                        <span class="badge bg-success">Kunden</span> erhalten die Einladung an ihre User-E-Mail.
                     </p>
                     <p class="small text-muted mb-0">
-                        User-Accounts können auf der Kunden-Detailseite erstellt werden.
+                        <span class="badge bg-info">Leads</span> erhalten die Einladung an ihre hinterlegte E-Mail.
                     </p>
                 </div>
             </div>

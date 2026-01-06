@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% from "macros/breadcrumb.html" import breadcrumb %}
+{% set module = module_colors.get('kunden', {'color_hex': '#198754', 'icon': 'ti-users'}) %}
 
 {% block title %}{{ titel }} - {{ branding.app_title }}{% endblock %}
 
@@ -10,15 +11,29 @@
     {'label': titel}
 ]) }}
 
-<h2 class="mb-4">{{ titel }}</h2>
+<form method="POST">
+    {{ form.hidden_tag() }}
 
-<div class="row">
-    <div class="col-md-8">
-        <div class="card">
-            <div class="card-body">
-                <form method="POST">
-                    {{ form.hidden_tag() }}
+    {# Header mit Titel und Aktions-Buttons (PRD-012) #}
+    <div class="d-flex justify-content-between align-items-center mb-4 p-3 rounded"
+         style="background: linear-gradient(135deg, {{ module.color_hex }}20 0%, transparent 70%);">
+        <h2 class="mb-0">{{ titel }}</h2>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('kunden.liste') }}" class="btn btn-outline-secondary">
+                Abbrechen
+            </a>
+            <button type="submit" class="btn btn-primary">
+                <i class="ti ti-check"></i> Speichern
+            </button>
+        </div>
+    </div>
 
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+
+                    {# Zeile 1: Firmierung + EV-Kdnr #}
                     <div class="row">
                         <div class="col-md-8 mb-3">
                             <label for="firmierung" class="form-label">Firmierung *</label>
@@ -36,6 +51,66 @@
                         </div>
                     </div>
 
+                    {# Zeile 2: Typ + Aktiv (wichtige Felder oben - PRD-012) #}
+                    <div class="row mb-3">
+                        {% if not kunde %}
+                        {# Neuer Eintrag: Typ wählbar #}
+                        <div class="col-md-6">
+                            <label for="typ" class="form-label">Typ</label>
+                            {{ form.typ(class="form-select") }}
+                            <div class="form-text">
+                                <strong>Kunde:</strong> Hat User-Account &middot;
+                                <strong>Lead:</strong> Ohne User-Account
+                            </div>
+                        </div>
+                        <div class="col-md-6 d-flex align-items-center pt-4">
+                            <div class="form-check">
+                                {{ form.aktiv(class="form-check-input") }}
+                                <label class="form-check-label" for="aktiv">Aktiv</label>
+                            </div>
+                        </div>
+                        {% elif kunde.is_lead %}
+                        {# Lead bearbeiten: Info-Box mit Konvertieren-Option #}
+                        <div class="col-12">
+                            <div class="alert alert-info mb-0">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <span class="badge bg-info me-2">Lead</span>
+                                        Dieser Eintrag ist ein Lead (potenzieller Kunde).
+                                    </div>
+                                    <div class="d-flex align-items-center gap-3">
+                                        <div class="form-check mb-0">
+                                            {{ form.aktiv(class="form-check-input") }}
+                                            <label class="form-check-label" for="aktiv">Aktiv</label>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% else %}
+                        {# Kunde bearbeiten: Nur Aktiv-Checkbox #}
+                        <input type="hidden" name="typ" value="kunde">
+                        <div class="col-12">
+                            <div class="form-check">
+                                {{ form.aktiv(class="form-check-input") }}
+                                <label class="form-check-label" for="aktiv">Aktiv</label>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    {# Lead-Konvertierung als separate Form (außerhalb des Hauptformulars nicht möglich) #}
+                    {% if kunde and kunde.is_lead %}
+                    <div class="mb-3">
+                        <a href="{{ url_for('kunden.detail', id=kunde.id) }}" class="btn btn-success btn-sm">
+                            <i class="ti ti-user-check"></i> Zu Kunde konvertieren (auf Detail-Seite)
+                        </a>
+                    </div>
+                    {% endif %}
+
+                    <hr class="my-3">
+
+                    {# Adresse #}
                     <div class="mb-3">
                         <label for="strasse" class="form-label">Straße</label>
                         {{ form.strasse(class="form-control" + (" is-invalid" if form.strasse.errors else ""), placeholder="Musterstraße 123") }}
@@ -76,6 +151,9 @@
                     </div>
                     {% endif %}
 
+                    <hr class="my-3">
+
+                    {# URLs #}
                     <div class="mb-3">
                         <label for="website_url" class="form-label">Website URL</label>
                         {{ form.website_url(class="form-control" + (" is-invalid" if form.website_url.errors else ""), placeholder="https://www.beispiel.de") }}
@@ -93,6 +171,9 @@
                         {% endfor %}
                     </div>
 
+                    <hr class="my-3">
+
+                    {# Kontakt #}
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label for="telefon" class="form-label">Telefon</label>
@@ -111,7 +192,9 @@
                         </div>
                     </div>
 
-                    <!-- Kommunikationsstil (Firmen-Standard) -->
+                    <hr class="my-3">
+
+                    {# Kommunikation #}
                     <div class="mb-3">
                         <label for="kommunikation_stil" class="form-label">Kommunikationsstil (Standard)</label>
                         {{ form.kommunikation_stil(class="form-select" + (" is-invalid" if form.kommunikation_stil.errors else "")) }}
@@ -121,29 +204,15 @@
                         <div class="form-text">Standard für alle Benutzer ohne eigene Einstellung. Die Anrede (Herr/Frau/Divers) wird beim jeweiligen Benutzer gepflegt.</div>
                     </div>
 
-                    <div class="mb-3">
+                    {# Notizen (unten - PRD-012) #}
+                    <div class="mb-0">
                         <label for="notizen" class="form-label">Notizen</label>
                         {{ form.notizen(class="form-control", rows="4", placeholder="Interne Notizen...") }}
                     </div>
 
-                    <div class="mb-4">
-                        <div class="form-check">
-                            {{ form.aktiv(class="form-check-input") }}
-                            <label class="form-check-label" for="aktiv">Aktiv</label>
-                        </div>
-                    </div>
-
-                    <div class="d-flex gap-2">
-                        <button type="submit" class="btn btn-primary">
-                            <i class="ti ti-check"></i> Speichern
-                        </button>
-                        <a href="{{ url_for('kunden.liste') }}" class="btn btn-outline-secondary">
-                            Abbrechen
-                        </a>
-                    </div>
-                </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
+</form>
 {% endblock %}

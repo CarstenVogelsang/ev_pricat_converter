@@ -27,16 +27,28 @@
             flex: 1;
         }
         .navbar-brand {
-            font-weight: bold;
+            font-weight: 600;
+            font-size: 1.4rem;
             display: flex;
             align-items: center;
             gap: 0.5rem;
         }
         .navbar-brand img {
-            height: 32px;
+            height: 36px;
         }
         .navbar {
             background-color: {{ branding.primary_color }} !important;
+        }
+        /* PRD035-T058: Größere Nav-Links und bessere Lesbarkeit */
+        .navbar .nav-link {
+            font-size: 1.1rem;
+        }
+        .navbar-dark .navbar-brand,
+        .navbar-dark .nav-link {
+            color: {{ branding.light_text_color }} !important;
+        }
+        .navbar-dark .nav-link:hover {
+            color: #ffffff !important;
         }
         .btn-primary {
             background-color: {{ branding.primary_color }};
@@ -80,25 +92,7 @@
                             <i class="ti ti-home"></i> Dashboard
                         </a>
                     </li>
-                    {% if current_user.is_admin %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="adminDropdown" role="button" data-bs-toggle="dropdown">
-                            <i class="ti ti-settings"></i> Admin
-                        </a>
-                        <ul class="dropdown-menu">
-                            <li><a class="dropdown-item" href="{{ url_for('admin.index') }}">
-                                <i class="ti ti-dashboard"></i> System
-                            </a></li>
-                            <li><a class="dropdown-item" href="{{ url_for('admin.branding') }}">
-                                <i class="ti ti-palette"></i> Branding
-                            </a></li>
-                            <li><hr class="dropdown-divider"></li>
-                            <li><a class="dropdown-item" href="{{ url_for('dbadmin.index') }}">
-                                <i class="ti ti-database"></i> DB Admin
-                            </a></li>
-                        </ul>
-                    </li>
-                    {% endif %}
+                    {# PRD035-T058: Admin-Dropdown aus Top-Navigation entfernt #}
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav">

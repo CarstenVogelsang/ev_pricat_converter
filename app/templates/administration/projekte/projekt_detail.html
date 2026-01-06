@@ -1,0 +1,904 @@
+{% if fokus_modus %}
+{% extends "base_fokus.html" %}
+{% else %}
+{% extends "administration/base.html" %}
+{% endif %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+{% from "macros/help.html" import help_icon with context %}
+
+{% block title %}{% if fokus_modus %}Fokus: {% endif %}{{ projekt.name }} - Projektverwaltung - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{% if not fokus_modus %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Projektverwaltung', 'url': url_for('projekte_admin.index'), 'icon': 'ti-folder'},
+    {'label': projekt.name ~ ' (' ~ ('Kunde' if projekt.ist_kundenprojekt else 'intern') ~ ')'}
+]) }}
+{% endif %}
+
+<style>
+    /* Header-Zeile mit Projekt und Komponenten-Tabs */
+    .projekt-header {
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        margin-bottom: 0.75rem;
+        flex-wrap: wrap;
+    }
+    .projekt-titel {
+        font-size: 1.25rem;
+        font-weight: 600;
+        white-space: nowrap;
+    }
+
+    /* Zweizeilige Komponenten-Tabs */
+    .komponenten-tabs {
+        display: flex;
+        gap: 0.35rem;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        flex: 1;
+    }
+    .komponenten-tab {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 0.35rem 0.6rem;
+        border-radius: 0.375rem;
+        text-decoration: none;
+        border: 1px solid #dee2e6;
+        background: #f8f9fa;
+        min-width: 70px;
+        transition: all 0.15s;
+    }
+    .komponenten-tab:hover {
+        border-color: #0d6efd;
+        background: #e7f1ff;
+    }
+    .komponenten-tab.active {
+        background: #0d6efd;
+        border-color: #0d6efd;
+        color: white;
+    }
+    .komponenten-tab.active .komponenten-tab-name {
+        color: rgba(255,255,255,0.8);
+    }
+    .komponenten-tab-nummer {
+        font-weight: 600;
+        font-size: 0.8rem;
+        line-height: 1.2;
+    }
+    .komponenten-tab-name {
+        font-size: 0.65rem;
+        color: #6c757d;
+        line-height: 1.2;
+        white-space: nowrap;
+    }
+    .komponenten-tab .badge {
+        font-size: 0.6rem;
+        padding: 0.15rem 0.35rem;
+        position: absolute;
+        top: -5px;
+        right: -5px;
+    }
+
+    /* Kompakte Info-Zeile */
+    .komponenten-info {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.5rem 0;
+        margin-bottom: 0.5rem;
+        border-bottom: 1px solid #dee2e6;
+    }
+    .komponenten-info-left {
+        display: flex;
+        align-items: center;
+        gap: 0.75rem;
+    }
+    .komponenten-info-title {
+        font-weight: 600;
+        font-size: 1rem;
+    }
+    .komponenten-info-meta {
+        font-size: 0.75rem;
+        color: #6c757d;
+    }
+
+    /* Kanban Board - schmälere Spalten, immer sichtbare Scrollbar */
+    .kanban-board {
+        display: flex;
+        gap: 0.75rem;
+        overflow-x: scroll;  /* immer sichtbar */
+        padding-bottom: 1rem;
+        min-height: calc(100vh - 280px);
+    }
+    .kanban-column {
+        flex: 1 1 200px;  /* flexibel wachsen, Basis 200px */
+        min-width: 180px;
+        max-width: 300px;
+        background: #f8f9fa;
+        border-radius: 0.5rem;
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 240px);  /* mehr Platz durch kompakten Header */
+    }
+    .kanban-column-header {
+        padding: 0.5rem 0.75rem;
+        font-weight: 600;
+        font-size: 0.85rem;
+        border-bottom: 2px solid;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    .kanban-column-header .badge {
+        font-size: 0.7rem;
+    }
+    .kanban-column[data-status="backlog"] .kanban-column-header { border-color: #6c757d; }
+    .kanban-column[data-status="geplant"] .kanban-column-header { border-color: #0d6efd; }
+    .kanban-column[data-status="in_arbeit"] .kanban-column-header { border-color: #ffc107; }
+    .kanban-column[data-status="review"] .kanban-column-header { border-color: #17a2b8; }
+    .kanban-column[data-status="erledigt"] .kanban-column-header { border-color: #198754; }
+    .kanban-tasks {
+        flex: 1;
+        padding: 0.5rem;
+        overflow-y: auto;
+        min-height: 100px;
+    }
+    .kanban-task {
+        background: white;
+        border-radius: 0.375rem;
+        padding: 0.5rem 0.75rem;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        cursor: grab;
+        transition: box-shadow 0.2s;
+    }
+    .kanban-task:hover {
+        box-shadow: 0 3px 8px rgba(0,0,0,0.15);
+    }
+    .kanban-task.sortable-ghost {
+        opacity: 0.4;
+    }
+    .kanban-task.sortable-drag {
+        opacity: 1;
+        cursor: grabbing;
+    }
+    .kanban-task-title {
+        font-weight: 500;
+        font-size: 0.85rem;
+        margin-bottom: 0.25rem;
+        line-height: 1.3;
+    }
+    .kanban-task-meta {
+        display: flex;
+        gap: 0.35rem;
+        font-size: 0.7rem;
+        flex-wrap: wrap;
+    }
+    .add-task-input {
+        border: 2px dashed #dee2e6;
+        background: transparent;
+        font-size: 0.85rem;
+    }
+    .add-task-input:focus {
+        border-color: #0d6efd;
+        background: white;
+    }
+
+    /* Archivierte Tasks (PRD011-T030) */
+    .kanban-task.archived {
+        opacity: 0.6;
+        border-left: 3px solid var(--tblr-secondary);
+    }
+    .kanban-task.archived .kanban-task-title {
+        text-decoration: line-through;
+        color: #6c757d;
+    }
+
+    /* Task Editor Offcanvas Styling */
+    #taskEditorOffcanvas {
+        width: 100%;  /* Mobile-first */
+        background-color: rgba(255, 255, 255, 0.82);  /* Stärker transparent */
+        backdrop-filter: blur(12px);  /* Hintergrund verschwommen */
+        -webkit-backdrop-filter: blur(12px);
+    }
+    @media (min-width: 992px) {
+        #taskEditorOffcanvas {
+            width: 550px;
+        }
+    }
+    @media (min-width: 1400px) {
+        #taskEditorOffcanvas {
+            width: 650px;
+        }
+    }
+
+    /* Transparenterer Backdrop */
+    .offcanvas-backdrop.show {
+        opacity: 0.15;
+    }
+
+    {% if fokus_modus %}
+    /* Fokus-Modus: Maximale Platznutzung */
+    .fokus-container {
+        padding: 0.5rem 1rem;  /* Minimaler Rand links/rechts */
+    }
+    .projekt-header {
+        margin-bottom: 0.5rem;
+    }
+    .komponenten-info {
+        padding: 0.25rem 0;
+        margin-bottom: 0.25rem;
+    }
+    .kanban-board {
+        flex: 1;
+        min-height: calc(100vh - 120px);
+        overflow-x: auto;  /* Nur bei Bedarf scrollen */
+        gap: 1rem;  /* Etwas mehr Abstand zwischen Spalten */
+    }
+    .kanban-column {
+        max-width: none;  /* Keine Breitenbegrenzung */
+        min-width: 220px;  /* Etwas breiter im Fokus-Modus */
+        max-height: calc(100vh - 100px);
+    }
+    {% endif %}
+</style>
+
+<!-- Zeile 1: Projekt + Komponenten-Tabs + Aktionen -->
+<div class="projekt-header">
+    <span class="projekt-titel">
+        <i class="ti ti-folder text-primary"></i>
+        {{ projekt.name }}
+    </span>
+
+    {% if komponenten %}
+    <div class="komponenten-tabs">
+        {% for komp in komponenten_direkt %}
+        <a href="{{ url_for('projekte_admin.projekt_detail', id=projekt.id, komponente=komp.id) }}"
+           class="komponenten-tab{% if aktive_komponente and aktive_komponente.id == komp.id %} active{% endif %}">
+            <span class="komponenten-tab-nummer">
+                {% if komp.prd_nummer %}PRD-{{ komp.prd_nummer }}{% else %}—{% endif %}
+            </span>
+            <span class="komponenten-tab-name">{{ komp.name }}</span>
+        </a>
+        {% endfor %}
+
+        {% if komponenten_dropdown %}
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                +{{ komponenten_dropdown|length }}
+            </button>
+            <ul class="dropdown-menu">
+                {% for komp in komponenten_dropdown %}
+                <li>
+                    <a class="dropdown-item{% if aktive_komponente and aktive_komponente.id == komp.id %} active{% endif %}"
+                       href="{{ url_for('projekte_admin.projekt_detail', id=projekt.id, komponente=komp.id) }}">
+                        {% if komp.prd_nummer %}PRD-{{ komp.prd_nummer }} - {% endif %}{{ komp.name }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Task-Suche (PRD011-T045) -->
+    <form method="get" class="d-inline-flex ms-auto me-2">
+        {% if aktive_komponente %}<input type="hidden" name="komponente" value="{{ aktive_komponente.id }}">{% endif %}
+        {% if phase_filter %}<input type="hidden" name="phase" value="{{ phase_filter }}">{% endif %}
+        <div class="input-group input-group-sm" style="width: 180px;">
+            <span class="input-group-text"><i class="ti ti-search"></i></span>
+            <input type="text" name="q" class="form-control"
+                   placeholder="Task suchen..."
+                   value="{{ suchbegriff or '' }}">
+            {% if suchbegriff %}
+            <a href="{{ url_for('projekte_admin.projekt_detail', id=projekt.id, komponente=aktive_komponente.id if aktive_komponente else None, phase=phase_filter or None) }}"
+               class="btn btn-outline-secondary" title="Suche zurücksetzen">
+                <i class="ti ti-x"></i>
+            </a>
+            {% endif %}
+        </div>
+    </form>
+
+    <!-- Fokus-Button und Aktionen -->
+    {% if fokus_modus %}
+    <button type="button" class="btn btn-sm btn-outline-danger me-2"
+            onclick="window.close(); return false;"
+            title="Fokus-Ansicht schließen">
+        <i class="ti ti-x"></i> Ansicht schließen
+    </button>
+    {% else %}
+    <button type="button" class="btn btn-sm btn-outline-secondary me-2"
+            onclick="openFokusMode()"
+            title="Fokus-Modus: Maximale Platznutzung ohne Navigation">
+        <i class="ti ti-maximize"></i> Fokus
+    </button>
+    {% endif %}
+
+    <div class="btn-group btn-group-sm">
+        <a href="{{ url_for('projekte_admin.komponente_neu', projekt_id=projekt.id) }}" class="btn btn-outline-primary" title="Neue Komponente">
+            <i class="ti ti-plus"></i>
+        </a>
+        <a href="{{ url_for('projekte_admin.projekt_bearbeiten', id=projekt.id) }}" class="btn btn-outline-secondary" title="Projekt bearbeiten">
+            <i class="ti ti-settings"></i>
+        </a>
+    </div>
+</div>
+
+<!-- Zeile 2: Komponenten-Info + Phasen-Filter + Aktionen -->
+{% if aktive_komponente %}
+<div class="komponenten-info">
+    <div class="komponenten-info-left">
+        <span class="komponenten-info-title">
+            <i class="ti {{ aktive_komponente.icon or 'ti-file' }}"></i>
+            {{ aktive_komponente.name }}
+        </span>
+        <span class="komponenten-info-meta">
+            <span class="badge bg-info">{{ aktive_komponente.aktuelle_phase|upper }}</span>
+            {{ aktive_komponente.typ }}
+        </span>
+        <div class="btn-group btn-group-sm">
+            <a href="{{ url_for('projekte_admin.prd_editor', id=aktive_komponente.id) }}"
+               class="btn btn-outline-primary btn-sm" title="PRD bearbeiten">
+                <i class="ti ti-file-text"></i>
+            </a>
+            <a href="{{ url_for('projekte_admin.changelog_liste', id=aktive_komponente.id) }}"
+               class="btn btn-outline-secondary btn-sm" title="Changelog">
+                <i class="ti ti-history"></i>
+            </a>
+            <a href="{{ url_for('projekte_admin.komponente_bearbeiten', id=aktive_komponente.id) }}"
+               class="btn btn-outline-secondary btn-sm" title="Bearbeiten">
+                <i class="ti ti-edit"></i>
+            </a>
+        </div>
+    </div>
+
+    <!-- Phasen-Filter rechts -->
+    <div class="btn-group btn-group-sm" role="group">
+        <a href="{{ url_for('projekte_admin.projekt_detail', id=projekt.id, komponente=aktive_komponente.id) }}"
+           class="btn btn-outline-secondary{% if not phase_filter %} active{% endif %}">
+            Alle
+        </a>
+        {% for value, label in phasen %}
+        <a href="{{ url_for('projekte_admin.projekt_detail', id=projekt.id, komponente=aktive_komponente.id, phase=value) }}"
+           class="btn btn-outline-secondary{% if phase_filter == value %} active{% endif %}">
+            {{ label }}
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Kanban Board -->
+<div class="kanban-board" id="kanban-board" data-komponente-id="{{ aktive_komponente.id }}">
+    {% for status in task_status_liste %}
+    <div class="kanban-column" data-status="{{ status.value }}">
+        <div class="kanban-column-header">
+            <span>{{ status.name.replace('_', ' ').title() }}</span>
+            {# Archive Toggle (PRD011-T030) - nur für Backlog und Erledigt #}
+            {% if status.value in ['backlog', 'erledigt'] %}
+            <button type="button" class="btn btn-sm btn-link p-0 mx-1 archive-toggle"
+                    data-status="{{ status.value }}"
+                    title="{% if (status.value == 'backlog' and show_archived_backlog) or (status.value == 'erledigt' and show_archived_erledigt) %}Archivierte Tasks ausblenden{% else %}Archivierte Tasks einblenden{% endif %}">
+                {% if (status.value == 'backlog' and show_archived_backlog) or (status.value == 'erledigt' and show_archived_erledigt) %}
+                <i class="ti ti-eye-off text-info"></i>
+                {% else %}
+                <i class="ti ti-eye text-muted"></i>
+                {% endif %}
+            </button>
+            {% endif %}
+            {# Anzahl-Anzeige mit Gesamtzahl (PRD011-T031) #}
+            {% set current_count = tasks_by_status.get(status.value, [])|length %}
+            {% set total_count = tasks_total_by_status.get(status.value, 0) %}
+            <span class="badge bg-secondary">{{ current_count }}{% if status.value in ['backlog', 'erledigt'] and current_count != total_count %} ({{ total_count }}){% endif %}</span>
+        </div>
+        {% if status.value == 'backlog' %}
+        <!-- Quick Add Task (oben für bessere Erreichbarkeit) -->
+        <div class="p-2 pb-0">
+            <input type="text" class="form-control form-control-sm add-task-input"
+                   placeholder="+ Neuer Task..." id="new-task-input"
+                   onkeypress="if(event.key==='Enter') addQuickTask(this)">
+        </div>
+        {% endif %}
+        <div class="kanban-tasks" id="tasks-{{ status.value }}">
+            {% for task in tasks_by_status.get(status.value, []) %}
+            {% if not phase_filter or task.phase == phase_filter %}
+            <div class="kanban-task{% if task.ist_archiviert %} archived{% endif %}" data-task-id="{{ task.id }}" onclick="openTaskEditor({{ task.id }})">
+                <div class="d-flex justify-content-between align-items-center">
+                    <small class="text-muted font-monospace" style="font-size: 0.65rem;">{{ task.task_nummer }}</small>
+                    <span class="d-flex gap-1 align-items-center">
+                        {% if task.entstanden_aus_id %}
+                        <i class="ti ti-git-branch text-info" title="Entstanden aus {{ task.entstanden_aus_nummer }}" style="font-size: 0.85rem;"></i>
+                        {% endif %}
+                        <i class="ti {{ task.typ_icon }} text-{{ task.typ_farbe }}" title="{{ task.typ_label }}" style="font-size: 0.85rem;"></i>
+                    </span>
+                </div>
+                <div class="kanban-task-title">{{ task.titel }}</div>
+                <div class="kanban-task-meta">
+                    <span class="badge {{ task.prioritaet_badge }}">{{ task.prioritaet }}</span>
+                    {% if task.phase %}
+                    <span class="badge bg-light text-dark">{{ task.phase|upper }}</span>
+                    {% endif %}
+                    {% if task.zugewiesen %}
+                    <span class="ms-auto" title="{{ task.zugewiesen.full_name }}">
+                        <i class="ti ti-user"></i>
+                    </span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
+<div class="text-center py-5 text-muted">
+    <i class="ti ti-layout-kanban" style="font-size: 4rem;"></i>
+    <h4 class="mt-3">Keine Komponente ausgewählt</h4>
+    <p>Wähle eine Komponente aus den Tabs oben oder erstelle eine neue.</p>
+    <a href="{{ url_for('projekte_admin.komponente_neu', projekt_id=projekt.id) }}" class="btn btn-primary">
+        <i class="ti ti-plus"></i> Erste Komponente anlegen
+    </a>
+</div>
+{% endif %}
+
+<!-- Task Editor Offcanvas -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="taskEditorOffcanvas">
+    <div class="offcanvas-header">
+        <h5 class="offcanvas-title">Task bearbeiten</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+    </div>
+    <div class="offcanvas-body" id="taskEditorContent">
+        <!-- Content loaded via AJAX -->
+        <div class="text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Laden...</span>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<!-- SortableJS -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
+<!-- Markdown Editor Assets -->
+{% from "macros/markdown_editor.html" import markdown_editor_assets %}
+{{ markdown_editor_assets() }}
+<script>
+const komponenteId = {{ aktive_komponente.id if aktive_komponente else 'null' }};
+const csrfToken = '{{ csrf_token() }}';
+
+// Fokus-Modus öffnen
+function openFokusMode() {
+    const currentUrl = new URL(window.location.href);
+    currentUrl.searchParams.set('fokus', '1');
+    // Neues Fenster mit angepassten Dimensionen
+    const width = Math.min(1400, screen.width - 100);
+    const height = Math.min(900, screen.height - 100);
+    const left = (screen.width - width) / 2;
+    const top = (screen.height - height) / 2;
+    window.open(
+        currentUrl.toString(),
+        'fokus_modus',
+        `width=${width},height=${height},left=${left},top=${top},menubar=no,toolbar=no,location=no,status=no,resizable=yes`
+    );
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    if (!komponenteId) return;
+
+    // Initialize Sortable for each column
+    document.querySelectorAll('.kanban-tasks').forEach(function(el) {
+        new Sortable(el, {
+            group: 'tasks',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            dragClass: 'sortable-drag',
+            filter: '.add-task-input',
+            onEnd: function(evt) {
+                const taskId = evt.item.dataset.taskId;
+                const newStatus = evt.to.id.replace('tasks-', '');
+                const order = Array.from(evt.to.children)
+                    .filter(el => el.classList.contains('kanban-task'))
+                    .map(el => el.dataset.taskId);
+
+                // Update via AJAX
+                fetch('{{ url_for("projekte_admin.tasks_reorder") }}', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({
+                        task_id: taskId,
+                        status: newStatus,
+                        order: order
+                    })
+                });
+
+                // Update badge counts
+                updateColumnCounts();
+            }
+        });
+    });
+});
+
+function updateColumnCounts() {
+    document.querySelectorAll('.kanban-column').forEach(function(col) {
+        const count = col.querySelectorAll('.kanban-task').length;
+        col.querySelector('.kanban-column-header .badge').textContent = count;
+    });
+}
+
+function addQuickTask(input) {
+    const titel = input.value.trim();
+    if (!titel) return;
+
+    fetch('{{ url_for("projekte_admin.task_neu", komponente_id=aktive_komponente.id if aktive_komponente else 0) }}', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'X-CSRFToken': csrfToken
+        },
+        body: new URLSearchParams({
+            'titel': titel,
+            'status': 'backlog'
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        // Add new task card to backlog container
+        const backlogContainer = document.getElementById('tasks-backlog');
+        const taskHtml = `
+            <div class="kanban-task" data-task-id="${data.id}" onclick="openTaskEditor(${data.id})">
+                <small class="text-muted font-monospace d-block" style="font-size: 0.65rem;">${data.task_nummer}</small>
+                <div class="kanban-task-title">${data.titel}</div>
+                <div class="kanban-task-meta">
+                    <span class="badge ${data.prioritaet_badge}">${data.prioritaet}</span>
+                </div>
+            </div>
+        `;
+        backlogContainer.insertAdjacentHTML('afterbegin', taskHtml);
+        input.value = '';
+        updateColumnCounts();
+    });
+}
+
+function openTaskEditor(taskId) {
+    const offcanvas = new bootstrap.Offcanvas(document.getElementById('taskEditorOffcanvas'));
+    const content = document.getElementById('taskEditorContent');
+
+    // Show loading
+    content.innerHTML = '<div class="text-center py-5"><div class="spinner-border text-primary"></div></div>';
+    offcanvas.show();
+
+    // Load task details
+    fetch(`{{ url_for('projekte_admin.index') }}task/${taskId}`, {
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(response => response.text())
+    .then(html => {
+        content.innerHTML = html;
+        // Initialize markdown editor after AJAX load
+        if (typeof initMarkdownEditors === 'function') {
+            initMarkdownEditors(content);
+        }
+    });
+}
+
+function saveTask(form) {
+    const formData = new FormData(form);
+    const taskId = form.dataset.taskId;
+
+    fetch(`{{ url_for('projekte_admin.index') }}task/${taskId}`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.error) {
+            alert(data.error);
+            return;
+        }
+
+        // Update task card or reload if status changed
+        location.reload();
+    });
+
+    return false;
+}
+
+function deleteTask(taskId) {
+    if (!confirm('Task wirklich löschen?')) return;
+
+    fetch(`{{ url_for('projekte_admin.index') }}task/${taskId}/delete`, {
+        method: 'POST',
+        headers: { 'X-CSRFToken': csrfToken }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        }
+    });
+}
+
+// PRD011-T056: Task in andere Komponente verschieben
+function moveTask(taskId) {
+    const neueKomponenteId = document.getElementById('moveTaskKomponente').value;
+    if (!neueKomponenteId) {
+        showToast('Bitte eine Zielkomponente auswählen', 'warning');
+        return;
+    }
+
+    fetch(`/api/tasks/${taskId}`, {
+        method: 'PATCH',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify({komponente_id: parseInt(neueKomponenteId)})
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Modal schließen
+            const modal = bootstrap.Modal.getInstance(document.getElementById('moveTaskModal'));
+            if (modal) modal.hide();
+            // Toast zeigen
+            showToast('Task wurde verschoben', 'success');
+            // Board neu laden (Task verschwindet aus aktueller Komponente)
+            setTimeout(() => location.reload(), 500);
+        } else {
+            showToast(data.error || 'Fehler beim Verschieben', 'danger');
+        }
+    })
+    .catch(error => {
+        showToast('Fehler beim Verschieben: ' + error.message, 'danger');
+    });
+}
+
+// Copy Task as AI Prompt (PRD011-T032, updated PRD011-T044)
+async function copyTaskAsPrompt(taskId) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/prompt`);
+        if (!response.ok) {
+            throw new Error('API-Fehler');
+        }
+        const data = await response.json();
+
+        await navigator.clipboard.writeText(data.prompt);
+
+        // Visual feedback via Toast (PRD011-T044: fixed selector, removed alert fallback)
+        showToast(`<i class="ti ti-check me-1"></i> ${data.task_nummer} als KI-Prompt kopiert`, 'success');
+    } catch (error) {
+        console.error('Fehler beim Kopieren:', error);
+        showToast('<i class="ti ti-x me-1"></i> Kopieren fehlgeschlagen', 'danger');
+    }
+}
+
+// Helper function for Toast notifications (PRD011-T044)
+function showToast(message, type = 'success') {
+    const toastContainer = document.querySelector('.toast-container');
+    if (!toastContainer) {
+        console.warn('Toast-Container nicht gefunden');
+        return;
+    }
+    const toast = document.createElement('div');
+    toast.className = `toast show align-items-center text-white bg-${type} border-0`;
+    toast.setAttribute('role', 'alert');
+    toast.innerHTML = `
+        <div class="d-flex">
+            <div class="toast-body">${message}</div>
+            <button type="button" class="btn-close btn-close-white me-2 m-auto"
+                    data-bs-dismiss="toast"></button>
+        </div>`;
+    toastContainer.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
+
+// Task-Typ Custom Dropdown Handler (PRD011-T029)
+document.addEventListener('click', function(e) {
+    const dropdownItem = e.target.closest('#task-typ-dropdown + .dropdown-menu .dropdown-item');
+    if (dropdownItem) {
+        e.preventDefault();
+        const typ = dropdownItem.dataset.typ;
+        const icon = dropdownItem.dataset.icon;
+        const farbe = dropdownItem.dataset.farbe;
+        const label = dropdownItem.dataset.label;
+
+        // Hidden Input aktualisieren
+        document.getElementById('task-typ').value = typ;
+
+        // Button-Anzeige aktualisieren
+        document.getElementById('typ-display').innerHTML =
+            `<i class="ti ${icon} text-${farbe} me-2"></i>${label}`;
+
+        // Active-Klasse umsetzen
+        dropdownItem.closest('.dropdown-menu').querySelectorAll('.dropdown-item').forEach(i => i.classList.remove('active'));
+        dropdownItem.classList.add('active');
+    }
+});
+
+// Archive-Toggle Handler (PRD011-T030)
+document.querySelectorAll('.archive-toggle').forEach(btn => {
+    btn.addEventListener('click', function(e) {
+        e.stopPropagation();  // Prevent triggering parent elements
+        const status = this.dataset.status;
+        const url = new URL(window.location.href);
+        const paramName = 'show_archived_' + status;
+
+        if (url.searchParams.get(paramName) === '1') {
+            url.searchParams.delete(paramName);
+        } else {
+            url.searchParams.set(paramName, '1');
+        }
+        window.location.href = url.toString();
+    });
+});
+
+// ===== Task-Kommentare (PRD011-T055) =====
+
+// Toggle comment form visibility
+function toggleKommentarForm(taskId) {
+    const form = document.getElementById(`kommentar-form-${taskId}`);
+    if (form) {
+        form.style.display = form.style.display === 'none' ? 'block' : 'none';
+        if (form.style.display === 'block') {
+            form.querySelector('textarea').focus();
+        }
+    }
+}
+
+// Add new comment
+async function addKommentar(taskId) {
+    const typ = document.getElementById(`kommentar-typ-${taskId}`).value;
+    const inhaltEl = document.getElementById(`kommentar-inhalt-${taskId}`);
+    const inhalt = inhaltEl.value.trim();
+
+    if (!inhalt) {
+        showToast('<i class="ti ti-alert-circle me-1"></i> Kommentar darf nicht leer sein', 'warning');
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/kommentare`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ typ, inhalt })
+        });
+
+        if (!response.ok) throw new Error('API-Fehler');
+
+        showToast('<i class="ti ti-check me-1"></i> Kommentar hinzugefügt', 'success');
+
+        // Reload task offcanvas to show new comment
+        openTaskEditor(taskId);
+    } catch (error) {
+        console.error('Fehler:', error);
+        showToast('<i class="ti ti-x me-1"></i> Fehler beim Speichern', 'danger');
+    }
+}
+
+// Toggle erledigt status (V1 PFLICHT)
+async function toggleKommentarErledigt(kommentarId, taskId) {
+    try {
+        const response = await fetch(`/api/kommentare/${kommentarId}/toggle-erledigt`, {
+            method: 'POST',
+            headers: { 'X-CSRFToken': csrfToken }
+        });
+
+        if (!response.ok) throw new Error('API-Fehler');
+
+        const data = await response.json();
+        const status = data.kommentar.erledigt ? 'erledigt' : 'offen';
+        showToast(`<i class="ti ti-check me-1"></i> Kommentar als ${status} markiert`, 'success');
+
+        // Reload to update UI (review badge, crossed-out styling)
+        openTaskEditor(taskId);
+    } catch (error) {
+        console.error('Fehler:', error);
+        showToast('<i class="ti ti-x me-1"></i> Fehler beim Aktualisieren', 'danger');
+    }
+}
+
+// Edit own comment (V1)
+async function editKommentar(kommentarId, taskId) {
+    const kommentarEl = document.querySelector(`[data-kommentar-id="${kommentarId}"] .ps-4`);
+    const currentInhalt = kommentarEl ? kommentarEl.textContent.trim() : '';
+
+    const neuerInhalt = prompt('Kommentar bearbeiten:', currentInhalt);
+    if (neuerInhalt === null || neuerInhalt.trim() === '') return;
+
+    try {
+        const response = await fetch(`/api/kommentare/${kommentarId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            },
+            body: JSON.stringify({ inhalt: neuerInhalt.trim() })
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'API-Fehler');
+        }
+
+        showToast('<i class="ti ti-check me-1"></i> Kommentar aktualisiert', 'success');
+        openTaskEditor(taskId);
+    } catch (error) {
+        console.error('Fehler:', error);
+        showToast(`<i class="ti ti-x me-1"></i> ${error.message}`, 'danger');
+    }
+}
+
+// Delete own comment (V1)
+async function deleteKommentar(kommentarId, taskId) {
+    if (!confirm('Kommentar wirklich löschen?')) return;
+
+    try {
+        const response = await fetch(`/api/kommentare/${kommentarId}`, {
+            method: 'DELETE',
+            headers: { 'X-CSRFToken': csrfToken }
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'API-Fehler');
+        }
+
+        showToast('<i class="ti ti-check me-1"></i> Kommentar gelöscht', 'success');
+        openTaskEditor(taskId);
+    } catch (error) {
+        console.error('Fehler:', error);
+        showToast(`<i class="ti ti-x me-1"></i> ${error.message}`, 'danger');
+    }
+}
+
+// Copy review prompt to clipboard (with auto status change to in_arbeit)
+// WICHTIG: Nur nicht-erledigte Review-Kommentare werden einbezogen!
+async function copyReviewPrompt(taskId) {
+    try {
+        const response = await fetch(`/api/tasks/${taskId}/review-prompt`);
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Keine Review-Kommentare vorhanden');
+        }
+
+        const data = await response.json();
+        await navigator.clipboard.writeText(data.prompt);
+
+        showToast(
+            `<i class="ti ti-check me-1"></i> ${data.task_nummer} Review-Prompt kopiert (${data.anzahl_review_punkte} Punkt${data.anzahl_review_punkte > 1 ? 'e' : ''})`,
+            'warning'
+        );
+
+        // Reload to show status change (review → in_arbeit)
+        if (data.status_geaendert) {
+            location.reload();
+        }
+    } catch (error) {
+        console.error('Fehler:', error);
+        showToast(`<i class="ti ti-x me-1"></i> ${error.message}`, 'danger');
+    }
+}
+</script>
+{% endblock %}

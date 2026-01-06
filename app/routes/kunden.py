@@ -9,7 +9,7 @@ from sqlalchemy import func
 
 from app import db
 from app.models import Kunde, KundeCI, KundeApiNutzung, User, Branche, Verband, KundeBranche, KundeVerband
-from app.models import BranchenRolle, KundeBranchenRolle, PasswordToken, KundeBenutzer
+from app.models import BranchenRolle, KundeBranchenRolle, PasswordToken, KundeBenutzer, KundeTyp
 from app.services import FirecrawlService, get_password_service
 from app.services.logging_service import log_mittel
 from app.routes.auth import mitarbeiter_required
@@ -40,16 +40,23 @@ class KundeForm(FlaskForm):
     notizen = TextAreaField('Notizen', validators=[Optional()])
     aktiv = BooleanField('Aktiv', default=True)
 
+    # Typ: Kunde oder Lead (nur bei Neuanlage sichtbar)
+    typ = SelectField('Typ', choices=[
+        ('kunde', 'Kunde'),
+        ('lead', 'Lead'),
+    ], default='kunde')
+
 
 @kunden_bp.route('/')
 @login_required
 @mitarbeiter_required
 def liste():
-    """List all Kunden with optional filters."""
+    """List all Kunden/Leads with optional filters."""
     # Get filter parameters
     branche_id = request.args.get('branche', type=int)
     verband_id = request.args.get('verband', type=int)
     status = request.args.get('status', 'alle')
+    typ_filter = request.args.get('typ', 'alle')  # kunde, lead, alle
 
     # Base query
     query = Kunde.query
@@ -64,6 +71,12 @@ def liste():
     elif status == 'inaktiv':
         query = query.filter(Kunde.aktiv == False)
 
+    # Typ-Filter (Kunde vs Lead)
+    if typ_filter == 'kunde':
+        query = query.filter(Kunde.typ == KundeTyp.KUNDE.value)
+    elif typ_filter == 'lead':
+        query = query.filter(Kunde.typ == KundeTyp.LEAD.value)
+
     kunden = query.order_by(Kunde.firmierung).all()
 
     # Get all Branchen and Verbände for filter dropdowns
@@ -77,7 +90,8 @@ def liste():
         alle_verbaende=alle_verbaende,
         filter_branche=branche_id,
         filter_verband=verband_id,
-        filter_status=status
+        filter_status=status,
+        filter_typ=typ_filter
     )
 
 
@@ -103,11 +117,15 @@ def neu():
             shop_url=form.shop_url.data or None,
             kommunikation_stil=form.kommunikation_stil.data,
             notizen=form.notizen.data,
-            aktiv=form.aktiv.data
+            aktiv=form.aktiv.data,
+            typ=form.typ.data  # Kunde oder Lead
         )
         db.session.add(kunde)
         db.session.commit()
-        flash(f'Kunde "{kunde.firmierung}" wurde angelegt.', 'success')
+
+        # Passende Meldung je nach Typ
+        typ_label = 'Lead' if kunde.is_lead else 'Kunde'
+        flash(f'{typ_label} "{kunde.firmierung}" wurde angelegt.', 'success')
         return redirect(url_for('kunden.detail', id=kunde.id))
 
     return render_template('kunden/form.html', form=form, titel='Neuer Kunde', kunde=None)
@@ -999,3 +1017,140 @@ def set_hauptbenutzer(id, user_id):
         'success': True,
         'message': f'{user.full_name} ist jetzt Hauptbenutzer'
     })
+
+
+# ===== Lead Import & Conversion =====
+
+@kunden_bp.route('/import', methods=['GET', 'POST'])
+@login_required
+@mitarbeiter_required
+def lead_import():
+    """Import leads from CSV file.
+
+    CSV format (semicolon-separated, UTF-8):
+    firmierung;email;telefon;strasse;plz;ort;website_url;notizen
+
+    Only firmierung is required, other fields are optional.
+    """
+    if request.method == 'GET':
+        return render_template('kunden/import.html')
+
+    # POST: Process CSV upload
+    if 'csv_file' not in request.files:
+        flash('Keine Datei ausgewählt', 'warning')
+        return redirect(url_for('kunden.lead_import'))
+
+    file = request.files['csv_file']
+    if file.filename == '':
+        flash('Keine Datei ausgewählt', 'warning')
+        return redirect(url_for('kunden.lead_import'))
+
+    if not file.filename.endswith('.csv'):
+        flash('Nur CSV-Dateien erlaubt', 'danger')
+        return redirect(url_for('kunden.lead_import'))
+
+    try:
+        # Read CSV content
+        import csv
+        import io
+
+        content = file.read().decode('utf-8')
+        reader = csv.DictReader(io.StringIO(content), delimiter=';')
+
+        # Track import results
+        created_count = 0
+        skipped_count = 0
+        errors = []
+
+        for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
+            firmierung = row.get('firmierung', '').strip()
+
+            if not firmierung:
+                errors.append(f'Zeile {row_num}: Firmierung fehlt')
+                skipped_count += 1
+                continue
+
+            # Check if Kunde with same firmierung already exists
+            existing = Kunde.query.filter(
+                func.lower(Kunde.firmierung) == func.lower(firmierung)
+            ).first()
+
+            if existing:
+                errors.append(f'Zeile {row_num}: "{firmierung}" existiert bereits')
+                skipped_count += 1
+                continue
+
+            # Create new Lead
+            lead = Kunde(
+                firmierung=firmierung,
+                email=row.get('email', '').strip() or None,
+                telefon=row.get('telefon', '').strip() or None,
+                strasse=row.get('strasse', '').strip() or None,
+                plz=row.get('plz', '').strip() or None,
+                ort=row.get('ort', '').strip() or None,
+                website_url=row.get('website_url', '').strip() or None,
+                notizen=row.get('notizen', '').strip() or None,
+                typ=KundeTyp.LEAD.value,
+                aktiv=True
+            )
+            db.session.add(lead)
+            created_count += 1
+
+        db.session.commit()
+
+        # Log the import
+        log_mittel(
+            modul='kunden',
+            aktion='leads_importiert',
+            details=f'{created_count} Leads importiert, {skipped_count} übersprungen',
+            entity_type='Kunde',
+            entity_id=None
+        )
+
+        # Flash result
+        if created_count > 0:
+            flash(f'{created_count} Lead(s) erfolgreich importiert', 'success')
+        if skipped_count > 0:
+            flash(f'{skipped_count} Zeile(n) übersprungen', 'warning')
+        if errors:
+            # Show first 5 errors
+            for error in errors[:5]:
+                flash(error, 'danger')
+            if len(errors) > 5:
+                flash(f'... und {len(errors) - 5} weitere Fehler', 'danger')
+
+        return redirect(url_for('kunden.liste', typ='lead'))
+
+    except Exception as e:
+        flash(f'Fehler beim Import: {str(e)}', 'danger')
+        return redirect(url_for('kunden.lead_import'))
+
+
+@kunden_bp.route('/<int:id>/konvertieren', methods=['POST'])
+@login_required
+@mitarbeiter_required
+def konvertieren(id):
+    """Convert a Lead to a Kunde.
+
+    Simply changes the typ field from 'lead' to 'kunde'.
+    """
+    kunde = Kunde.query.get_or_404(id)
+
+    if kunde.typ != KundeTyp.LEAD.value:
+        flash('Nur Leads können zu Kunden konvertiert werden', 'warning')
+        return redirect(url_for('kunden.detail', id=id))
+
+    kunde.typ = KundeTyp.KUNDE.value
+    db.session.commit()
+
+    # Log the conversion
+    log_mittel(
+        modul='kunden',
+        aktion='lead_konvertiert',
+        details=f'Lead "{kunde.firmierung}" wurde zu Kunde konvertiert',
+        entity_type='Kunde',
+        entity_id=id
+    )
+
+    flash(f'"{kunde.firmierung}" wurde zu Kunde konvertiert', 'success')
+    return redirect(url_for('kunden.detail', id=id))
