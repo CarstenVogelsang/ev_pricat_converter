@@ -8,6 +8,105 @@ Kontextsensitive Hilfetexte fuer UI-Elemente mit Markdown-Unterstuetzung und Adm
 - **Markdown-Rendering:** Hilfetexte in Markdown verfassen, als HTML anzeigen
 - **Admin-Oberflaeche:** Hilfetexte erstellen, bearbeiten, aktivieren/deaktivieren
 - **Live-Vorschau:** Markdown-Preview beim Bearbeiten
+- **Support-Integration:** Optionale Verknuepfung mit Support-Tickets (PRD-007)
+
+## Architektur-Uebersicht
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                            TEMPLATE                                  │
+│  {% from "macros/help.html" import help_icon with context %}        │
+│  {{ help_icon('kunden.detail.branchen') }}                          │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+                               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     JINJA2 MACRO (help.html)                         │
+│  - Ruft get_help_text(schluessel) auf                               │
+│  - Rendert (i)-Button mit Bootstrap Modal                           │
+│  - Wendet |markdown Filter auf Inhalt an                            │
+└──────────────────────────────┬──────────────────────────────────────┘
+                               │
+          ┌────────────────────┴────────────────────┐
+          ▼                                         ▼
+┌─────────────────────────────┐     ┌─────────────────────────────────┐
+│    CONTEXT PROCESSOR        │     │      MARKDOWN FILTER            │
+│    (app/__init__.py)        │     │      (app/__init__.py)          │
+│                             │     │                                 │
+│  def get_help_text(key):    │     │  @app.template_filter('markdown')│
+│    return HelpText.query    │     │  def markdown_filter(text):     │
+│      .filter_by(...)        │     │    return markdown.markdown(...)│
+│      .first()               │     │                                 │
+└──────────────┬──────────────┘     └─────────────────────────────────┘
+               │
+               ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                      DATENBANK (help_text)                           │
+│  id | schluessel              | titel        | inhalt_markdown      │
+│  1  | kunden.detail.branchen  | Branchen     | ## Erklaerung...     │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+## Visuelle Darstellung in Views
+
+### Das (i)-Icon
+
+Das Hilfe-Icon erscheint als kleines Info-Symbol (ⓘ) neben Titeln, Labels oder Card-Headern:
+
+- **Icon:** Tabler Icon `ti-info-circle`
+- **Farbe:** Grau (`text-muted`) auf hellem Hintergrund, weiss (`text-white-50`) auf dunklem
+- **Hover:** Icon wechselt zu Info-Blau
+- **Position:** Inline nach dem Text mit leichtem Abstand (`ms-2`)
+
+**Beispiel-Darstellung:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│ ▼ Card Header                                                       │
+├─────────────────────────────────────────────────────────────────────┤
+│  📁 Branchen ⓘ                                        [Badge]       │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  Card Body Content...                                               │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+              ↑
+         Klick oeffnet Modal
+```
+
+### Das Modal
+
+Bei Klick auf das (i)-Icon oeffnet sich ein zentriertes Bootstrap-Modal:
+
+```
+┌──────────────────────────────────────────────┐
+│  ⓘ Branchen                            [X]  │  ← Titel aus HelpText.titel
+├──────────────────────────────────────────────┤
+│                                              │
+│  Hier steht der Hilfetext als               │  ← Markdown gerendert zu HTML
+│  formatierter Text mit:                      │
+│                                              │
+│  - Aufzaehlungen                            │
+│  - **Fettschrift**                          │
+│  - `Code-Beispiele`                         │
+│                                              │
+└──────────────────────────────────────────────┘
+```
+
+### Regeln fuer die Platzierung
+
+| Bereich | Platzierung | Beispiel |
+|---------|-------------|----------|
+| Card-Header | Nach dem Titel-Text | `<span>Branchen {{ help_icon(...) }}</span>` |
+| Formular-Labels | Nach dem Label-Text | `<label>Feld {{ help_icon(...) }}</label>` |
+| Modul-Header | In der Button-Gruppe rechts | Neben DEV-Button |
+| Tabellen-Header | Nach der Spalten-Ueberschrift | `<th>Spalte {{ help_icon(...) }}</th>` |
+
+### Wann KEIN Hilfe-Icon anzeigen
+
+- Wenn kein Hilfetext in der Datenbank existiert (Macro rendert nichts)
+- Wenn der Hilfetext auf `aktiv = False` gesetzt ist
+- Bei selbsterklaerenden UI-Elementen (Overkill vermeiden)
 
 ## Zugriffsrechte
 
@@ -40,16 +139,73 @@ Kontextsensitive Hilfetexte fuer UI-Elemente mit Markdown-Unterstuetzung und Adm
 
 ## Technische Umsetzung
 
-### Jinja2-Macro
+### Jinja2-Macros
 
-`app/templates/macros/help.html` - Wiederverwendbares Macro:
+Die Datei `app/templates/macros/help.html` stellt **vier Macro-Varianten** bereit:
+
+| Macro | Beschreibung | Anwendungsfall |
+|-------|--------------|----------------|
+| `help_icon` | Standard (i)-Icon mit Modal | Card-Header, Labels |
+| `help_modal` | Nur Modal ohne Trigger-Button | Eigener Trigger noetig |
+| `help_icon_with_support` | (i)-Icon + Headset-Icon | Seiten mit Support-Integration (PRD-007) |
+| `support_icon` | Nur Headset-Icon | Seiten ohne Hilfetext aber mit Support |
+
+### 1. help_icon (Standard)
 
 ```jinja2
 {% from "macros/help.html" import help_icon with context %}
+
+<!-- Standard (grau auf hellem Hintergrund) -->
 {{ help_icon('kunden.detail.branchen') }}
+
+<!-- Auf farbigem Header (weiss auf dunklem Hintergrund) -->
+{{ help_icon('schluessel', light=true) }}
 ```
 
-**Wichtig:** `with context` ist erforderlich fuer den Context Processor!
+**Parameter:**
+- `schluessel` (required): Eindeutiger Key aus der Datenbank
+- `light` (optional, default=false): Weisses Icon fuer dunkle Hintergruende
+
+### 2. help_modal (nur Modal)
+
+Fuer komplexe Layouts, wo der Trigger-Button separat gestaltet werden soll:
+
+```jinja2
+{% from "macros/help.html" import help_modal with context %}
+
+<button data-bs-toggle="modal" data-bs-target="#helpModal_kunden_detail_branchen">
+    Eigener Button
+</button>
+{{ help_modal('kunden.detail.branchen') }}
+```
+
+### 3. help_icon_with_support (mit Support-Integration)
+
+Zeigt neben dem (i)-Icon auch ein Headset-Icon zum Erstellen von Support-Tickets:
+
+```jinja2
+{% from "macros/help.html" import help_icon_with_support with context %}
+
+{{ help_icon_with_support('kunden.detail.stammdaten') }}
+```
+
+**Ergebnis:** `ⓘ 🎧` - Beide Icons nebeneinander
+
+Das Modal enthaelt zusaetzlich einen "Support kontaktieren" Button im Footer.
+
+### 4. support_icon (nur Support)
+
+Fuer Seiten ohne Hilfetext, die trotzdem Support-Anfragen ermoeglichen:
+
+```jinja2
+{% from "macros/help.html" import support_icon with context %}
+
+{{ support_icon() }}
+```
+
+---
+
+**Wichtig:** `with context` ist bei allen Macros erforderlich fuer den Context Processor!
 
 ### Markdown-Filter
 

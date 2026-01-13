@@ -1,5 +1,24 @@
 # Changelog PRD-005 Hilfetexte
 
+## [1.2.0] - 2026-01-11
+
+### Hinzugefuegt
+
+- **Architektur-Uebersicht:** ASCII-Diagramm zeigt Datenfluss von Template bis Datenbank
+- **Visuelle Darstellung:** Dokumentation wie das (i)-Icon in Views erscheint
+  - Icon-Styling (Farbe, Hover, Position)
+  - Modal-Darstellung mit Beispiel
+  - Regeln fuer Platzierung in Card-Headern, Labels, Tabellen
+  - Wann KEIN Icon angezeigt werden soll
+- **Macro-Varianten:** Dokumentation aller vier Macros
+  - `help_icon` - Standard mit Modal
+  - `help_modal` - Nur Modal ohne Trigger
+  - `help_icon_with_support` - Mit Support-Integration (PRD-007)
+  - `support_icon` - Nur Support ohne Hilfetext
+- **Parameter-Dokumentation:** `light`-Parameter fuer farbige Header
+
+---
+
 ## [1.1.0] - 2025-12-25
 
 ### Geaendert
