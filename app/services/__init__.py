@@ -31,6 +31,11 @@ from app.services.schulung_service import (
     SchulungService, BuchungResult, StornoResult, get_schulung_service
 )
 
+# Kunden-Mailing Module (PRD-013)
+from app.services.mailing_service import (
+    MailingService, VersandResult, BatchInfo, get_mailing_service
+)
+
 __all__ = [
     # Parser
     'PricatParser', 'PricatData', 'ArticleData',
@@ -63,4 +68,6 @@ __all__ = [
     'SupportService', 'get_support_service',
     # Schulungen Module (PRD-010)
     'SchulungService', 'BuchungResult', 'StornoResult', 'get_schulung_service',
+    # Kunden-Mailing Module (PRD-013)
+    'MailingService', 'VersandResult', 'BatchInfo', 'get_mailing_service',
 ]

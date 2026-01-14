@@ -85,6 +85,10 @@ class Kunde(db.Model):
     branchenrollen = db.relationship('KundeBranchenRolle', back_populates='kunde',
                                      cascade='all, delete-orphan')
 
+    # Mailing opt-out (PRD-013)
+    mailing_abgemeldet = db.Column(db.Boolean, default=False, nullable=False)
+    mailing_abgemeldet_am = db.Column(db.DateTime, nullable=True)
+
     def __repr__(self):
         return f'<Kunde {self.firmierung}>'
 
@@ -211,6 +215,25 @@ class Kunde(db.Model):
         Kunden: Need user with email OR email field set
         """
         return bool(self.kontakt_email)
+
+    def kann_mailing_erhalten(self) -> bool:
+        """Check if this Kunde/Lead can receive marketing mailings.
+
+        Returns True if:
+        - A contact email is available
+        - The customer has not opted out of mailings
+        """
+        return bool(self.kontakt_email) and not self.mailing_abgemeldet
+
+    def mailing_abmelden(self):
+        """Opt out of marketing mailings (DSGVO-compliant)."""
+        self.mailing_abgemeldet = True
+        self.mailing_abgemeldet_am = datetime.utcnow()
+
+    def mailing_anmelden(self):
+        """Opt back in to marketing mailings."""
+        self.mailing_abgemeldet = False
+        self.mailing_abgemeldet_am = None
 
     # ========== Briefanrede Properties ==========
 

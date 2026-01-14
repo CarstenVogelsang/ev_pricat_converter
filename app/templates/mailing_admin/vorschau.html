@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Vorschau - {{ mailing.titel }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden-Mailing', 'url': url_for('mailing_admin.index'), 'icon': 'ti-mail'},
+        {'label': mailing.titel, 'url': url_for('mailing_admin.detail', id=mailing.id)},
+        {'label': 'Vorschau'}
+    ]) }}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="ti ti-eye"></i> E-Mail-Vorschau
+            </h2>
+            <p class="text-muted mb-0 mt-1">{{ mailing.titel }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('mailing_admin.editor', id=mailing.id) }}" class="btn btn-primary">
+                <i class="ti ti-edit"></i> Editor
+            </a>
+            <a href="{{ url_for('mailing_admin.detail', id=mailing.id) }}" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left"></i> Zurück
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Email Preview -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-mail"></i> E-Mail-Inhalt</span>
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary active" id="btn-desktop">
+                            <i class="ti ti-device-desktop"></i>
+                        </button>
+                        <button type="button" class="btn btn-outline-secondary" id="btn-mobile">
+                            <i class="ti ti-device-mobile"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body p-0 bg-light">
+                    <div class="d-flex justify-content-center py-4">
+                        <iframe id="preview-frame"
+                                srcdoc="{{ email_html|e }}"
+                                style="width: 620px; height: 600px; border: 1px solid #dee2e6; border-radius: 8px; background: white;"
+                                title="E-Mail-Vorschau">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Info Panel -->
+        <div class="col-lg-4">
+            <!-- Betreff -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="ti ti-mail-fast"></i> Betreff</span>
+                </div>
+                <div class="card-body">
+                    <code class="fs-6">{{ mailing.betreff }}</code>
+                </div>
+            </div>
+
+            <!-- Sample-Daten -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="ti ti-database"></i> Verwendete Beispieldaten</span>
+                </div>
+                <div class="card-body p-0">
+                    <table class="table table-sm mb-0">
+                        <tbody>
+                            {% for key, value in sample_context.items() %}
+                            <tr>
+                                <td class="text-muted" style="width: 40%;">
+                                    <code>{{ '{{' }} {{ key }} {{ '}}' }}</code>
+                                </td>
+                                <td>{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Sektionen -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="ti ti-layout"></i> Sektionen ({{ mailing.sektionen|length }})</span>
+                </div>
+                <div class="card-body">
+                    {% if mailing.sektionen %}
+                    <ol class="list-group list-group-numbered">
+                        {% for sektion in mailing.sektionen %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            <span>{{ sektion.typ }}</span>
+                            <span class="badge bg-light text-dark">{{ sektion.id[:8] }}...</span>
+                        </li>
+                        {% endfor %}
+                    </ol>
+                    {% else %}
+                    <p class="text-muted mb-0">
+                        <i class="ti ti-info-circle"></i>
+                        Keine Sektionen vorhanden.
+                        <a href="{{ url_for('mailing_admin.editor', id=mailing.id) }}">Im Editor hinzufügen</a>
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Test-Versand -->
+            {% if mailing.is_entwurf and mailing.sektionen|length > 0 %}
+            <div class="card">
+                <div class="card-header">
+                    <span><i class="ti ti-send"></i> Test-Versand</span>
+                </div>
+                <div class="card-body">
+                    <form method="POST" action="{{ url_for('mailing_admin.test_senden', id=mailing.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <p class="small text-muted mb-2">
+                            Test-E-Mail wird an <strong>{{ current_user.email }}</strong> gesendet.
+                        </p>
+                        <button type="submit" class="btn btn-outline-primary w-100" disabled title="Wird in Phase 3 implementiert">
+                            <i class="ti ti-send"></i> Test senden
+                        </button>
+                        <small class="text-muted d-block mt-2">
+                            Wird in Phase 3 implementiert.
+                        </small>
+                    </form>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+// Desktop/Mobile toggle
+document.getElementById('btn-desktop')?.addEventListener('click', function() {
+    document.getElementById('preview-frame').style.width = '620px';
+    this.classList.add('active');
+    document.getElementById('btn-mobile').classList.remove('active');
+});
+
+document.getElementById('btn-mobile')?.addEventListener('click', function() {
+    document.getElementById('preview-frame').style.width = '375px';
+    this.classList.add('active');
+    document.getElementById('btn-desktop').classList.remove('active');
+});
+</script>
+{% endblock %}

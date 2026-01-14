@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}{{ 'Neues Mailing' if mode == 'neu' else 'Mailing bearbeiten' }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden-Mailing', 'url': url_for('mailing_admin.index'), 'icon': 'ti-mail'},
+        {'label': 'Neues Mailing' if mode == 'neu' else mailing.titel}
+    ]) }}
+
+    <form method="POST">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="mb-0">
+                <i class="ti ti-{{ 'plus' if mode == 'neu' else 'edit' }}"></i>
+                {{ 'Neues Mailing erstellen' if mode == 'neu' else 'Mailing bearbeiten' }}
+            </h2>
+            <div class="d-flex gap-2">
+                <a href="{{ url_for('mailing_admin.index') if mode == 'neu' else url_for('mailing_admin.detail', id=mailing.id) }}"
+                   class="btn btn-outline-secondary">Abbrechen</a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="ti ti-check"></i> Speichern
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-lg-8">
+                <div class="card">
+                    <div class="card-header">
+                        <span><i class="ti ti-info-circle"></i> Grunddaten</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="titel" class="form-label">Interner Titel <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="titel" name="titel"
+                                   value="{{ mailing.titel if mailing else '' }}"
+                                   placeholder="z.B. Newsletter Januar 2026" required>
+                            <div class="form-text">Dieser Titel wird nur intern verwendet und ist nicht für Empfänger sichtbar.</div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label for="betreff" class="form-label">E-Mail-Betreff <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="betreff" name="betreff"
+                                   value="{{ mailing.betreff if mailing else '' }}"
+                                   placeholder="z.B. Ihre Meinung ist uns wichtig!" required>
+                            <div class="form-text">Dieser Betreff erscheint in der Betreffzeile der E-Mail.</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="card">
+                    <div class="card-header">
+                        <span><i class="ti ti-link"></i> Fragebogen-Verlinkung</span>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="fragebogen_id" class="form-label">Verlinkter Fragebogen</label>
+                            <select class="form-select" id="fragebogen_id" name="fragebogen_id">
+                                <option value="">-- Kein Fragebogen --</option>
+                                {% for fb in frageboegen %}
+                                <option value="{{ fb.id }}"
+                                        {% if mailing and mailing.fragebogen_id == fb.id %}selected{% endif %}>
+                                    {{ fb.titel }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                            <div class="form-text">
+                                Optional: Wähle einen aktiven Fragebogen, um einen "Jetzt teilnehmen"-Button in der E-Mail einzufügen.
+                            </div>
+                        </div>
+
+                        {% if frageboegen|length == 0 %}
+                        <div class="alert alert-info mb-0">
+                            <i class="ti ti-info-circle"></i>
+                            Keine aktiven Fragebögen verfügbar.
+                            <a href="{{ url_for('dialog_admin.neu') }}">Erstelle einen neuen Fragebogen</a>.
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+
+                {% if mode == 'edit' %}
+                <div class="card mt-3">
+                    <div class="card-header bg-danger text-white">
+                        <span><i class="ti ti-trash"></i> Löschen</span>
+                    </div>
+                    <div class="card-body">
+                        <p class="mb-3">Dieses Mailing endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.</p>
+                        <button type="button" class="btn btn-outline-danger w-100"
+                                onclick="if(confirm('Wirklich löschen?')) document.getElementById('delete-form').submit()">
+                            <i class="ti ti-trash"></i> Mailing löschen
+                        </button>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </form>
+
+    {% if mode == 'edit' %}
+    <form id="delete-form" method="POST" action="{{ url_for('mailing_admin.delete', id=mailing.id) }}" style="display: none;">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    </form>
+    {% endif %}
+</div>
+{% endblock %}

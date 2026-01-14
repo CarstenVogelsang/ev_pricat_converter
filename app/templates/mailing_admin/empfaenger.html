@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Empfänger - {{ mailing.titel }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden-Mailing', 'url': url_for('mailing_admin.index'), 'icon': 'ti-mail'},
+        {'label': mailing.titel, 'url': url_for('mailing_admin.detail', id=mailing.id)},
+        {'label': 'Empfänger'}
+    ]) }}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="ti ti-users"></i> Empfänger verwalten
+            </h2>
+            <p class="text-muted mb-0 mt-1">{{ mailing.titel }}</p>
+        </div>
+        <a href="{{ url_for('mailing_admin.detail', id=mailing.id) }}" class="btn btn-outline-secondary">
+            <i class="ti ti-arrow-left"></i> Zurück
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-7">
+            <!-- Aktuelle Empfänger -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-users-group"></i> Aktuelle Empfänger ({{ mailing.empfaenger|length }})</span>
+                </div>
+                <div class="card-body p-0">
+                    {% if mailing.empfaenger %}
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Kunde</th>
+                                    <th>E-Mail</th>
+                                    <th class="text-center">Status</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for e in mailing.empfaenger %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ e.kunde.firmierung }}</strong>
+                                        {% if e.kunde.is_lead %}
+                                        <span class="badge bg-info">Lead</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-muted">{{ e.kunde.kontakt_email }}</td>
+                                    <td class="text-center">
+                                        {% if e.is_versendet %}
+                                        <span class="badge bg-success">Versendet</span>
+                                        {% elif e.is_fehlgeschlagen %}
+                                        <span class="badge bg-danger">Fehler</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Ausstehend</span>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end">
+                                        {% if e.is_ausstehend %}
+                                        <form method="POST" action="{{ url_for('mailing_admin.empfaenger_remove', id=mailing.id, eid=e.id) }}"
+                                              class="d-inline" onsubmit="return confirm('Empfänger entfernen?')">
+                                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                                            <button type="submit" class="btn btn-sm btn-outline-danger" title="Entfernen">
+                                                <i class="ti ti-x"></i>
+                                            </button>
+                                        </form>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="text-center py-4">
+                        <i class="ti ti-users-minus text-muted" style="font-size: 3rem;"></i>
+                        <p class="text-muted mt-2 mb-0">Noch keine Empfänger hinzugefügt.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Batch-Info -->
+            {% if batch_info.total_empfaenger > 0 %}
+            <div class="card">
+                <div class="card-header">
+                    <span><i class="ti ti-info-circle"></i> Versand-Info</span>
+                </div>
+                <div class="card-body">
+                    {% if batch_info.can_send_all %}
+                    <div class="alert alert-success mb-0">
+                        <i class="ti ti-check"></i>
+                        Alle {{ batch_info.total_empfaenger }} Empfänger können in einem Batch versendet werden.
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="ti ti-alert-triangle"></i>
+                        <strong>{{ batch_info.batches_needed }} Batches erforderlich</strong><br>
+                        {{ batch_info.total_empfaenger }} Empfänger, Tageslimit: {{ batch_info.daily_remaining }} E-Mails.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="col-lg-5">
+            <!-- Empfänger hinzufügen -->
+            <div class="card">
+                <div class="card-header">
+                    <span><i class="ti ti-user-plus"></i> Empfänger hinzufügen</span>
+                </div>
+                <div class="card-body">
+                    {% if verfuegbare %}
+                    <form method="POST" action="{{ url_for('mailing_admin.empfaenger_add', id=mailing.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                        <div class="mb-3">
+                            <input type="text" class="form-control" id="filterKunden" placeholder="Kunden filtern...">
+                        </div>
+
+                        <div class="border rounded p-2 mb-3" style="max-height: 300px; overflow-y: auto;">
+                            {% for k in verfuegbare %}
+                            <div class="form-check kunde-item">
+                                <input class="form-check-input" type="checkbox" name="kunde_ids" value="{{ k.id }}" id="kunde{{ k.id }}">
+                                <label class="form-check-label" for="kunde{{ k.id }}">
+                                    <strong>{{ k.firmierung }}</strong>
+                                    {% if k.is_lead %}<span class="badge bg-info">Lead</span>{% endif %}
+                                    <br>
+                                    <small class="text-muted">{{ k.kontakt_email }}</small>
+                                </label>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <div class="d-flex justify-content-between align-items-center">
+                            <small class="text-muted">{{ verfuegbare|length }} verfügbar</small>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="ti ti-plus"></i> Hinzufügen
+                            </button>
+                        </div>
+                    </form>
+                    {% else %}
+                    <div class="text-center py-3">
+                        <i class="ti ti-users-group text-muted" style="font-size: 2rem;"></i>
+                        <p class="text-muted mt-2 mb-0">Keine weiteren Kunden verfügbar.</p>
+                        <small class="text-muted">Alle aktiven Kunden mit E-Mail wurden bereits hinzugefügt.</small>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Simple filter for customer list
+document.getElementById('filterKunden')?.addEventListener('input', function(e) {
+    const filter = e.target.value.toLowerCase();
+    document.querySelectorAll('.kunde-item').forEach(item => {
+        const text = item.textContent.toLowerCase();
+        item.style.display = text.includes(filter) ? '' : 'none';
+    });
+});
+</script>
+{% endblock %}

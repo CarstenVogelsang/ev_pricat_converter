@@ -73,6 +73,7 @@ def create_app(config_name=None):
     from app.routes.api_projekte import api_projekte_bp
     from app.routes.projekte_admin import projekte_admin_bp
     from app.routes.api_upload import api_upload_bp
+    from app.routes.mailing_admin import mailing_admin_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
@@ -99,6 +100,8 @@ def create_app(config_name=None):
     app.register_blueprint(projekte_admin_bp)
     # Markdown Image Upload API
     app.register_blueprint(api_upload_bp)
+    # PRD-013: Kunden-Mailing
+    app.register_blueprint(mailing_admin_bp)
 
     # Initialize Flask-Admin (under /db-admin, requires admin role)
     from app.admin import init_admin

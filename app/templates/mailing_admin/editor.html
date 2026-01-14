@@ -1,0 +1,507 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Editor - {{ mailing.titel }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden-Mailing', 'url': url_for('mailing_admin.index'), 'icon': 'ti-mail'},
+        {'label': mailing.titel, 'url': url_for('mailing_admin.detail', id=mailing.id)},
+        {'label': 'Editor'}
+    ]) }}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="ti ti-layout"></i> Baukasten-Editor
+            </h2>
+            <p class="text-muted mb-0 mt-1">{{ mailing.titel }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('mailing_admin.vorschau', id=mailing.id) }}" class="btn btn-outline-info">
+                <i class="ti ti-eye"></i> Vorschau
+            </a>
+            <a href="{{ url_for('mailing_admin.detail', id=mailing.id) }}" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left"></i> Zurück
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <!-- Sektionen-Liste -->
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-list"></i> Sektionen ({{ mailing.sektionen|length }})</span>
+                    <div class="dropdown">
+                        <button class="btn btn-sm btn-primary dropdown-toggle" type="button"
+                                data-bs-toggle="dropdown" aria-expanded="false">
+                            <i class="ti ti-plus"></i> Sektion hinzufügen
+                        </button>
+                        <ul class="dropdown-menu dropdown-menu-end">
+                            {% for typ_key, typ_info in sektion_typen.items() %}
+                            <li>
+                                <button type="button" class="dropdown-item"
+                                        onclick="addSektion('{{ typ_key }}')">
+                                    <i class="ti {{ typ_info.icon }}"></i> {{ typ_info.name }}
+                                    <small class="text-muted d-block">{{ typ_info.beschreibung }}</small>
+                                </button>
+                            </li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body p-0" id="sektionen-container">
+                    {% if mailing.sektionen %}
+                    <ul class="list-group list-group-flush" id="sektionen-list">
+                        {% for sektion in mailing.sektionen %}
+                        {% set loop_index = loop.index0 %}
+                        <li class="list-group-item" data-sektion-id="{{ sektion.id }}">
+                            <div class="d-flex align-items-center">
+                                <!-- Reorder Buttons -->
+                                <div class="btn-group btn-group-sm me-3">
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            onclick="moveSektion('{{ sektion.id }}', 'up')"
+                                            {% if loop.first %}disabled{% endif %}
+                                            title="Nach oben">
+                                        <i class="ti ti-arrow-up"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary"
+                                            onclick="moveSektion('{{ sektion.id }}', 'down')"
+                                            {% if loop.last %}disabled{% endif %}
+                                            title="Nach unten">
+                                        <i class="ti ti-arrow-down"></i>
+                                    </button>
+                                </div>
+
+                                <!-- Section Info -->
+                                <div class="flex-grow-1">
+                                    <div class="d-flex align-items-center">
+                                        <i class="ti {{ sektion_typen[sektion.typ].icon if sektion.typ in sektion_typen else 'ti-section' }} me-2 text-muted"></i>
+                                        <strong>{{ sektion_typen[sektion.typ].name if sektion.typ in sektion_typen else sektion.typ }}</strong>
+                                        <span class="badge bg-light text-muted ms-2">{{ loop.index }}</span>
+                                    </div>
+                                    <small class="text-muted">
+                                        {% if sektion.typ == 'text_bild' and sektion.config.inhalt_html %}
+                                        {{ sektion.config.inhalt_html|striptags|truncate(50) }}
+                                        {% elif sektion.typ == 'fragebogen_cta' %}
+                                        Button: "{{ sektion.config.button_text|default('Jetzt teilnehmen') }}"
+                                        {% elif sektion.typ == 'header' %}
+                                        Logo: {{ 'Ja' if sektion.config.zeige_logo else 'Nein' }}
+                                        {% elif sektion.typ == 'footer' %}
+                                        Abmelde-Link: {{ 'Ja' if sektion.config.zeige_abmelde_link else 'Nein' }}
+                                        {% endif %}
+                                    </small>
+                                </div>
+
+                                <!-- Action Buttons -->
+                                <div class="btn-group btn-group-sm">
+                                    <button type="button" class="btn btn-outline-primary"
+                                            onclick="editSektion('{{ sektion.id }}', '{{ sektion.typ }}', {{ sektion.config|tojson|e }})"
+                                            title="Bearbeiten">
+                                        <i class="ti ti-edit"></i>
+                                    </button>
+                                    <button type="button" class="btn btn-outline-danger"
+                                            onclick="deleteSektion('{{ sektion.id }}')"
+                                            title="Löschen">
+                                        <i class="ti ti-trash"></i>
+                                    </button>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% else %}
+                    <div class="text-center py-5" id="empty-state">
+                        <i class="ti ti-layout-off text-muted" style="font-size: 3rem;"></i>
+                        <h5 class="mt-3 text-muted">Keine Sektionen vorhanden</h5>
+                        <p class="text-muted">Füge deine erste Sektion über den Button oben hinzu.</p>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Info-Panel -->
+        <div class="col-lg-4">
+            <!-- Verfügbare Platzhalter -->
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="ti ti-variable"></i> Personalisierung</span>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        Verwende diese Platzhalter in Text-Sektionen:
+                    </p>
+                    <div class="d-flex flex-wrap gap-1">
+                        <code class="badge bg-light text-dark">{{ '{{' }} briefanrede {{ '}}' }}</code>
+                        <code class="badge bg-light text-dark">{{ '{{' }} firmenname {{ '}}' }}</code>
+                        <code class="badge bg-light text-dark">{{ '{{' }} vorname {{ '}}' }}</code>
+                        <code class="badge bg-light text-dark">{{ '{{' }} nachname {{ '}}' }}</code>
+                        <code class="badge bg-light text-dark">{{ '{{' }} email {{ '}}' }}</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Fragebogen-Info -->
+            {% if mailing.fragebogen %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="ti ti-link"></i> Verlinkter Fragebogen</span>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>{{ mailing.fragebogen.titel }}</strong>
+                    </p>
+                    <p class="small text-muted mb-0">
+                        Füge eine "Fragebogen-Button" Sektion hinzu, um den CTA-Link zu integrieren.
+                    </p>
+                </div>
+            </div>
+            {% else %}
+            <div class="card mb-3">
+                <div class="card-header">
+                    <span><i class="ti ti-link-off"></i> Kein Fragebogen</span>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted mb-2">
+                        Kein Fragebogen verlinkt. Die "Fragebogen-Button" Sektion wird nicht angezeigt.
+                    </p>
+                    <a href="{{ url_for('mailing_admin.edit', id=mailing.id) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="ti ti-edit"></i> Fragebogen verlinken
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Tipps -->
+            <div class="card">
+                <div class="card-header">
+                    <span><i class="ti ti-bulb"></i> Tipps</span>
+                </div>
+                <div class="card-body">
+                    <ul class="small text-muted mb-0 ps-3">
+                        <li>Beginne mit einem <strong>Header</strong> für das Logo</li>
+                        <li>Nutze <strong>Text/Bild</strong> für den Hauptinhalt</li>
+                        <li>Füge einen <strong>Footer</strong> mit Abmelde-Link hinzu (DSGVO)</li>
+                        <li>Die <strong>Vorschau</strong> zeigt die E-Mail mit Beispieldaten</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Edit Modal -->
+<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editModalLabel">Sektion bearbeiten</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body" id="editModalBody">
+                <!-- Dynamic content loaded by JavaScript -->
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-primary" id="saveSektion">
+                    <i class="ti ti-check"></i> Speichern
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Delete Confirmation Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteModalLabel">
+                    <i class="ti ti-trash"></i> Sektion löschen?
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <p>Möchtest du diese Sektion wirklich löschen?</p>
+                <p class="text-muted small mb-0">Diese Aktion kann nicht rückgängig gemacht werden.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+                <button type="button" class="btn btn-danger" id="confirmDelete">
+                    <i class="ti ti-trash"></i> Löschen
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+const MAILING_ID = {{ mailing.id }};
+const CSRF_TOKEN = '{{ csrf_token() }}';
+let currentSektionId = null;
+let currentSektionTyp = null;
+
+// Section type definitions (from server)
+const SEKTION_TYPEN = {{ sektion_typen|tojson|safe }};
+
+// ========== Add Section ==========
+
+async function addSektion(typ) {
+    try {
+        const response = await fetch(`/admin/mailing/${MAILING_ID}/editor/sektion`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({
+                typ: typ,
+                config: SEKTION_TYPEN[typ].default_config
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Reload page to show new section
+            window.location.reload();
+        } else {
+            alert(data.error || 'Fehler beim Hinzufügen');
+        }
+    } catch (error) {
+        console.error('Error adding section:', error);
+        alert('Fehler beim Hinzufügen der Sektion');
+    }
+}
+
+// ========== Edit Section ==========
+
+function editSektion(sektionId, typ, config) {
+    currentSektionId = sektionId;
+    currentSektionTyp = typ;
+
+    // Build form based on section type
+    const formHtml = buildEditForm(typ, config);
+    document.getElementById('editModalBody').innerHTML = formHtml;
+    document.getElementById('editModalLabel').textContent = `${SEKTION_TYPEN[typ].name} bearbeiten`;
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('editModal'));
+    modal.show();
+}
+
+function buildEditForm(typ, config) {
+    switch (typ) {
+        case 'header':
+            return `
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="zeige_logo"
+                               ${config.zeige_logo ? 'checked' : ''}>
+                        <label class="form-check-label" for="zeige_logo">
+                            Logo anzeigen
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="logo_url" class="form-label">Logo-URL (optional)</label>
+                    <input type="text" class="form-control" id="logo_url"
+                           value="${config.logo_url || ''}"
+                           placeholder="https://example.com/logo.png">
+                    <div class="form-text">Leer lassen für Text-Logo</div>
+                </div>
+            `;
+
+        case 'text_bild':
+            return `
+                <div class="mb-3">
+                    <label for="inhalt_html" class="form-label">Inhalt (HTML)</label>
+                    <textarea class="form-control" id="inhalt_html" rows="8">${config.inhalt_html || ''}</textarea>
+                    <div class="form-text">Nutze {{ briefanrede }}, {{ firmenname }}, etc. für Personalisierung</div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="bild_url" class="form-label">Bild-URL (optional)</label>
+                        <input type="text" class="form-control" id="bild_url"
+                               value="${config.bild_url || ''}"
+                               placeholder="https://example.com/bild.jpg">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="bild_position" class="form-label">Bild-Position</label>
+                        <select class="form-select" id="bild_position">
+                            <option value="rechts" ${config.bild_position === 'rechts' ? 'selected' : ''}>Rechts</option>
+                            <option value="links" ${config.bild_position === 'links' ? 'selected' : ''}>Links</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+
+        case 'fragebogen_cta':
+            return `
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label for="button_text" class="form-label">Button-Text</label>
+                        <input type="text" class="form-control" id="button_text"
+                               value="${config.button_text || 'Jetzt teilnehmen'}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label for="button_farbe" class="form-label">Button-Farbe</label>
+                        <input type="color" class="form-control form-control-color" id="button_farbe"
+                               value="${config.button_farbe || '#0066cc'}">
+                    </div>
+                </div>
+                <div class="alert alert-info mb-0">
+                    <i class="ti ti-info-circle"></i>
+                    Der Button verlinkt automatisch auf den verknüpften Fragebogen.
+                </div>
+            `;
+
+        case 'footer':
+            return `
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="zeige_abmelde_link"
+                               ${config.zeige_abmelde_link !== false ? 'checked' : ''}>
+                        <label class="form-check-label" for="zeige_abmelde_link">
+                            Abmelde-Link anzeigen (empfohlen)
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="zusatz_text" class="form-label">Zusätzlicher Text (optional)</label>
+                    <textarea class="form-control" id="zusatz_text" rows="3">${config.zusatz_text || ''}</textarea>
+                </div>
+            `;
+
+        default:
+            return '<p class="text-muted">Keine Bearbeitungsoptionen verfügbar.</p>';
+    }
+}
+
+function getEditFormData() {
+    switch (currentSektionTyp) {
+        case 'header':
+            return {
+                zeige_logo: document.getElementById('zeige_logo').checked,
+                logo_url: document.getElementById('logo_url').value || null
+            };
+
+        case 'text_bild':
+            return {
+                inhalt_html: document.getElementById('inhalt_html').value,
+                bild_url: document.getElementById('bild_url').value || null,
+                bild_position: document.getElementById('bild_position').value
+            };
+
+        case 'fragebogen_cta':
+            return {
+                button_text: document.getElementById('button_text').value,
+                button_farbe: document.getElementById('button_farbe').value
+            };
+
+        case 'footer':
+            return {
+                zeige_abmelde_link: document.getElementById('zeige_abmelde_link').checked,
+                zusatz_text: document.getElementById('zusatz_text').value || null
+            };
+
+        default:
+            return {};
+    }
+}
+
+// Save button handler
+document.getElementById('saveSektion').addEventListener('click', async function() {
+    if (!currentSektionId) return;
+
+    const config = getEditFormData();
+
+    try {
+        const response = await fetch(`/admin/mailing/${MAILING_ID}/editor/sektion/${currentSektionId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({ config: config })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Fehler beim Speichern');
+        }
+    } catch (error) {
+        console.error('Error saving section:', error);
+        alert('Fehler beim Speichern der Sektion');
+    }
+});
+
+// ========== Delete Section ==========
+
+function deleteSektion(sektionId) {
+    currentSektionId = sektionId;
+    const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+    modal.show();
+}
+
+document.getElementById('confirmDelete').addEventListener('click', async function() {
+    if (!currentSektionId) return;
+
+    try {
+        const response = await fetch(`/admin/mailing/${MAILING_ID}/editor/sektion/${currentSektionId}`, {
+            method: 'DELETE',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN
+            }
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Fehler beim Löschen');
+        }
+    } catch (error) {
+        console.error('Error deleting section:', error);
+        alert('Fehler beim Löschen der Sektion');
+    }
+});
+
+// ========== Move Section ==========
+
+async function moveSektion(sektionId, direction) {
+    try {
+        const response = await fetch(`/admin/mailing/${MAILING_ID}/editor/reorder`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: JSON.stringify({
+                sektion_id: sektionId,
+                direction: direction
+            })
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            window.location.reload();
+        } else {
+            alert(data.error || 'Fehler beim Verschieben');
+        }
+    } catch (error) {
+        console.error('Error moving section:', error);
+        alert('Fehler beim Verschieben der Sektion');
+    }
+}
+</script>
+{% endblock %}

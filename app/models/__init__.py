@@ -71,6 +71,12 @@ from app.models.changelog_eintrag import (
 from app.models.modul_erp import ModulErp, ModulErpKontext
 from app.models.task_kommentar import TaskKommentar, KommentarTyp
 
+# Kunden-Mailing Module (PRD-013)
+from app.models.mailing import (
+    Mailing, MailingEmpfaenger, MailingKlick, MailingZielgruppe,
+    MailingStatus, EmpfaengerStatus
+)
+
 __all__ = [
     'Lieferant', 'Hersteller', 'Marke', 'Config',
     'Rolle', 'User', 'UserTyp',
@@ -112,4 +118,7 @@ __all__ = [
     'ChangelogEintrag', 'ChangelogKategorie', 'ChangelogSichtbarkeit',
     'ModulErp', 'ModulErpKontext',
     'TaskKommentar', 'KommentarTyp',
+    # Kunden-Mailing Module (PRD-013)
+    'Mailing', 'MailingEmpfaenger', 'MailingKlick', 'MailingZielgruppe',
+    'MailingStatus', 'EmpfaengerStatus',
 ]

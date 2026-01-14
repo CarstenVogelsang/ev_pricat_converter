@@ -68,6 +68,7 @@ Querschnittsfunktionen (Hilfetexte, Breadcrumb, etc.) gehören in `core/`.
 | Produktdaten | [PRD-009](docs/prd/module/PRD-009-produktdaten/PRD-009-produktdaten.md) | MVP |
 | Schulungen | [PRD-010](docs/prd/module/PRD-010-schulungen/PRD-010-schulungen.md) | In Entwicklung |
 | Projektverwaltung | [PRD-011](docs/prd/module/PRD-011-projektverwaltung/PRD-011-projektverwaltung.md) | POC |
+| Kunden-Mailing | [PRD-013](docs/prd/module/PRD-013-kunden-mailing/PRD-013-kunden-mailing.md) | In Entwicklung |
 
 ### Basisfunktionalitäten (core/)
 
