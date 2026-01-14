@@ -521,3 +521,44 @@ def dearchivieren(id):
 
     flash(f'Fragebogen "{fragebogen.titel}" wurde wiederhergestellt.', 'success')
     return redirect(url_for('dialog_admin.detail', id=id))
+
+
+@dialog_admin_bp.route('/<int:id>/vorschau')
+def vorschau(id):
+    """Preview a questionnaire in draft mode.
+
+    Shows the questionnaire as it would appear to a participant,
+    with a test customer for prefill data. No data is saved.
+    The questionnaire remains in draft status.
+
+    PRD006-T059: Fragebogen im Entwurf testen/ansehen
+    """
+    from datetime import date
+
+    fragebogen = Fragebogen.query.get_or_404(id)
+
+    # Only V2 (wizard) questionnaires are supported for preview
+    if not fragebogen.is_v2:
+        flash('Vorschau ist nur für Fragebögen mit Seiten (V2) verfügbar.', 'warning')
+        return redirect(url_for('dialog_admin.detail', id=id))
+
+    service = get_fragebogen_service()
+
+    # Find a test customer for prefill simulation
+    # Use the first Kunde with firmierung set, or fallback to empty data
+    test_kunde = Kunde.query.filter(
+        Kunde.firmierung.isnot(None),
+        Kunde.firmierung != ''
+    ).first()
+
+    # Get prefill values for the test kunde (if available)
+    antworten = {}
+    if test_kunde:
+        antworten = service.get_initial_antworten(fragebogen, test_kunde)
+
+    return render_template('dialog/fragebogen_wizard.html',
+                           fragebogen=fragebogen,
+                           antworten=antworten,
+                           test_kunde=test_kunde,
+                           today=date.today().isoformat(),
+                           preview_mode=True)

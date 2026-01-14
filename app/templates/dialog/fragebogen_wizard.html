@@ -206,6 +206,16 @@
     </style>
 </head>
 <body>
+    {% if preview_mode %}
+    <!-- PRD006-T059: Preview Banner -->
+    <div class="alert alert-warning alert-dismissible mb-0 rounded-0 text-center" role="alert">
+        <i class="ti ti-eye"></i> <strong>Vorschau-Modus</strong> – Daten werden nicht gespeichert. Der Fragebogen bleibt im Entwurf-Status.
+        <a href="{{ url_for('dialog_admin.edit', id=fragebogen.id) }}" class="btn btn-sm btn-outline-dark ms-3">
+            <i class="ti ti-arrow-left"></i> Zurück zur Bearbeitung
+        </a>
+    </div>
+    {% endif %}
+
     <div class="container">
         <div class="fragebogen-card">
             <!-- Header -->
@@ -284,14 +294,24 @@
                     <button type="button" class="btn btn-primary" id="btn-next" onclick="nextSeite()">
                         Weiter <i class="ti ti-arrow-right"></i>
                     </button>
+                    {% if preview_mode %}
+                    <button type="button" class="btn btn-warning" id="btn-submit" onclick="submitFragebogen()" style="display: none;">
+                        <i class="ti ti-arrow-back"></i> Vorschau beenden
+                    </button>
+                    {% else %}
                     <button type="button" class="btn btn-success" id="btn-submit" onclick="submitFragebogen()" style="display: none;">
                         <i class="ti ti-send"></i> Abschließen
                     </button>
+                    {% endif %}
                 </div>
             </form>
 
             <div class="text-center mt-4 text-muted">
+                {% if preview_mode %}
+                <small><i class="ti ti-eye"></i> Vorschau-Modus – Änderungen werden nicht gespeichert.</small>
+                {% else %}
                 <small>Ihre Antworten werden automatisch gespeichert.</small>
+                {% endif %}
             </div>
         </div>
     </div>
@@ -307,8 +327,9 @@
     </div>
 
     <script>
-    const TEILNAHME_TOKEN = '{{ token }}';
+    const TEILNAHME_TOKEN = '{{ token|default("") }}';
     const TOTAL_SEITEN = {{ fragebogen.seiten|length }};
+    const PREVIEW_MODE = {{ 'true' if preview_mode else 'false' }};
     let currentSeite = 0;
     let visitedSeiten = new Set([0]);
 
@@ -456,12 +477,21 @@
         const container = document.querySelector(`[data-frage-id="${frageId}"]`);
         const status = container.querySelector('.save-status');
 
-        status.style.display = 'block';
-        status.innerHTML = '<i class="ti ti-loader ti-spin"></i> Speichern...';
-
         // Update local state
         currentAnswers[frageId] = antwort.value !== undefined ? antwort.value : antwort.values;
         updateAllVisibility();
+
+        // PRD006-T059: In preview mode, only save locally (no server request)
+        if (PREVIEW_MODE) {
+            status.style.display = 'block';
+            status.innerHTML = '<i class="ti ti-eye text-warning"></i> Vorschau';
+            container.classList.add('answered');
+            setTimeout(() => { status.style.display = 'none'; }, 1000);
+            return;
+        }
+
+        status.style.display = 'block';
+        status.innerHTML = '<i class="ti ti-loader ti-spin"></i> Speichern...';
 
         try {
             const response = await fetch(`/dialog/t/${TEILNAHME_TOKEN}/antwort`, {
@@ -523,6 +553,15 @@
 
     async function submitFragebogen() {
         if (!validateCurrentSeite()) return;
+
+        // PRD006-T059: In preview mode, just redirect back to edit page
+        if (PREVIEW_MODE) {
+            if (confirm('Vorschau beenden und zurück zur Bearbeitung?')) {
+                window.location.href = '{{ url_for("dialog_admin.edit", id=fragebogen.id) if preview_mode else "" }}';
+            }
+            return;
+        }
+
         if (!confirm('Möchten Sie den Fragebogen abschließen?')) return;
 
         try {

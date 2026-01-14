@@ -69,7 +69,12 @@
                         <td class="text-center">{{ fb.anzahl_teilnehmer }}</td>
                         <td>{{ fb.erstellt_am.strftime('%d.%m.%Y') }}</td>
                         <td class="text-end">
-                            <a href="{{ url_for('dialog_admin.edit', id=fb.id) }}" class="btn btn-sm btn-outline-primary">
+                            {% if fb.is_v2 %}
+                            <a href="{{ url_for('dialog_admin.vorschau', id=fb.id) }}" class="btn btn-sm btn-outline-warning" title="Vorschau">
+                                <i class="ti ti-eye"></i>
+                            </a>
+                            {% endif %}
+                            <a href="{{ url_for('dialog_admin.edit', id=fb.id) }}" class="btn btn-sm btn-outline-primary" title="Bearbeiten">
                                 <i class="ti ti-edit"></i>
                             </a>
                         </td>

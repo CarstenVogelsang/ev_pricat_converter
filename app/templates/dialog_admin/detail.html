@@ -43,6 +43,11 @@
         <a href="{{ url_for('dialog_admin.edit', id=fragebogen.id) }}" class="btn btn-primary">
             <i class="ti ti-edit"></i> Bearbeiten
         </a>
+        {% if fragebogen.is_v2 %}
+        <a href="{{ url_for('dialog_admin.vorschau', id=fragebogen.id) }}" class="btn btn-warning">
+            <i class="ti ti-eye"></i> Vorschau
+        </a>
+        {% endif %}
         <form method="post" action="{{ url_for('dialog_admin.change_status', id=fragebogen.id) }}" class="d-inline">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="aktivieren">
