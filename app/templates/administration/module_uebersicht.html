@@ -6,64 +6,40 @@
 
 {% block admin_content %}
 {{ breadcrumb([
-    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Administration', 'icon': 'ti-settings'},
     {'label': 'Module', 'icon': 'ti-apps'}
 ]) }}
 
 <h4 class="mb-4"><i class="ti ti-apps me-2"></i>Module verwalten</h4>
 
+{# Mapping von Modul-Code zu Admin-Route (da Admin-Routes unterschiedlich strukturiert sind) #}
+{% set admin_routes = {
+    'pricat': 'admin.pricat',
+    'kunden': 'admin.kunden_report',
+    'lieferanten': 'admin.lieferanten_auswahl',
+    'content': 'admin.content_generator',
+    'dialog': 'dialog_admin.index',
+    'schulungen': 'schulungen_admin.index',
+    'projekte': 'projekte_admin.index',
+    'mailing': 'mailing_admin.index',
+    'support': 'support_admin.dashboard'
+} %}
+
 <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 row-cols-xl-4 g-4">
+    {% for modul in module %}
+    {% set admin_route = admin_routes.get(modul.code) %}
+    {% if admin_route %}
     {{ admin_tile(
-        'PRICAT Converter',
-        'VEDES PRICAT-Dateien zu Elena-Format konvertieren',
-        'ti-route-square',
-        url_for('admin.pricat'),
-        color_hex='#0d6efd'
+        modul.name,
+        modul.beschreibung,
+        modul.icon,
+        url_for(admin_route),
+        color_hex=modul.color_hex,
+        settings_url=url_for('admin.modul_einstellungen', code=modul.code),
+        aktiv=modul.aktiv
     ) }}
-    {{ admin_tile(
-        'Lead & Kundenreport',
-        'Kunden verwalten und Website-Analyse',
-        'ti-users',
-        url_for('admin.kunden_report'),
-        color_hex='#198754'
-    ) }}
-    {{ admin_tile(
-        'Meine Lieferanten',
-        'Lieferanten-Auswahl für Kunden verwalten',
-        'ti-truck',
-        url_for('admin.lieferanten_auswahl'),
-        color_hex='#0dcaf0'
-    ) }}
-    {{ admin_tile(
-        'Content Generator',
-        'KI-generierte Texte für Online-Shops',
-        'ti-writing',
-        url_for('admin.content_generator'),
-        color_hex='#ffc107'
-    ) }}
-    {{ admin_tile(
-        'Kunden-Dialog',
-        'Fragebögen erstellen und Kunden befragen',
-        'ti-messages',
-        url_for('dialog_admin.index'),
-        color_hex='#20c997'
-    ) }}
-    {{ admin_tile(
-        'Schulungen',
-        'Online-Schulungen erstellen und verwalten',
-        'ti-school',
-        url_for('schulungen_admin.index'),
-        color_hex='#6f42c1',
-        settings_url=url_for('schulungen_admin.einstellungen')
-    ) }}
-    {{ admin_tile(
-        'Projektverwaltung',
-        'PRDs, Tasks und Changelogs verwalten',
-        'ti-folder',
-        url_for('projekte_admin.index'),
-        color_hex='#dc3545',
-        settings_url=url_for('projekte_admin.einstellungen')
-    ) }}
+    {% endif %}
+    {% endfor %}
 </div>
 
 <style>

@@ -1,0 +1,212 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Einstellungen - {{ modul.name }} - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': modul.name, 'icon': modul.icon},
+    {'label': 'Einstellungen'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4 class="mb-0"><i class="ti {{ modul.icon }}"></i> {{ modul.name }} - Einstellungen</h4>
+    <a href="{{ url_for('admin.module_uebersicht') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="ti ti-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Modul-Darstellung -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span><i class="ti ti-palette"></i> Darstellung</span>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="color_hex" class="form-label">Modul-Farbe</label>
+                        <div class="input-group" style="max-width: 250px;">
+                            <input type="color" class="form-control form-control-color"
+                                   id="color_hex" name="color_hex"
+                                   value="{{ modul.color_hex }}" title="Farbauswahl">
+                            <input type="text" class="form-control" id="color_hex_text"
+                                   value="{{ modul.color_hex }}"
+                                   pattern="^#[0-9A-Fa-f]{6}$" maxlength="7"
+                                   style="font-family: monospace;">
+                        </div>
+                        <div class="form-text">
+                            Farbe für Kacheln und Icons in der Modul-Übersicht.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="icon" class="form-label">Icon</label>
+                        <div class="input-group" style="max-width: 350px;">
+                            <span class="input-group-text" id="icon-preview">
+                                <i class="ti {{ modul.icon }}"></i>
+                            </span>
+                            <input type="text" class="form-control" id="icon" name="icon"
+                                   value="{{ modul.icon }}" placeholder="ti-icon-name">
+                            <button type="button" class="btn btn-outline-secondary"
+                                    data-bs-toggle="offcanvas" data-bs-target="#iconPickerOffcanvas">
+                                <i class="ti ti-search"></i>
+                            </button>
+                        </div>
+                        <div class="form-text">
+                            Tabler Icon Name (z.B. ti-settings, ti-users).
+                            <a href="https://tabler.io/icons" target="_blank">Icon-Übersicht</a>
+                        </div>
+                    </div>
+
+                    <!-- Vorschau -->
+                    <div class="mt-4 pt-3 border-top">
+                        <label class="form-label">Vorschau</label>
+                        <div class="card admin-tile" style="max-width: 280px;">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-3">
+                                    <div class="rounded-circle p-3 me-3" id="preview-icon-bg"
+                                         style="background-color: {{ modul.color_hex }}20;">
+                                        <i class="ti {{ modul.icon }} fs-3" id="preview-icon"
+                                           style="color: {{ modul.color_hex }};"></i>
+                                    </div>
+                                    <div>
+                                        <h6 class="mb-1">{{ modul.name }}</h6>
+                                        <small class="text-muted">{{ modul.beschreibung|truncate(50) }}</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-toggle-left"></i> Status
+                </div>
+                <div class="card-body">
+                    <div class="form-check form-switch">
+                        <input type="checkbox" class="form-check-input" id="aktiv" name="aktiv"
+                               {% if modul.aktiv %}checked{% endif %}
+                               {% if modul.ist_basis %}disabled{% endif %}>
+                        <label class="form-check-label" for="aktiv">
+                            Modul aktiv
+                        </label>
+                    </div>
+                    {% if modul.ist_basis %}
+                    <div class="form-text text-warning">
+                        <i class="ti ti-alert-triangle"></i> Basis-Module können nicht deaktiviert werden.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <!-- Modul-Info -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <i class="ti ti-info-circle"></i> Modul-Info
+            </div>
+            <div class="card-body">
+                <table class="table table-sm mb-0">
+                    <tr>
+                        <td class="text-muted">Code</td>
+                        <td><code>{{ modul.code }}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Typ</td>
+                        <td>{{ modul.typ }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Route</td>
+                        <td><code>{{ modul.route_endpoint or '-' }}</code></td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Sortierung</td>
+                        <td>{{ modul.sort_order }}</td>
+                    </tr>
+                    <tr>
+                        <td class="text-muted">Dashboard</td>
+                        <td>
+                            {% if modul.zeige_dashboard %}
+                            <span class="badge bg-success">Ja</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Nein</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+
+        <!-- Modul-Link -->
+        {% if modul.route_endpoint %}
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-external-link"></i> Schnellzugriff
+            </div>
+            <div class="card-body">
+                <a href="{{ url_for(modul.route_endpoint) }}" class="btn btn-outline-primary btn-sm w-100">
+                    <i class="ti {{ modul.icon }}"></i> {{ modul.name }} öffnen
+                </a>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const colorPicker = document.getElementById('color_hex');
+    const colorText = document.getElementById('color_hex_text');
+    const iconInput = document.getElementById('icon');
+    const iconPreview = document.getElementById('icon-preview');
+    const previewIcon = document.getElementById('preview-icon');
+    const previewIconBg = document.getElementById('preview-icon-bg');
+
+    // Sync color picker and text input
+    colorPicker.addEventListener('input', function() {
+        colorText.value = colorPicker.value;
+        updatePreview();
+    });
+
+    colorText.addEventListener('input', function() {
+        if (/^#[0-9A-Fa-f]{6}$/.test(colorText.value)) {
+            colorPicker.value = colorText.value;
+            updatePreview();
+        }
+    });
+
+    // Update icon preview
+    iconInput.addEventListener('input', function() {
+        const iconClass = iconInput.value || 'ti-puzzle';
+        iconPreview.innerHTML = '<i class="ti ' + iconClass + '"></i>';
+        previewIcon.className = 'ti ' + iconClass + ' fs-3';
+    });
+
+    function updatePreview() {
+        const color = colorPicker.value;
+        previewIcon.style.color = color;
+        previewIconBg.style.backgroundColor = color + '20';
+    }
+
+    // Support for icon picker (if available)
+    window.setIcon = function(iconName) {
+        iconInput.value = iconName;
+        iconInput.dispatchEvent(new Event('input'));
+    };
+});
+</script>
+{% endblock %}

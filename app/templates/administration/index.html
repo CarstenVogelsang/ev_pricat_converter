@@ -5,8 +5,8 @@
 
 {% block admin_content %}
 {{ breadcrumb([
-    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
-    {'label': 'Administration', 'icon': 'ti-settings'}
+    {'label': 'Administration', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-settings'},
+    {'label': 'System', 'icon': 'ti-dashboard'}
 ]) }}
 
 <h2 class="mb-4"><i class="ti ti-dashboard"></i> System-Übersicht</h2>
@@ -76,73 +76,6 @@
         </div>
     </div>
 
-    <!-- Module -->
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="ti ti-apps"></i> Installierte Module</h5>
-            </div>
-            <div class="card-body">
-                <div class="table-responsive">
-                    <table class="table table-sm mb-0">
-                        <thead>
-                            <tr>
-                                <th>Modul</th>
-                                <th>Farbe</th>
-                                <th>Status</th>
-                                <th>Beschreibung</th>
-                                <th class="text-end">Admin</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {% for subapp in subapps %}
-                            <tr>
-                                <td>
-                                    <i class="ti {{ subapp.icon }}" style="color: {{ subapp.color_hex or '#0d6efd' }};"></i>
-                                    {{ subapp.name }}
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center gap-2">
-                                        <div style="width: 20px; height: 20px; background-color: {{ subapp.color_hex or '#0d6efd' }}; border: 1px solid #ccc; border-radius: 3px;" title="{{ subapp.color_hex }}"></div>
-                                        <code class="small">{{ subapp.color_hex or '#0d6efd' }}</code>
-                                    </div>
-                                </td>
-                                <td>
-                                    {% if subapp.aktiv %}
-                                    <span class="badge bg-success">Aktiv</span>
-                                    {% else %}
-                                    <span class="badge bg-secondary">Inaktiv</span>
-                                    {% endif %}
-                                </td>
-                                <td class="text-muted">{{ subapp.beschreibung }}</td>
-                                <td class="text-end">
-                                    {% if subapp.slug == 'pricat' %}
-                                    <a href="{{ url_for('admin.pricat') }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="ti ti-settings"></i>
-                                    </a>
-                                    {% elif subapp.slug == 'kunden-report' %}
-                                    <a href="{{ url_for('admin.kunden_report') }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="ti ti-settings"></i>
-                                    </a>
-                                    {% elif subapp.slug == 'lieferanten-auswahl' %}
-                                    <a href="{{ url_for('admin.lieferanten_auswahl') }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="ti ti-settings"></i>
-                                    </a>
-                                    {% elif subapp.slug == 'content-generator' %}
-                                    <a href="{{ url_for('admin.content_generator') }}" class="btn btn-sm btn-outline-primary">
-                                        <i class="ti ti-settings"></i>
-                                    </a>
-                                    {% endif %}
-                                </td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Health Checks -->
     <div class="col-md-6">
         <div class="card">
@@ -160,21 +93,5 @@
         </div>
     </div>
 
-    <!-- Quick Links -->
-    <div class="col-md-6">
-        <div class="card">
-            <div class="card-header">
-                <h5 class="mb-0"><i class="ti ti-link"></i> Quick Links</h5>
-            </div>
-            <div class="card-body">
-                <a href="{{ url_for('admin.branding') }}" class="btn btn-outline-primary me-2">
-                    <i class="ti ti-palette"></i> Branding
-                </a>
-                <a href="{{ url_for('dbadmin.index') }}" class="btn btn-outline-primary">
-                    <i class="ti ti-database"></i> DB Admin
-                </a>
-            </div>
-        </div>
-    </div>
 </div>
 {% endblock %}

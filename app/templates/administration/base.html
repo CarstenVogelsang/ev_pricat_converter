@@ -3,9 +3,20 @@
 
 {% block content %}
 <div class="container-fluid py-4">
-    <!-- Header -->
+    <!-- Header with Recently Visited Quick Links -->
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2><i class="ti ti-settings"></i> Administration</h2>
+        {% if recent_admin_pages %}
+        <div class="d-flex gap-2 align-items-center">
+            <span class="text-muted small me-2"><i class="ti ti-history"></i> Zuletzt:</span>
+            {% for page in recent_admin_pages %}
+            <a href="{{ page.page_url }}" class="btn btn-sm btn-outline-secondary"
+               title="{{ page.page_title }} - {{ page.timestamp.strftime('%d.%m. %H:%M') if page.timestamp else '' }}">
+                {{ page.page_title|truncate(20, True, '…') }}
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
     </div>
 
     <!-- Tab Navigation -->
@@ -34,15 +45,15 @@
     </style>
     <ul class="nav nav-tabs nav-fill mb-4 admin-tabs">
         <li class="nav-item">
-            <a class="nav-link{% if admin_tab == 'system' or request.endpoint == 'admin.index' %} active{% endif %}"
-               href="{{ url_for('admin.index') }}">
-                <i class="ti ti-dashboard me-2"></i>System
+            <a class="nav-link{% if admin_tab == 'module' or request.endpoint == 'admin.index' %} active{% endif %}"
+               href="{{ url_for('admin.module_uebersicht') }}">
+                <i class="ti ti-apps me-2"></i>Module
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link{% if admin_tab == 'module' %} active{% endif %}"
-               href="{{ url_for('admin.module_uebersicht') }}">
-                <i class="ti ti-apps me-2"></i>Module
+            <a class="nav-link{% if admin_tab == 'system' %} active{% endif %}"
+               href="{{ url_for('admin.system') }}">
+                <i class="ti ti-dashboard me-2"></i>System
             </a>
         </li>
         <li class="nav-item">
