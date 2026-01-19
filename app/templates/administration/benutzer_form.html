@@ -113,24 +113,78 @@
                 <a href="{{ url_for('benutzer.index') }}" class="btn btn-outline-secondary">
                     <i class="ti ti-arrow-left"></i> Abbrechen
                 </a>
-                <div>
-                    {% if user %}
-                    <form method="post" action="{{ url_for('benutzer.reset_passwort', id=user.id) }}" class="d-inline"
-                          onsubmit="return confirm('Passwort wirklich zurücksetzen?');">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <button type="submit" class="btn btn-outline-warning me-2">
-                            <i class="ti ti-key"></i> Passwort zurücksetzen
-                        </button>
-                    </form>
-                    {% endif %}
-                    <button type="submit" class="btn btn-primary">
-                        <i class="ti ti-device-floppy"></i> Speichern
-                    </button>
-                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="ti ti-device-floppy"></i> Speichern
+                </button>
             </div>
         </form>
     </div>
 </div>
+
+{% if user %}
+<!-- Passwort setzen (separates Formular) -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="ti ti-key"></i> Passwort setzen</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" action="{{ url_for('benutzer.set_passwort', id=user.id) }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <div class="row align-items-end">
+                <div class="col-md-6">
+                    <label for="new_password" class="form-label">Neues Passwort</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="new_password" name="new_password"
+                               placeholder="Mindestens 8 Zeichen" minlength="8" required>
+                        <button type="button" class="btn btn-outline-secondary" onclick="togglePasswordVisibility()">
+                            <i class="ti ti-eye" id="toggleIcon"></i>
+                        </button>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <button type="button" class="btn btn-outline-info w-100" onclick="generatePassword()">
+                        <i class="ti ti-refresh"></i> Generieren
+                    </button>
+                </div>
+                <div class="col-md-3">
+                    <button type="submit" class="btn btn-warning w-100">
+                        <i class="ti ti-key"></i> Passwort setzen
+                    </button>
+                </div>
+            </div>
+            <div class="form-text mt-2">
+                Klicke "Generieren" für ein sicheres Zufallspasswort oder gib ein eigenes ein.
+            </div>
+        </form>
+    </div>
+</div>
+
+<script>
+function generatePassword() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789!@#$%&*';
+    let password = '';
+    for (let i = 0; i < 12; i++) {
+        password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    document.getElementById('new_password').value = password;
+    document.getElementById('new_password').type = 'text';
+    document.getElementById('toggleIcon').className = 'ti ti-eye-off';
+}
+
+function togglePasswordVisibility() {
+    const input = document.getElementById('new_password');
+    const icon = document.getElementById('toggleIcon');
+    if (input.type === 'password') {
+        input.type = 'text';
+        icon.className = 'ti ti-eye-off';
+    } else {
+        input.type = 'password';
+        icon.className = 'ti ti-eye';
+    }
+}
+</script>
+{% endif %}
 
 {% if user %}
 <div class="card mt-4">
