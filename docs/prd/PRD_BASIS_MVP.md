@@ -100,7 +100,7 @@ ev247/
 │       └── ...
 ├── migrations/               # Alembic Migrationen
 ├── instance/
-│   └── app.db                # SQLite Datenbank (Dev)
+│   └── ev247.db              # SQLite Datenbank
 ├── pyproject.toml            # Dependencies (uv)
 ├── uv.lock
 └── run.py                    # Entry Point
