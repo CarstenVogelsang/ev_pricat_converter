@@ -1,23 +1,80 @@
-{# Header-Sektion: Logo und Portal-Name #}
-{# Config: {"zeige_logo": true, "logo_url": null} #}
+{# Header-Sektion: Logo, Kontakt-Links und Browser-Link (PRD-013 Phase 5) #}
+{# Config: {"zeige_logo": true, "logo_url": null, "zeige_telefon": true, #}
+{#         "zeige_email_link": true, "zeige_browser_link": true} #}
+{# Benötigt: portal_name, betreiber (Kunde), branding, browser_link im Context #}
+
+{# Ermittle Kontakt-Links mit Fallbacks #}
+{% set telefon_nummer = betreiber.telefon if betreiber and betreiber.telefon else None %}
+{% set email_link = branding.kontaktformular_url if branding and branding.kontaktformular_url else None %}
+{# Fallback 1: betreiber.email #}
+{% if not email_link and betreiber and betreiber.email %}
+    {% set email_link = 'mailto:' ~ betreiber.email %}
+{% endif %}
+{# Fallback 2: betreiber.kontakt_email #}
+{% if not email_link and betreiber and betreiber.kontakt_email %}
+    {% set email_link = 'mailto:' ~ betreiber.kontakt_email %}
+{% endif %}
 
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <!-- Browser-Link Row (über dem Header) -->
+    {% if config.zeige_browser_link|default(true) and browser_link %}
     <tr>
-        <td style="padding: 30px 40px; background-color: #0066cc; text-align: center;">
-            {% if config.zeige_logo %}
-            {% if config.logo_url %}
-            <img src="{{ config.logo_url }}" alt="{{ portal_name }}" style="max-height: 50px; max-width: 200px;" />
-            {% else %}
-            <!-- Default: Text-Logo -->
-            <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+        <td style="padding: 8px 40px; background-color: #f5f5f5; text-align: center;">
+            <span style="font-family: Arial, sans-serif; font-size: 11px; color: #888888;">
+                E-Mail wird nicht korrekt angezeigt?
+                <a href="{{ browser_link }}" style="color: {{ branding.primary_color|default('#0066cc') }}; text-decoration: underline;">Im Browser öffnen</a>
+            </span>
+        </td>
+    </tr>
+    {% endif %}
+
+    <!-- Main Header -->
+    <tr>
+        <td style="padding: 25px 40px; background-color: {{ branding.primary_color|default('#0066cc') }};">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                 <tr>
-                    <td style="font-size: 28px; font-weight: bold; color: #ffffff; font-family: Arial, sans-serif;">
-                        {{ portal_name|default('ev247') }}
+                    <!-- Logo (links) -->
+                    <td style="vertical-align: middle;">
+                        {% if config.zeige_logo|default(true) %}
+                        {% if config.logo_url %}
+                        <img src="{{ config.logo_url }}" alt="{{ portal_name }}" style="max-height: 45px; max-width: 180px;" />
+                        {% elif branding and branding.logo_url %}
+                        <img src="{{ branding.logo_url }}" alt="{{ portal_name }}" style="max-height: 45px; max-width: 180px;" />
+                        {% else %}
+                        <!-- Fallback: Text-Logo -->
+                        <span style="font-size: 24px; font-weight: bold; color: {{ branding.light_text_color|default('#ffffff') }}; font-family: Arial, sans-serif;">
+                            {{ portal_name|default('ev247') }}
+                        </span>
+                        {% endif %}
+                        {% endif %}
+                    </td>
+
+                    <!-- Contact Links (rechts) -->
+                    <td style="text-align: right; vertical-align: middle;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin-left: auto;">
+                            <tr>
+                                {% if config.zeige_telefon|default(true) and telefon_nummer %}
+                                <td style="padding-left: 20px;">
+                                    <a href="tel:{{ telefon_nummer }}" style="color: {{ branding.light_text_color|default('#ffffff') }}; font-family: Arial, sans-serif; font-size: 13px; text-decoration: none;">
+                                        <!-- Telefon-Icon (Unicode) -->
+                                        <span style="font-size: 14px; margin-right: 4px;">&#128222;</span>{{ telefon_nummer }}
+                                    </a>
+                                </td>
+                                {% endif %}
+
+                                {% if config.zeige_email_link|default(true) and email_link %}
+                                <td style="padding-left: 20px;">
+                                    <a href="{{ email_link }}" style="color: {{ branding.light_text_color|default('#ffffff') }}; font-family: Arial, sans-serif; font-size: 13px; text-decoration: none;">
+                                        <!-- E-Mail-Icon (Unicode) -->
+                                        <span style="font-size: 14px; margin-right: 4px;">&#9993;</span>E-Mail
+                                    </a>
+                                </td>
+                                {% endif %}
+                            </tr>
+                        </table>
                     </td>
                 </tr>
             </table>
-            {% endif %}
-            {% endif %}
         </td>
     </tr>
 </table>

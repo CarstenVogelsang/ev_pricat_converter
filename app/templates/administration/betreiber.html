@@ -242,7 +242,7 @@
                     <hr>
 
                     <!-- Copyright -->
-                    <div>
+                    <div class="mb-4">
                         <h6 class="text-muted mb-3"><i class="ti ti-copyright"></i> Copyright {{ help_icon('admin.betreiber.branding.copyright') }}</h6>
                         <div class="mb-3">
                             <label for="copyright_text" class="form-label">Copyright-Text</label>
@@ -253,6 +253,32 @@
                             <label for="copyright_url" class="form-label">Link zur Website</label>
                             <input type="url" class="form-control" id="copyright_url" name="copyright_url"
                                    value="{{ branding.copyright_url }}" placeholder="https://www.e-vendo.de">
+                        </div>
+                    </div>
+                    <hr>
+
+                    <!-- Rechtliche Links (PRD-013) -->
+                    <div>
+                        <h6 class="text-muted mb-3"><i class="ti ti-gavel"></i> Rechtliche Links</h6>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="impressum_url" class="form-label">Impressum-URL</label>
+                                <input type="url" class="form-control" id="impressum_url" name="impressum_url"
+                                       value="{{ branding.impressum_url or '' }}" placeholder="https://www.example.de/impressum/">
+                                <div class="form-text">Wird im E-Mail-Footer verlinkt</div>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="datenschutz_url" class="form-label">Datenschutz-URL</label>
+                                <input type="url" class="form-control" id="datenschutz_url" name="datenschutz_url"
+                                       value="{{ branding.datenschutz_url or '' }}" placeholder="https://www.example.de/datenschutz/">
+                                <div class="form-text">Wird im E-Mail-Footer verlinkt</div>
+                            </div>
+                        </div>
+                        <div class="mb-0">
+                            <label for="kontaktformular_url" class="form-label">Kontaktformular-URL</label>
+                            <input type="url" class="form-control" id="kontaktformular_url" name="kontaktformular_url"
+                                   value="{{ branding.kontaktformular_url or '' }}" placeholder="https://www.example.de/kontakt/">
+                            <div class="form-text">Wird im E-Mail-Header als E-Mail-Link verwendet</div>
                         </div>
                     </div>
                 </div>

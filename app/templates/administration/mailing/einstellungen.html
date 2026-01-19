@@ -1,0 +1,340 @@
+{% extends "administration/base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Einstellungen - Kunden-Mailing - {{ branding.app_title }}{% endblock %}
+
+{% block admin_content %}
+{{ breadcrumb([
+    {'label': 'Administration', 'url': url_for('admin.index'), 'icon': 'ti-settings'},
+    {'label': 'Module', 'url': url_for('admin.module_uebersicht'), 'icon': 'ti-apps'},
+    {'label': 'Kunden-Mailing', 'url': url_for('mailing_admin.index'), 'icon': 'ti-mail'},
+    {'label': 'Einstellungen'}
+]) }}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h4>
+        <i class="ti ti-settings text-secondary"></i>
+        Kunden-Mailing - Einstellungen
+    </h4>
+    <a href="{{ url_for('mailing_admin.index') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="ti ti-arrow-left"></i> Zurück
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <form method="post">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+            <!-- Test-Versand: Empfänger-Auswahl -->
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span>
+                        <i class="ti ti-mail-forward"></i>
+                        Test-Versand Empfänger
+                    </span>
+                    <button type="submit" class="btn btn-primary btn-sm">
+                        <i class="ti ti-device-floppy"></i> Speichern
+                    </button>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted small mb-3">
+                        Wähle die Empfänger für Test-E-Mails. Test-Benutzer haben zugehörige
+                        Musterkunden, sodass alle Platzhalter (Briefanrede, Firmenname, etc.) aufgelöst werden können.
+                    </p>
+
+                    {% if test_benutzer or interne_user %}
+                    <div class="table-responsive">
+                        <table class="table table-sm table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th style="width: 40px;"></th>
+                                    <th>Name</th>
+                                    <th>E-Mail</th>
+                                    <th style="width: 80px;">Typ</th>
+                                    <th>Kunde</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {# Test-Benutzer (mit Musterkunden) #}
+                                {% for user in test_benutzer %}
+                                <tr>
+                                    <td>
+                                        <input type="checkbox" class="form-check-input"
+                                               name="test_empfaenger_ids[]"
+                                               value="{{ user.id }}"
+                                               {% if user.id in selected_ids %}checked{% endif %}>
+                                    </td>
+                                    <td>{{ user.full_name }}</td>
+                                    <td><code class="small">{{ user.email }}</code></td>
+                                    <td><span class="badge bg-info">Test</span></td>
+                                    <td>
+                                        {% if user.kunden %}
+                                            <span class="text-muted small">{{ user.kunden[0].firmierung }}</span>
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+
+                                {# Mitarbeiter/Admins (ohne Musterkunden) #}
+                                {% if interne_user %}
+                                    {% if test_benutzer %}
+                                    <tr class="table-secondary">
+                                        <td colspan="5" class="small py-1">
+                                            <i class="ti ti-users"></i> Interne Benutzer (keine Platzhalter-Auflösung)
+                                        </td>
+                                    </tr>
+                                    {% endif %}
+                                    {% for user in interne_user %}
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" class="form-check-input"
+                                                   name="test_empfaenger_ids[]"
+                                                   value="{{ user.id }}"
+                                                   {% if user.id in selected_ids %}checked{% endif %}>
+                                        </td>
+                                        <td>{{ user.full_name }}</td>
+                                        <td><code class="small">{{ user.email }}</code></td>
+                                        <td>
+                                            <span class="badge bg-{{ 'danger' if user.is_admin else 'warning' }}">
+                                                {{ user.rolle_obj.name|capitalize if user.rolle_obj else '?' }}
+                                            </span>
+                                        </td>
+                                        <td><span class="text-muted">-</span></td>
+                                    </tr>
+                                    {% endfor %}
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="ti ti-alert-triangle"></i>
+                        Keine Test-Benutzer gefunden. Führe <code>flask seed-test-users</code> aus,
+                        um Test-Benutzer mit Musterkunden anzulegen.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Brevo Rate-Limiting -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-send"></i>
+                    Brevo Rate-Limiting
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="brevo_tageslimit" class="form-label">
+                            Tageslimit E-Mails
+                        </label>
+                        <input type="number" class="form-control" id="brevo_tageslimit"
+                               name="mailing_brevo_tageslimit"
+                               value="{{ settings.brevo_tageslimit }}"
+                               min="1" max="10000">
+                        <div class="form-text">
+                            Maximale Anzahl E-Mails pro Tag (Brevo Free Plan: 300).
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- E-Mail Standardwerte -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-mail"></i>
+                    E-Mail Standardwerte
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="absender_email" class="form-label">
+                            Absender-E-Mail
+                        </label>
+                        <input type="email" class="form-control" id="absender_email"
+                               name="mailing_absender_email"
+                               value="{{ settings.absender_email }}"
+                               placeholder="Standard aus globalen Brevo-Einstellungen">
+                        <div class="form-text">
+                            Leer lassen, um globale Brevo-Einstellung zu verwenden.
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="absender_name" class="form-label">
+                            Absender-Name
+                        </label>
+                        <input type="text" class="form-control" id="absender_name"
+                               name="mailing_absender_name"
+                               value="{{ settings.absender_name }}"
+                               placeholder="Standard aus globalen Brevo-Einstellungen">
+                        <div class="form-text">
+                            Leer lassen, um globale Brevo-Einstellung zu verwenden.
+                        </div>
+                    </div>
+
+                    <hr>
+
+                    <div class="mb-3">
+                        <label for="footer_text" class="form-label">
+                            Footer-Text
+                        </label>
+                        <textarea class="form-control" id="footer_text"
+                                  name="mailing_footer_text"
+                                  rows="3"
+                                  placeholder="Optionaler Zusatztext im E-Mail-Footer">{{ settings.footer_text }}</textarea>
+                        <div class="form-text">
+                            Wird in jeder E-Mail im Footer angezeigt (z.B. Kontakt-Info, Disclaimer).
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Modul-Darstellung -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-palette"></i>
+                    Modul-Darstellung
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="modul_farbe" class="form-label">
+                            Modul-Farbe
+                        </label>
+                        <div class="input-group" style="max-width: 200px;">
+                            <input type="color" class="form-control form-control-color"
+                                   id="modul_farbe"
+                                   name="mailing_farbe"
+                                   value="{{ settings.farbe }}"
+                                   title="Modul-Farbe wählen">
+                            <input type="text" class="form-control" id="modul_farbe_hex"
+                                   value="{{ settings.farbe }}"
+                                   pattern="^#[0-9A-Fa-f]{6}$"
+                                   maxlength="7"
+                                   style="font-family: monospace;">
+                        </div>
+                        <div class="form-text">
+                            Farbe für Kacheln und Icons in der Modul-Übersicht.
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- CTA-Button Design -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <i class="ti ti-click"></i>
+                    CTA-Button Design
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label for="cta_button_farbe" class="form-label">
+                            Standard Button-Farbe
+                        </label>
+                        <div class="input-group" style="max-width: 200px;">
+                            <input type="color" class="form-control form-control-color"
+                                   id="cta_button_farbe"
+                                   name="mailing_cta_button_farbe"
+                                   value="{{ settings.cta_button_farbe }}"
+                                   title="Button-Farbe wählen">
+                            <input type="text" class="form-control" id="cta_button_farbe_hex"
+                                   value="{{ settings.cta_button_farbe }}"
+                                   pattern="^#[0-9A-Fa-f]{6}$"
+                                   maxlength="7"
+                                   style="font-family: monospace;">
+                        </div>
+                        <div class="form-text">
+                            Standard-Farbe für Fragebogen-CTA-Buttons in neuen Mailings.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <i class="ti ti-help"></i> Hinweise
+            </div>
+            <div class="card-body">
+                <h6>Test-Empfänger</h6>
+                <p class="small text-muted">
+                    <strong>Test-Benutzer</strong> haben zugeordnete Musterkunden.
+                    Dadurch können Platzhalter wie <code>{{ '{{' }} briefanrede {{ '}}' }}</code>
+                    und <code>{{ '{{' }} firmenname {{ '}}' }}</code> korrekt aufgelöst werden.
+                </p>
+                <p class="small text-muted mb-3">
+                    <strong>Interne Benutzer</strong> (Admin/Mitarbeiter) erhalten die E-Mail,
+                    aber ohne Platzhalter-Auflösung (Beispieldaten werden verwendet).
+                </p>
+
+                <hr>
+
+                <h6>Rate-Limiting</h6>
+                <p class="small text-muted">
+                    Brevo Free Plan limitiert auf 300 E-Mails pro Tag.
+                    Bei größeren Mailings werden diese automatisch in Batches aufgeteilt.
+                </p>
+
+                <hr>
+
+                <h6>Absender-Einstellungen</h6>
+                <p class="small text-muted">
+                    Diese Werte überschreiben die globalen Brevo-Einstellungen
+                    nur für Kunden-Mailings. Leer lassen, um die Standardwerte zu verwenden.
+                </p>
+
+                <hr>
+
+                <h6>Button-Design</h6>
+                <p class="small text-muted">
+                    Die Standard-Farbe wird bei neuen Mailings verwendet.
+                    Sie kann pro Mailing im Editor individuell angepasst werden.
+                </p>
+
+                <hr>
+
+                <h6>Modul-Farbe</h6>
+                <p class="small text-muted">
+                    Die Modul-Farbe wird für Kacheln und Icons in der
+                    Modul-Übersicht verwendet.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Sync color pickers with hex inputs
+document.addEventListener('DOMContentLoaded', function() {
+    // Helper to setup color picker sync
+    function setupColorPicker(pickerId, hexId) {
+        const colorPicker = document.getElementById(pickerId);
+        const hexInput = document.getElementById(hexId);
+
+        if (!colorPicker || !hexInput) return;
+
+        colorPicker.addEventListener('input', function() {
+            hexInput.value = colorPicker.value;
+        });
+
+        hexInput.addEventListener('input', function() {
+            if (/^#[0-9A-Fa-f]{6}$/.test(hexInput.value)) {
+                colorPicker.value = hexInput.value;
+            }
+        });
+
+        // Sync on form submit
+        hexInput.form.addEventListener('submit', function() {
+            colorPicker.value = hexInput.value;
+        });
+    }
+
+    // Setup both color pickers
+    setupColorPicker('modul_farbe', 'modul_farbe_hex');
+    setupColorPicker('cta_button_farbe', 'cta_button_farbe_hex');
+});
+</script>
+{% endblock %}

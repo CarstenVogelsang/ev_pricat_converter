@@ -7,7 +7,7 @@ from app.services.ftp_service import FTPService, FTPConfig, FTPResult
 from app.services.import_trigger import ImportTrigger, ImportResult
 from app.services.processor import Processor, ProcessingResult, ProcessingStep
 from app.services.storage_service import StorageService, S3Storage, LocalStorage, S3Config
-from app.services.branding_service import BrandingService, BrandingConfig
+from app.services.branding_service import BrandingService, BrandingConfig, get_branding_service
 from app.services.firecrawl_service import FirecrawlService, FirecrawlResult
 from app.services.logging_service import log_event, log_kritisch, log_hoch, log_mittel
 
@@ -54,7 +54,7 @@ __all__ = [
     # Storage Service
     'StorageService', 'S3Storage', 'LocalStorage', 'S3Config',
     # Branding Service
-    'BrandingService', 'BrandingConfig',
+    'BrandingService', 'BrandingConfig', 'get_branding_service',
     # Firecrawl Service
     'FirecrawlService', 'FirecrawlResult',
     # Logging Service

@@ -1,36 +1,106 @@
-{# Footer-Sektion: Abmelde-Link und optionaler Zusatztext #}
-{# Config: {"zeige_abmelde_link": true, "zusatz_text": null} #}
-{# Benötigt: abmelde_link im Context #}
+{# Footer-Sektion: Impressum, Links und Abmeldung (PRD-013 Phase 5) #}
+{# Config: {"zeige_abmelde_link": true, "zeige_persoenliche_daten_link": true, #}
+{#         "zeige_weiterempfehlen_link": true, "zusatz_text": null} #}
+{# Benötigt: abmelde_link, profil_link, empfehlen_link, betreiber, branding im Context #}
 
 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
     <tr>
-        <td style="padding: 20px 40px 30px 40px; background-color: #f5f5f5; border-top: 1px solid #e0e0e0;">
+        <td style="padding: 25px 40px 35px 40px; background-color: #f5f5f5; border-top: 1px solid #e0e0e0;">
             <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
                 {% if config.zusatz_text %}
+                <!-- Zusätzlicher Text -->
                 <tr>
-                    <td style="padding-bottom: 15px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #666666; text-align: center;">
+                    <td style="padding-bottom: 20px; font-family: Arial, sans-serif; font-size: 14px; line-height: 1.5; color: #666666; text-align: center;">
                         {{ config.zusatz_text|safe }}
                     </td>
                 </tr>
                 {% endif %}
 
+                <!-- Action Links (Abmelden, Profil, Weiterempfehlen) -->
                 <tr>
-                    <td style="font-family: Arial, sans-serif; font-size: 12px; color: #999999; text-align: center;">
-                        <p style="margin: 0 0 10px 0;">
-                            Diese E-Mail wurde an <strong>{{ email }}</strong> gesendet.
-                        </p>
+                    <td style="padding-bottom: 20px; text-align: center;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin: 0 auto;">
+                            <tr>
+                                {% if config.zeige_abmelde_link|default(true) and abmelde_link %}
+                                <td style="padding: 0 15px;">
+                                    <a href="{{ abmelde_link }}" style="font-family: Arial, sans-serif; font-size: 13px; color: #666666; text-decoration: underline;">
+                                        Newsletter abmelden
+                                    </a>
+                                </td>
+                                {% endif %}
+                                {% if config.zeige_persoenliche_daten_link|default(true) and profil_link %}
+                                <td style="padding: 0 15px; border-left: 1px solid #cccccc;">
+                                    <a href="{{ profil_link }}" style="font-family: Arial, sans-serif; font-size: 13px; color: #666666; text-decoration: underline;">
+                                        Persönliche Daten
+                                    </a>
+                                </td>
+                                {% endif %}
+                                {% if config.zeige_weiterempfehlen_link|default(true) and empfehlen_link %}
+                                <td style="padding: 0 15px; border-left: 1px solid #cccccc;">
+                                    <a href="{{ empfehlen_link }}" style="font-family: Arial, sans-serif; font-size: 13px; color: {{ branding.primary_color|default('#0066cc') }}; text-decoration: underline;">
+                                        Weiterempfehlen
+                                    </a>
+                                </td>
+                                {% endif %}
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
 
-                        {% if config.zeige_abmelde_link|default(true) and abmelde_link %}
-                        <p style="margin: 0;">
-                            <a href="{{ abmelde_link }}" style="color: #666666; text-decoration: underline;">
-                                Vom Newsletter abmelden
-                            </a>
-                        </p>
+                <!-- Sent-to Info -->
+                <tr>
+                    <td style="padding-bottom: 20px; font-family: Arial, sans-serif; font-size: 12px; color: #999999; text-align: center;">
+                        Diese E-Mail wurde an <strong>{{ email }}</strong> gesendet.
+                    </td>
+                </tr>
+
+                <!-- Impressum Block -->
+                {% if betreiber %}
+                <tr>
+                    <td style="padding: 15px; background-color: #eeeeee; border-radius: 6px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                            <tr>
+                                <td style="font-family: Arial, sans-serif; font-size: 11px; line-height: 1.6; color: #777777; text-align: center;">
+                                    <strong>{{ betreiber.firmierung }}</strong><br>
+                                    {% if betreiber.strasse %}{{ betreiber.strasse }}, {% endif %}
+                                    {% if betreiber.plz %}{{ betreiber.plz }} {% endif %}
+                                    {% if betreiber.ort %}{{ betreiber.ort }}{% endif %}
+                                    {% if betreiber.telefon %}<br>Tel: {{ betreiber.telefon }}{% endif %}
+                                    {% if betreiber.email %} | E-Mail: {{ betreiber.email }}{% endif %}
+                                    {% if betreiber.handelsregister_info %}<br>{{ betreiber.handelsregister_info }}{% endif %}
+                                    {% if betreiber.umsatzsteuer_id %} | USt-IdNr: {{ betreiber.umsatzsteuer_id }}{% endif %}
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                {% endif %}
+
+                <!-- Legal Links + Copyright -->
+                <tr>
+                    <td style="padding-top: 15px; font-family: Arial, sans-serif; font-size: 11px; color: #999999; text-align: center;">
+                        <!-- Legal Links -->
+                        {% if branding.impressum_url or branding.datenschutz_url %}
+                        <span style="margin-bottom: 8px; display: inline-block;">
+                            {% if branding.impressum_url %}
+                            <a href="{{ branding.impressum_url }}" style="color: #888888; text-decoration: underline;">Impressum</a>
+                            {% endif %}
+                            {% if branding.impressum_url and branding.datenschutz_url %} | {% endif %}
+                            {% if branding.datenschutz_url %}
+                            <a href="{{ branding.datenschutz_url }}" style="color: #888888; text-decoration: underline;">Datenschutz</a>
+                            {% endif %}
+                        </span><br>
                         {% endif %}
 
-                        <p style="margin: 15px 0 0 0; font-size: 11px; color: #cccccc;">
-                            &copy; {{ jahr|default('2026') }} e-vendo AG
-                        </p>
+                        <!-- Copyright -->
+                        <span style="color: #bbbbbb;">
+                            &copy; {{ jahr|default('2026') }}
+                            {% if branding.copyright_url %}
+                            <a href="{{ branding.copyright_url }}" style="color: #bbbbbb; text-decoration: none;">{{ branding.copyright_text|default('e-vendo AG') }}</a>
+                            {% else %}
+                            {{ branding.copyright_text|default('e-vendo AG') }}
+                            {% endif %}
+                        </span>
                     </td>
                 </tr>
             </table>

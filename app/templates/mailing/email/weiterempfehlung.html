@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ mailing.titel }} - Empfehlung</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8f9fa; font-family: Arial, sans-serif;">
+    <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8f9fa;">
+        <tr>
+            <td align="center" style="padding: 40px 20px;">
+                <!-- Main Container -->
+                <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+
+                    <!-- Header -->
+                    <tr>
+                        <td style="padding: 30px; background-color: {{ branding.primary_color|default('#0066cc') }}; text-align: center;">
+                            {% if branding.logo_url %}
+                            <img src="{{ branding.logo_url }}" alt="{{ branding.app_title|default('ev247') }}" style="max-height: 45px;">
+                            {% else %}
+                            <span style="font-size: 24px; font-weight: bold; color: #ffffff;">
+                                {{ branding.app_title|default('ev247') }}
+                            </span>
+                            {% endif %}
+                        </td>
+                    </tr>
+
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px;">
+                            <h1 style="margin: 0 0 20px 0; font-size: 24px; color: #333333;">
+                                Eine Empfehlung für Sie!
+                            </h1>
+
+                            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #555555;">
+                                {% if empfaenger_vorname %}Hallo {{ empfaenger_vorname }},{% else %}Hallo,{% endif %}
+                            </p>
+
+                            <p style="margin: 0 0 20px 0; font-size: 16px; line-height: 1.6; color: #555555;">
+                                <strong>{{ empfehler_name }}</strong> findet diesen Newsletter interessant und möchte ihn mit Ihnen teilen:
+                            </p>
+
+                            <!-- Newsletter Info Box -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8f9fa; border-radius: 8px; margin: 20px 0;">
+                                <tr>
+                                    <td style="padding: 25px;">
+                                        <h2 style="margin: 0 0 10px 0; font-size: 20px; color: {{ branding.primary_color|default('#0066cc') }};">
+                                            {{ mailing.titel }}
+                                        </h2>
+                                        <p style="margin: 0; font-size: 14px; color: #666666;">
+                                            {{ mailing.betreff }}
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            {% if kommentar %}
+                            <!-- Personal Comment -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-left: 4px solid {{ branding.primary_color|default('#0066cc') }}; margin: 20px 0;">
+                                <tr>
+                                    <td style="padding: 15px 20px;">
+                                        <p style="margin: 0 0 10px 0; font-size: 14px; font-style: italic; color: #666666;">
+                                            "{{ kommentar }}"
+                                        </p>
+                                        <p style="margin: 0; font-size: 13px; color: #888888;">
+                                            — {{ empfehler_name }}
+                                        </p>
+                                    </td>
+                                </tr>
+                            </table>
+                            {% endif %}
+
+                            <!-- CTA Button -->
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin: 30px 0;">
+                                <tr>
+                                    <td align="center">
+                                        <a href="{{ browser_link }}"
+                                           style="display: inline-block; padding: 16px 40px; background-color: {{ branding.primary_color|default('#0066cc') }}; color: #ffffff; font-size: 16px; font-weight: bold; text-decoration: none; border-radius: 8px;">
+                                            Newsletter ansehen
+                                        </a>
+                                    </td>
+                                </tr>
+                            </table>
+
+                            <p style="margin: 20px 0 0 0; font-size: 13px; line-height: 1.6; color: #888888; text-align: center;">
+                                Falls der Button nicht funktioniert:<br>
+                                <a href="{{ browser_link }}" style="color: {{ branding.primary_color|default('#0066cc') }};">{{ browser_link }}</a>
+                            </p>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="padding: 25px; background-color: #f5f5f5; border-top: 1px solid #e0e0e0; text-align: center;">
+                            <p style="margin: 0 0 15px 0; font-size: 12px; color: #999999;">
+                                Dies ist eine einmalige E-Mail aufgrund einer Empfehlung.<br>
+                                Sie wurden dadurch keinem Newsletter hinzugefügt.
+                            </p>
+                            <p style="margin: 0; font-size: 11px; color: #cccccc;">
+                                &copy; {{ now().year }}
+                                {% if branding.copyright_url %}
+                                <a href="{{ branding.copyright_url }}" style="color: #cccccc; text-decoration: none;">{{ branding.copyright_text|default('e-vendo AG') }}</a>
+                                {% else %}
+                                {{ branding.copyright_text|default('e-vendo AG') }}
+                                {% endif %}
+                            </p>
+                        </td>
+                    </tr>
+
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

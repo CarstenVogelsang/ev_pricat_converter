@@ -70,13 +70,25 @@ admin_bp = Blueprint('admin', __name__)
 
 
 # ============================================================================
-# System Overview (NEW)
+# Admin Index - Redirect to Module Overview
 # ============================================================================
 
 @admin_bp.route('/')
 @login_required
 @admin_required
 def index():
+    """Redirect to module overview (default admin view)."""
+    return redirect(url_for('admin.module_uebersicht'))
+
+
+# ============================================================================
+# System Overview
+# ============================================================================
+
+@admin_bp.route('/system')
+@login_required
+@admin_required
+def system():
     """Admin system overview page."""
     # Database status
     db_status = True
@@ -120,8 +132,22 @@ def index():
 @login_required
 @admin_required
 def module_uebersicht():
-    """Module administration overview with tiles."""
-    return render_template('administration/module_uebersicht.html', admin_tab='module')
+    """Module administration overview with tiles - loads from Modul model."""
+    from app.models import Modul
+
+    # Load all active modules that should be shown in admin overview
+    # Filtered by: aktiv=True and has a route_endpoint (excluding invisible base modules)
+    module = Modul.query.filter(
+        Modul.aktiv == True,
+        Modul.route_endpoint.isnot(None),
+        Modul.code != 'administration'  # Don't show admin module on admin page
+    ).order_by(Modul.sort_order).all()
+
+    return render_template(
+        'administration/module_uebersicht.html',
+        admin_tab='module',
+        module=module
+    )
 
 
 @admin_bp.route('/stammdaten-uebersicht')
@@ -339,6 +365,42 @@ def content_generator():
 
 
 # ============================================================================
+# Generische Modul-Einstellungen (basierend auf Modul Model)
+# ============================================================================
+
+@admin_bp.route('/modul/<code>/einstellungen', methods=['GET', 'POST'])
+@login_required
+@admin_required
+def modul_einstellungen(code):
+    """Generic module settings page - edit Modul model properties."""
+    from app.models import Modul
+
+    modul = Modul.query.filter_by(code=code).first_or_404()
+
+    if request.method == 'POST':
+        # Update module properties from form
+        if 'color_hex' in request.form:
+            modul.color_hex = request.form['color_hex']
+        if 'icon' in request.form:
+            modul.icon = request.form['icon']
+        # Only allow toggling aktiv for non-basis modules
+        if not modul.ist_basis and 'aktiv' in request.form:
+            modul.aktiv = request.form.get('aktiv') == 'on'
+        elif not modul.ist_basis and 'aktiv' not in request.form:
+            modul.aktiv = False
+
+        db.session.commit()
+        flash('Einstellungen gespeichert', 'success')
+        return redirect(url_for('admin.modul_einstellungen', code=code))
+
+    return render_template(
+        'administration/modul_einstellungen.html',
+        modul=modul,
+        admin_tab='module'
+    )
+
+
+# ============================================================================
 # Health Checks
 # ============================================================================
 
@@ -454,6 +516,11 @@ def betreiber():
             _update_config('brand_light_text_color', request.form.get('light_text_color', '#ffffff'))
             _update_config('copyright_text', request.form.get('copyright_text', ''))
             _update_config('copyright_url', request.form.get('copyright_url', ''))
+
+            # Handle legal URLs (PRD-013)
+            _update_config('betreiber_impressum_url', request.form.get('impressum_url', ''))
+            _update_config('betreiber_datenschutz_url', request.form.get('datenschutz_url', ''))
+            _update_config('betreiber_kontaktformular_url', request.form.get('kontaktformular_url', ''))
 
             # Handle font settings
             _update_config('brand_font_family', request.form.get('font_family', 'Inter'))
@@ -1663,8 +1730,12 @@ def email_template_preview(id):
     kunde_id = request.args.get('kunde_id', type=int)
     kunde = Kunde.query.get(kunde_id) if kunde_id else None
 
-    # Alle aktiven Kunden für Dropdown laden
-    kunden = Kunde.query.filter_by(aktiv=True).order_by(Kunde.firmierung).all()
+    # Alle aktiven Kunden für Dropdown laden (exclude test customers)
+    from app.models.kunde import KundeTyp
+    kunden = Kunde.query.filter(
+        Kunde.aktiv == True,
+        Kunde.typ != KundeTyp.TESTKUNDE.value
+    ).order_by(Kunde.firmierung).all()
 
     # Context mit Kundendaten oder Beispieldaten
     sample_context = {}

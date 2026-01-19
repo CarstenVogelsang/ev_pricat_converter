@@ -62,7 +62,9 @@ def index():
 def projekt_neu():
     """Create a new project."""
     from app.models import Kunde
-    kunden = Kunde.query.order_by(Kunde.firmierung).all()
+    from app.models.kunde import KundeTyp
+    # Exclude test customers from dropdown
+    kunden = Kunde.query.filter(Kunde.typ != KundeTyp.TESTKUNDE.value).order_by(Kunde.firmierung).all()
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()
@@ -216,7 +218,9 @@ def projekt_bearbeiten(id):
     """Edit a project."""
     projekt = Projekt.query.get_or_404(id)
     from app.models import Kunde
-    kunden = Kunde.query.order_by(Kunde.firmierung).all()
+    from app.models.kunde import KundeTyp
+    # Exclude test customers from dropdown
+    kunden = Kunde.query.filter(Kunde.typ != KundeTyp.TESTKUNDE.value).order_by(Kunde.firmierung).all()
 
     if request.method == 'POST':
         name = request.form.get('name', '').strip()

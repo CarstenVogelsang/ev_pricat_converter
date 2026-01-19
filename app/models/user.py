@@ -100,6 +100,11 @@ class User(UserMixin, db.Model):
         return self.is_admin or self.is_mitarbeiter
 
     @property
+    def is_test_benutzer(self):
+        """Check if user is a test user (for mailing tests)."""
+        return self.rolle_obj and self.rolle_obj.name == 'test_benutzer'
+
+    @property
     def is_ki(self):
         """Check if user is an AI agent."""
         return self.user_typ in UserTyp.ki_typen()

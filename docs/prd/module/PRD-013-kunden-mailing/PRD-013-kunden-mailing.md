@@ -7,7 +7,7 @@
 | **Modul-ID** | PRD-013 |
 | **Name** | Kunden-Mailing |
 | **Status** | In Entwicklung |
-| **Version** | 1.0.0 |
+| **Version** | 1.4.0 |
 | **Erstellt** | 2026-01-13 |
 
 ## Zusammenfassung
@@ -215,6 +215,14 @@ Neuer Service in `app/services/mailing_service.py`:
 | `{{ email }}` | E-Mail-Adresse | "hans@mueller.de" |
 | `{{ fragebogen_link }}` | Magic-Link zum Fragebogen | (auto-generiert) |
 | `{{ abmelde_link }}` | Link zur Abmeldung | (auto-generiert) |
+| `{{ profil_link }}` | Link zur Profil-Seite | `/m/profil/<token>` |
+| `{{ empfehlen_link }}` | Link zum Weiterempfehlungs-Formular | `/m/empfehlen/<token>` |
+| `{{ browser_link }}` | Link zur Browser-Ansicht | `/m/browser/<token>` |
+| `{{ cta_link }}` | Berechneter CTA-Link | Fragebogen oder externe URL |
+| `{{ portal_name }}` | Name des Portals | "ev247" |
+| `{{ jahr }}` | Aktuelles Jahr | "2026" |
+| `{{ betreiber }}` | Betreiber-Kunde-Objekt | (Objekt mit Adresse, etc.) |
+| `{{ branding }}` | Branding-Konfiguration | (Objekt mit Logo, Farben, etc.) |
 
 ---
 
@@ -252,6 +260,10 @@ Prefix: `/m/`
 | `/t/<token>` | GET | `track_click` | Klick-Tracking + Redirect |
 | `/abmelden/<token>` | GET | `abmelden` | Abmelde-Seite |
 | `/abmelden/<token>` | POST | `abmelden_confirm` | Abmeldung durchführen |
+| `/profil/<token>` | GET | `profil` | Persönliche Daten anzeigen |
+| `/empfehlen/<token>` | GET | `empfehlen` | Weiterempfehlungs-Formular |
+| `/empfehlen/<token>` | POST | `empfehlen_submit` | Weiterempfehlung senden |
+| `/browser/<token>` | GET | `browser_ansicht` | Mailing im Browser anzeigen |
 
 ---
 
@@ -278,10 +290,13 @@ app/templates/mailing_admin/
 ```
 app/templates/mailing/email/
 ├── base.html                   # E-Mail-Wrapper (Branding)
-├── sektion_header.html         # Logo + Portal-Name
+├── sektion_header.html         # Logo, Kontakt-Links, Browser-Link
+├── sektion_hero.html           # Headline, Subline, opt. Bild
 ├── sektion_text_bild.html      # Freier Content mit opt. Bild
-├── sektion_fragebogen_cta.html # CTA-Button zum Fragebogen
-└── sektion_footer.html         # Kontakt + Abmelde-Link
+├── sektion_fragebogen_cta.html # Legacy CTA-Button (wird von cta_button ersetzt)
+├── sektion_cta_button.html     # Universeller CTA-Button (Fragebogen oder extern)
+├── sektion_footer.html         # Impressum, Abmelde-Link, Profil, Weiterempfehlen
+└── weiterempfehlung.html       # E-Mail für Weiterempfehlungen
 ```
 
 ### Öffentliche Templates
@@ -289,7 +304,11 @@ app/templates/mailing/email/
 ```
 app/templates/mailing/
 ├── abmelden.html       # Abmelde-Bestätigung
-└── abgemeldet.html     # Erfolgs-Seite nach Abmeldung
+├── abgemeldet.html     # Erfolgs-Seite nach Abmeldung
+├── fehler.html         # Fehlerseite für ungültige Links
+├── profil.html         # Persönliche Daten anzeigen
+├── empfehlen.html      # Weiterempfehlungs-Formular
+└── empfohlen.html      # Erfolgsseite nach Empfehlung
 ```
 
 ---
@@ -401,10 +420,23 @@ Jede E-Mail enthält im Footer einen Abmelde-Link:
 
 ### Phase 4: Tracking & Statistik
 
-- [ ] Tracking-Token System
-- [ ] Klick-Tracking Route
-- [ ] Statistik-Ansicht
-- [ ] Modul-Übersicht Integration
+- [x] Tracking-Token System
+- [x] Klick-Tracking Route
+- [x] Statistik-Ansicht
+- [x] Modul-Übersicht Integration
+
+### Phase 5: Editor-Erweiterung & Öffentliche Seiten
+
+- [x] Flyout-UI statt Modals (Bootstrap Offcanvas)
+- [x] Hero-Sektion (Headline, Subline, Bild, Hintergrundfarbe)
+- [x] CTA-Button vereinheitlicht (Fragebogen oder externe URL)
+- [x] Header erweitert (Browser-Link, Telefon, E-Mail-Link)
+- [x] Footer erweitert (Impressum-Block, Profil-Link, Weiterempfehlen-Link)
+- [x] Öffentliche Profil-Seite (`/m/profil/<token>`)
+- [x] Weiterempfehlungs-Formular (`/m/empfehlen/<token>`)
+- [x] Browser-Ansicht (`/m/browser/<token>`)
+- [x] DB-Erweiterung: Kunde.handelsregister_info, Kunde.umsatzsteuer_id
+- [x] Config-Keys: betreiber_impressum_url, betreiber_datenschutz_url, betreiber_kontaktformular_url
 
 ---
 
@@ -431,6 +463,17 @@ Jede E-Mail enthält im Footer einen Abmelde-Link:
 
 ### Phase 4
 
-- [ ] Klicks auf Fragebogen-Link werden erfasst
-- [ ] Statistik zeigt versendet/geklickt/abgemeldet
-- [ ] Modul-Übersicht zeigt Mailing-Kachel
+- [x] Klicks auf Fragebogen-Link werden erfasst
+- [x] Statistik zeigt versendet/geklickt/abgemeldet
+- [x] Modul-Übersicht zeigt Mailing-Kachel
+
+### Phase 5
+
+- [x] Flyout öffnet/schließt smooth (statt Modal)
+- [x] Alle 5 Sektionstypen im Dropdown sichtbar
+- [x] Hero-Sektion kann hinzugefügt und bearbeitet werden
+- [x] CTA-Button mit Fragebogen- und externe-URL-Auswahl
+- [x] Footer zeigt Impressum-Daten
+- [x] Profil-Seite zeigt Kundendaten
+- [x] Weiterempfehlen-Formular sendet E-Mail
+- [x] Browser-Ansicht zeigt vollständiges Mailing

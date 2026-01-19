@@ -77,6 +77,12 @@ from app.models.mailing import (
     MailingStatus, EmpfaengerStatus
 )
 
+# Global Media Library
+from app.models.medium import Medium, MediumTyp
+
+# Admin Page Visit Tracking
+from app.models.page_visit import AdminPageVisit
+
 __all__ = [
     'Lieferant', 'Hersteller', 'Marke', 'Config',
     'Rolle', 'User', 'UserTyp',
@@ -121,4 +127,8 @@ __all__ = [
     # Kunden-Mailing Module (PRD-013)
     'Mailing', 'MailingEmpfaenger', 'MailingKlick', 'MailingZielgruppe',
     'MailingStatus', 'EmpfaengerStatus',
+    # Global Media Library
+    'Medium', 'MediumTyp',
+    # Admin Page Visit Tracking
+    'AdminPageVisit',
 ]

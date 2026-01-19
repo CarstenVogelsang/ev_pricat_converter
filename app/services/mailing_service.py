@@ -16,8 +16,11 @@ from typing import Optional, List, Dict, Any
 
 from flask import url_for, render_template
 from jinja2 import Template
+from urllib.parse import quote
+import markdown
 
 from app import db
+from app.services.email_service import EmailResult
 from app.models import (
     Mailing, MailingEmpfaenger, MailingKlick, MailingZielgruppe,
     MailingStatus, EmpfaengerStatus,
@@ -25,8 +28,15 @@ from app.models import (
 )
 
 
-# Valid section types for the Baukasten system
-VALID_SEKTION_TYPEN = ['header', 'text_bild', 'fragebogen_cta', 'footer']
+# Valid section types for the Mailing-Editor (PRD-013 Phase 5)
+VALID_SEKTION_TYPEN = [
+    'header',        # Logo, Telefon, Kontakt-Links
+    'hero',          # Headline, Subline, Bild
+    'text_bild',     # Freitext mit optionalem Bild
+    'cta_button',    # CTA mit Fragebogen oder externer URL
+    'fragebogen_cta',  # Legacy: wird zu cta_button migriert
+    'footer',        # Impressum, Abmelden, Weiterempfehlen
+]
 
 # Personalization placeholders available in email content
 PERSONALISIERUNG_FELDER = {
@@ -421,7 +431,12 @@ class MailingService:
             Rendered HTML string
         """
         typ = sektion.get('typ')
-        config = sektion.get('config', {})
+        config = sektion.get('config', {}).copy()
+
+        # Markdown → HTML Konvertierung für text_bild Sektionen (PRD-013 Phase 5c)
+        if typ == 'text_bild' and config.get('inhalt_html'):
+            md = markdown.Markdown(extensions=['nl2br', 'extra'])
+            config['inhalt_html'] = md.convert(config['inhalt_html'])
 
         template_name = f'mailing/email/sektion_{typ}.html'
 
@@ -435,28 +450,110 @@ class MailingService:
             # Fallback for missing templates during development
             return f'<!-- Sektion {typ} -->'
 
-    def get_sample_context(self) -> Dict[str, Any]:
+    def get_or_create_preview_empfaenger(self, mailing: Mailing) -> Optional[MailingEmpfaenger]:
+        """Get or create a preview empfaenger for the mailing.
+
+        Uses the Betreiber (Systemkunde) as the preview recipient.
+        This allows preview links to function properly.
+
+        Args:
+            mailing: Mailing to create preview for
+
+        Returns:
+            MailingEmpfaenger for preview, or None if no Betreiber exists
+        """
+        # Get Betreiber (Systemkunde)
+        betreiber = Kunde.query.filter_by(ist_systemkunde=True).first()
+        if not betreiber:
+            return None
+
+        # Check if preview empfaenger already exists
+        preview = MailingEmpfaenger.query.filter_by(
+            mailing_id=mailing.id,
+            kunde_id=betreiber.id
+        ).first()
+
+        if not preview:
+            # Create preview empfaenger
+            preview = MailingEmpfaenger.create_for_kunde(mailing.id, betreiber.id)
+            db.session.add(preview)
+            db.session.commit()
+
+        return preview
+
+    def get_sample_context(self, mailing: Mailing = None) -> Dict[str, Any]:
         """Get sample data for email preview.
+
+        Args:
+            mailing: Optional mailing to create preview empfaenger for
 
         Returns:
             Dict with sample personalization values
         """
+        from app.services import get_branding_service
+
+        branding_service = get_branding_service()
+        branding = branding_service.get_branding_dict()
+
+        # Get Betreiber (Systemkunde)
+        betreiber = Kunde.query.filter_by(ist_systemkunde=True).first()
+
+        # Get or create preview empfaenger for working links
+        preview_links = {
+            'fragebogen_link': '#preview-fragebogen',
+            'abmelde_link': '#preview-abmelden',
+            'profil_link': '#preview-profil',
+            'empfehlen_link': '#preview-empfehlen',
+            'browser_link': '#preview-browser',
+            'cta_link': '#preview-cta',
+        }
+
+        if mailing:
+            preview = self.get_or_create_preview_empfaenger(mailing)
+            if preview:
+                # Generate real URLs with the preview token
+                preview_links['abmelde_link'] = url_for('mailing.abmelden',
+                                                         token=preview.tracking_token,
+                                                         _external=True)
+                preview_links['profil_link'] = url_for('mailing.profil',
+                                                        token=preview.tracking_token,
+                                                        _external=True)
+                preview_links['empfehlen_link'] = url_for('mailing.empfehlen',
+                                                           token=preview.tracking_token,
+                                                           _external=True)
+                preview_links['browser_link'] = url_for('mailing.browser_ansicht',
+                                                         token=preview.tracking_token,
+                                                         _external=True)
+
+                # Fragebogen link (if linked)
+                if mailing.fragebogen_id:
+                    self.ensure_fragebogen_teilnahme(mailing, preview)
+                    if preview.fragebogen_teilnahme:
+                        preview_links['fragebogen_link'] = self.generate_tracking_url(
+                            preview, 'fragebogen'
+                        )
+                        preview_links['cta_link'] = preview_links['fragebogen_link']
+
         return {
             'briefanrede': 'Sehr geehrter Herr Mustermann',
             'firmenname': 'Musterfirma GmbH',
             'vorname': 'Max',
             'nachname': 'Mustermann',
             'email': 'max@musterfirma.de',
-            'fragebogen_link': '#preview-fragebogen',
-            'abmelde_link': '#preview-abmelden',
-            'portal_name': 'ev247',
+            # Tracking links (real if mailing provided, else placeholders)
+            **preview_links,
+            # Context
+            'portal_name': branding.get('app_title', 'ev247'),
             'jahr': str(datetime.now().year),
+            'betreiber': betreiber,
+            'branding': branding,
         }
 
     def render_mailing_html(
         self,
         mailing: Mailing,
         kunde: Kunde = None,
+        empfaenger: 'MailingEmpfaenger' = None,
         fragebogen_link: str = None,
         abmelde_link: str = None,
         preview_mode: bool = False
@@ -466,6 +563,7 @@ class MailingService:
         Args:
             mailing: Mailing to render
             kunde: Recipient Kunde (None for preview mode)
+            empfaenger: MailingEmpfaenger for tracking token (optional)
             fragebogen_link: Optional pre-generated fragebogen magic-link
             abmelde_link: Optional pre-generated opt-out link
             preview_mode: If True, use sample data instead of kunde
@@ -473,6 +571,14 @@ class MailingService:
         Returns:
             Complete rendered HTML email
         """
+        from app.services import get_branding_service
+
+        branding_service = get_branding_service()
+        branding = branding_service.get_branding_dict()
+
+        # Get Betreiber (Systemkunde)
+        betreiber = Kunde.query.filter_by(ist_systemkunde=True).first()
+
         # Build personalization context
         if preview_mode or not kunde:
             context = self.get_sample_context()
@@ -480,16 +586,47 @@ class MailingService:
             context = self.get_personalisierung_context(kunde)
             context['fragebogen_link'] = fragebogen_link or '#'
             context['abmelde_link'] = abmelde_link or '#'
+            context['betreiber'] = betreiber
+            context['branding'] = branding
+
+            # Generate additional tracking URLs if empfaenger provided
+            if empfaenger:
+                context['profil_link'] = url_for('mailing.profil',
+                                                  token=empfaenger.tracking_token,
+                                                  _external=True)
+                context['empfehlen_link'] = url_for('mailing.empfehlen',
+                                                     token=empfaenger.tracking_token,
+                                                     _external=True)
+                context['browser_link'] = url_for('mailing.browser_ansicht',
+                                                   token=empfaenger.tracking_token,
+                                                   _external=True)
+            else:
+                context['profil_link'] = '#'
+                context['empfehlen_link'] = '#'
+                context['browser_link'] = '#'
 
         # Add portal info
-        context['portal_name'] = context.get('portal_name', 'ev247')
-        context['jahr'] = context.get('jahr', str(datetime.now().year))
+        context['portal_name'] = branding.get('app_title', 'ev247')
+        context['jahr'] = str(datetime.now().year)
         context['betreff'] = mailing.betreff
 
-        # Render each section
+        # Render each section with section-specific context
         rendered_sektionen = []
         for sektion in mailing.sektionen:
-            rendered = self.render_sektion(sektion, context)
+            sektion_context = context.copy()
+
+            # Calculate CTA link based on section config (for cta_button type)
+            if sektion.get('typ') == 'cta_button':
+                sektion_context['cta_link'] = self._get_cta_link(
+                    sektion.get('config', {}),
+                    mailing,
+                    context.get('fragebogen_link')
+                )
+            elif sektion.get('typ') == 'fragebogen_cta':
+                # Legacy: Use fragebogen_link
+                sektion_context['cta_link'] = context.get('fragebogen_link', '#')
+
+            rendered = self.render_sektion(sektion, sektion_context)
             rendered_sektionen.append(rendered)
 
         # Combine all sections into content
@@ -506,6 +643,36 @@ class MailingService:
         except Exception:
             # Fallback during development
             return content
+
+    def _get_cta_link(
+        self,
+        config: Dict[str, Any],
+        mailing: Mailing,
+        fragebogen_link: str
+    ) -> str:
+        """Calculate the CTA link based on config.
+
+        Args:
+            config: CTA section config
+            mailing: Mailing for fragebogen lookup
+            fragebogen_link: Pre-generated fragebogen link
+
+        Returns:
+            URL for the CTA button
+        """
+        link_typ = config.get('link_typ', 'fragebogen')
+
+        if link_typ == 'extern':
+            return config.get('externe_url', '#')
+
+        # Fragebogen link
+        fragebogen_id = config.get('fragebogen_id')
+        if fragebogen_id and fragebogen_link:
+            return fragebogen_link
+        elif mailing.fragebogen_id and fragebogen_link:
+            return fragebogen_link
+
+        return '#'
 
     # ========== Fragebogen Integration ==========
 
@@ -633,6 +800,222 @@ class MailingService:
             batch_size=min(pending, daily_limit),
             batches_needed=batches_needed,
             can_send_all=pending <= daily_limit
+        )
+
+    # ========== Versand ==========
+
+    def generate_tracking_url(
+        self,
+        empfaenger: MailingEmpfaenger,
+        link_typ: str,
+        target_url: str = None
+    ) -> str:
+        """Generate a tracking URL for click tracking.
+
+        Args:
+            empfaenger: Recipient with tracking_token
+            link_typ: Type of link ('fragebogen', 'abmelden', 'custom')
+            target_url: Target URL for custom links
+
+        Returns:
+            Tracking URL that will redirect to target after recording click
+        """
+        base_url = url_for('mailing.track_click',
+                           token=empfaenger.tracking_token,
+                           _external=True)
+
+        if link_typ == 'fragebogen':
+            return f"{base_url}?typ=fragebogen"
+        elif link_typ == 'abmelden':
+            return f"{base_url}?typ=abmelden"
+        else:
+            encoded_url = quote(target_url, safe='')
+            return f"{base_url}?typ=custom&url={encoded_url}"
+
+    def send_test_email(
+        self,
+        mailing: Mailing,
+        to_email: str,
+        kunde: 'Kunde' = None,
+        to_name: str = None
+    ) -> EmailResult:
+        """Send a test email to a specified address.
+
+        Args:
+            mailing: Mailing to test
+            to_email: Email address to send test to
+            kunde: Optional Kunde for real placeholder resolution
+            to_name: Optional recipient name
+
+        Returns:
+            EmailResult with success/failure info
+
+        If kunde is provided, placeholders like {{ briefanrede }} and
+        {{ firmenname }} are resolved with real data. Otherwise,
+        sample data is used (preview_mode=True).
+        """
+        from app.services import get_brevo_service
+
+        brevo = get_brevo_service()
+
+        # Render with real kunde data or sample context
+        if kunde:
+            # Use real kunde data for placeholder resolution
+            html_content = self.render_mailing_html(
+                mailing,
+                kunde=kunde,
+                preview_mode=False
+            )
+            recipient_name = to_name or kunde.kontakt_name
+        else:
+            # Fallback to sample data
+            html_content = self.render_mailing_html(mailing, preview_mode=True)
+            recipient_name = to_name or 'Test-Empfänger'
+
+        # Send via Brevo
+        return brevo._send_email(
+            to_email=to_email,
+            to_name=recipient_name,
+            subject=f'[TEST] {mailing.betreff}',
+            html_content=html_content
+        )
+
+    def send_to_empfaenger(
+        self,
+        mailing: Mailing,
+        empfaenger: MailingEmpfaenger
+    ) -> EmailResult:
+        """Send mailing to a single recipient.
+
+        Steps:
+        1. Ensure FragebogenTeilnahme exists (if linked)
+        2. Generate tracking URLs
+        3. Render personalized email
+        4. Send via BrevoService
+        5. Update empfaenger status
+
+        Args:
+            mailing: Mailing to send
+            empfaenger: Recipient to send to
+
+        Returns:
+            EmailResult with success/failure info
+        """
+        from app.services import get_brevo_service
+
+        brevo = get_brevo_service()
+        kunde = empfaenger.kunde
+
+        # 1. Ensure FragebogenTeilnahme if mailing has linked fragebogen
+        if mailing.fragebogen_id:
+            self.ensure_fragebogen_teilnahme(mailing, empfaenger)
+
+        # 2. Generate tracking URLs
+        if mailing.fragebogen_id and empfaenger.fragebogen_teilnahme:
+            fragebogen_link = self.generate_tracking_url(empfaenger, 'fragebogen')
+        else:
+            fragebogen_link = '#'
+
+        abmelde_link = self.generate_tracking_url(empfaenger, 'abmelden')
+
+        # 3. Render personalized email
+        html_content = self.render_mailing_html(
+            mailing,
+            kunde=kunde,
+            empfaenger=empfaenger,
+            fragebogen_link=fragebogen_link,
+            abmelde_link=abmelde_link,
+            preview_mode=False
+        )
+
+        # 4. Send via Brevo
+        if kunde.hauptbenutzer:
+            to_name = f'{kunde.hauptbenutzer.vorname} {kunde.hauptbenutzer.nachname}'
+        else:
+            to_name = kunde.firmierung
+
+        result = brevo._send_email(
+            to_email=kunde.kontakt_email,
+            to_name=to_name,
+            subject=mailing.betreff,
+            html_content=html_content
+        )
+
+        # 5. Update empfaenger status
+        if result.success:
+            empfaenger.status = EmpfaengerStatus.VERSENDET.value
+            empfaenger.versendet_am = datetime.utcnow()
+        else:
+            empfaenger.status = EmpfaengerStatus.FEHLGESCHLAGEN.value
+            empfaenger.fehler_nachricht = result.error
+
+        db.session.commit()
+        return result
+
+    def send_batch(
+        self,
+        mailing: Mailing,
+        max_count: int = None
+    ) -> VersandResult:
+        """Send mailing to all pending recipients.
+
+        Respects quota limits and stops when quota is exhausted.
+
+        Args:
+            mailing: Mailing to send
+            max_count: Maximum number to send (None = all pending up to quota)
+
+        Returns:
+            VersandResult with counts and any errors
+        """
+        from app.services import get_brevo_service
+
+        brevo = get_brevo_service()
+
+        # Get pending empfaenger
+        pending = [e for e in mailing.empfaenger
+                   if e.status == EmpfaengerStatus.AUSSTEHEND.value]
+
+        if max_count:
+            pending = pending[:max_count]
+
+        # Check quota
+        remaining_quota = brevo.get_remaining_quota()
+        to_send = pending[:remaining_quota]
+
+        sent_count = 0
+        failed_count = 0
+        errors = []
+
+        for empfaenger in to_send:
+            try:
+                result = self.send_to_empfaenger(mailing, empfaenger)
+                if result.success:
+                    sent_count += 1
+                else:
+                    failed_count += 1
+                    errors.append(f'{empfaenger.kunde.firmierung}: {result.error}')
+            except Exception as e:
+                failed_count += 1
+                errors.append(f'{empfaenger.kunde.firmierung}: {str(e)}')
+
+        # Update mailing statistics
+        mailing.update_statistik()
+
+        # Update mailing status if any sent
+        if mailing.anzahl_ausstehend == 0:
+            mailing.status = MailingStatus.VERSENDET.value
+        elif sent_count > 0 and mailing.status == MailingStatus.ENTWURF.value:
+            mailing.status = MailingStatus.VERSENDET.value
+
+        db.session.commit()
+
+        return VersandResult(
+            success=failed_count == 0,
+            sent_count=sent_count,
+            failed_count=failed_count,
+            pending_count=mailing.anzahl_ausstehend,
+            errors=errors
         )
 
     # ========== Zielgruppen ==========

@@ -27,6 +27,11 @@
             <a href="{{ url_for('mailing_admin.vorschau', id=mailing.id) }}" class="btn btn-outline-info">
                 <i class="ti ti-eye"></i> Vorschau
             </a>
+            {% if not mailing.is_entwurf %}
+            <a href="{{ url_for('mailing_admin.statistik', id=mailing.id) }}" class="btn btn-outline-success">
+                <i class="ti ti-chart-bar"></i> Statistik
+            </a>
+            {% endif %}
             {% if mailing.is_entwurf %}
             <a href="{{ url_for('mailing_admin.editor', id=mailing.id) }}" class="btn btn-outline-primary">
                 <i class="ti ti-layout"></i> Editor
@@ -202,10 +207,9 @@
                     <p class="mb-3">
                         {{ mailing.empfaenger|length }} Empfänger bereit zum Versand.
                     </p>
-                    <button type="button" class="btn btn-success w-100" disabled title="Versand-Funktion kommt in Phase 3">
+                    <a href="{{ url_for('mailing_admin.senden', id=mailing.id) }}" class="btn btn-success w-100">
                         <i class="ti ti-send"></i> Jetzt versenden
-                    </button>
-                    <small class="text-muted d-block mt-2">Versand-Funktion wird in Phase 3 implementiert.</small>
+                    </a>
                     {% endif %}
                 </div>
             </div>

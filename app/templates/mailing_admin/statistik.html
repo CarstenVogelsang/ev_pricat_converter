@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Statistik - {{ mailing.titel }} - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    {{ breadcrumb([
+        {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+        {'label': 'Kunden-Mailing', 'url': url_for('mailing_admin.index'), 'icon': 'ti-mail'},
+        {'label': mailing.titel, 'url': url_for('mailing_admin.detail', id=mailing.id)},
+        {'label': 'Statistik'}
+    ]) }}
+
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="mb-0">
+                <i class="ti ti-chart-bar"></i> Statistik
+            </h2>
+            <p class="text-muted mb-0 mt-1">{{ mailing.titel }}</p>
+        </div>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('mailing_admin.detail', id=mailing.id) }}" class="btn btn-outline-secondary">
+                <i class="ti ti-arrow-left"></i> Zurück
+            </a>
+        </div>
+    </div>
+
+    <!-- Übersichts-Karten -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="h2 mb-0">{{ mailing.anzahl_empfaenger }}</div>
+                    <small class="text-muted">Empfänger gesamt</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="h2 mb-0 text-success">{{ mailing.anzahl_versendet }}</div>
+                    <small class="text-muted">Versendet</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="h2 mb-0 text-primary">{{ mailing.anzahl_klicks }}</div>
+                    <small class="text-muted">Klicks gesamt</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <div class="h2 mb-0 text-info">{{ "%.1f"|format(mailing.klickrate) }}%</div>
+                    <small class="text-muted">Klickrate</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <!-- Klick-Verteilung -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span><i class="ti ti-chart-pie"></i> Klick-Verteilung nach Typ</span>
+                </div>
+                <div class="card-body">
+                    {% if klick_verteilung %}
+                    <table class="table table-sm mb-0">
+                        <thead>
+                            <tr>
+                                <th>Link-Typ</th>
+                                <th class="text-end">Klicks</th>
+                                <th style="width: 50%;">Anteil</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% set total_klicks = klick_verteilung.values()|sum %}
+                            {% for typ, count in klick_verteilung.items() %}
+                            <tr>
+                                <td>
+                                    {% if typ == 'fragebogen' %}
+                                    <i class="ti ti-clipboard-check text-success"></i> Fragebogen
+                                    {% elif typ == 'abmelden' %}
+                                    <i class="ti ti-user-minus text-danger"></i> Abmeldung
+                                    {% else %}
+                                    <i class="ti ti-link text-secondary"></i> {{ typ }}
+                                    {% endif %}
+                                </td>
+                                <td class="text-end">{{ count }}</td>
+                                <td>
+                                    {% set percent = (count / total_klicks * 100) if total_klicks > 0 else 0 %}
+                                    <div class="progress" style="height: 20px;">
+                                        <div class="progress-bar {{ 'bg-success' if typ == 'fragebogen' else ('bg-danger' if typ == 'abmelden' else 'bg-secondary') }}"
+                                             role="progressbar"
+                                             style="width: {{ percent }}%;">
+                                            {{ "%.0f"|format(percent) }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                    {% else %}
+                    <p class="text-muted mb-0 text-center py-4">
+                        <i class="ti ti-mouse-off" style="font-size: 2rem;"></i><br>
+                        Noch keine Klicks erfasst
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Status-Verteilung -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span><i class="ti ti-chart-dots"></i> Empfänger-Status</span>
+                </div>
+                <div class="card-body">
+                    {% set ausstehend = mailing.anzahl_ausstehend %}
+                    {% set versendet = mailing.anzahl_versendet %}
+                    {% set fehlgeschlagen = mailing.anzahl_fehlgeschlagen %}
+                    {% set total = mailing.anzahl_empfaenger %}
+
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="ti ti-check text-success"></i> Versendet</span>
+                            <span>{{ versendet }} / {{ total }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" style="width: {{ (versendet / total * 100) if total > 0 else 0 }}%;"></div>
+                        </div>
+                    </div>
+
+                    {% if ausstehend > 0 %}
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="ti ti-clock text-secondary"></i> Ausstehend</span>
+                            <span>{{ ausstehend }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-secondary" style="width: {{ (ausstehend / total * 100) if total > 0 else 0 }}%;"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% if fehlgeschlagen > 0 %}
+                    <div class="mb-0">
+                        <div class="d-flex justify-content-between mb-1">
+                            <span><i class="ti ti-x text-danger"></i> Fehlgeschlagen</span>
+                            <span>{{ fehlgeschlagen }}</span>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-danger" style="width: {{ (fehlgeschlagen / total * 100) if total > 0 else 0 }}%;"></div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-6">
+            <!-- Top-Empfänger nach Klicks -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <span><i class="ti ti-trophy"></i> Top-Empfänger (nach Klicks)</span>
+                </div>
+                <div class="card-body">
+                    {% if top_empfaenger and top_empfaenger[0].anzahl_klicks > 0 %}
+                    <div class="table-responsive">
+                        <table class="table table-sm mb-0">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Kunde</th>
+                                    <th class="text-center">Klicks</th>
+                                    <th class="text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for e in top_empfaenger %}
+                                {% if e.anzahl_klicks > 0 %}
+                                <tr>
+                                    <td>{{ loop.index }}</td>
+                                    <td>
+                                        {{ e.kunde.firmierung }}
+                                        <br><small class="text-muted">{{ e.kunde.kontakt_email }}</small>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-primary">{{ e.anzahl_klicks }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if e.is_versendet %}
+                                        <span class="badge bg-success">Versendet</span>
+                                        {% elif e.is_fehlgeschlagen %}
+                                        <span class="badge bg-danger">Fehler</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Ausstehend</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0 text-center py-4">
+                        <i class="ti ti-users-group" style="font-size: 2rem;"></i><br>
+                        Noch keine Empfänger mit Klicks
+                    </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Abmeldungen -->
+            {% if abmeldungen > 0 %}
+            <div class="card mb-4 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <span><i class="ti ti-user-minus"></i> Abmeldungen</span>
+                </div>
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="h1 mb-0 me-3 text-danger">{{ abmeldungen }}</div>
+                        <div>
+                            <p class="mb-0">Empfänger haben sich über dieses Mailing abgemeldet.</p>
+                            <small class="text-muted">Diese Kunden erhalten keine weiteren Mailings.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Quick Stats -->
+            <div class="card">
+                <div class="card-header">
+                    <span><i class="ti ti-info-circle"></i> Details</span>
+                </div>
+                <div class="card-body">
+                    <dl class="row mb-0">
+                        <dt class="col-sm-5">Erstellt am</dt>
+                        <dd class="col-sm-7">{{ mailing.erstellt_am.strftime('%d.%m.%Y %H:%M') }}</dd>
+
+                        {% if mailing.gesendet_am %}
+                        <dt class="col-sm-5">Versendet am</dt>
+                        <dd class="col-sm-7">{{ mailing.gesendet_am.strftime('%d.%m.%Y %H:%M') }}</dd>
+                        {% endif %}
+
+                        <dt class="col-sm-5">Status</dt>
+                        <dd class="col-sm-7">
+                            <span class="badge bg-{{ 'secondary' if mailing.is_entwurf else 'success' }}">
+                                {{ 'Entwurf' if mailing.is_entwurf else 'Versendet' }}
+                            </span>
+                        </dd>
+
+                        {% if mailing.fragebogen %}
+                        <dt class="col-sm-5">Fragebogen</dt>
+                        <dd class="col-sm-7">
+                            <a href="{{ url_for('dialog_admin.detail', id=mailing.fragebogen_id) }}">
+                                {{ mailing.fragebogen.titel }}
+                            </a>
+                        </dd>
+                        {% endif %}
+                    </dl>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

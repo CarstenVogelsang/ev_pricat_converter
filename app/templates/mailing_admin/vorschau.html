@@ -19,124 +19,123 @@
             </h2>
             <p class="text-muted mb-0 mt-1">{{ mailing.titel }}</p>
         </div>
-        <div class="d-flex gap-2">
-            <a href="{{ url_for('mailing_admin.editor', id=mailing.id) }}" class="btn btn-primary">
+        <div class="d-flex gap-2 align-items-center">
+            {# Test-Versand im Header (C) #}
+            {% if mailing.is_entwurf and mailing.sektionen|length > 0 %}
+            <form action="{{ url_for('mailing_admin.test_senden', id=mailing.id) }}" method="POST" class="d-inline">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <div class="input-group input-group-sm">
+                    <select name="test_empfaenger_id" class="form-select form-select-sm" style="width: auto; min-width: 250px;">
+                        {% for user in test_empfaenger %}
+                        <option value="{{ user.id }}">
+                            {{ user.full_name }}
+                            {% if user.is_test_benutzer %}(Test){% elif user.id == current_user.id %}(ich){% endif %}
+                            - {{ user.email|truncate(25) }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                    <button type="submit" class="btn btn-sm btn-outline-success">
+                        <i class="ti ti-send"></i> Test senden
+                    </button>
+                </div>
+            </form>
+            {% endif %}
+
+            {# Platzhalter-Info Button (D) #}
+            <button type="button" class="btn btn-sm btn-outline-info" data-bs-toggle="offcanvas" data-bs-target="#platzhalterFlyout">
+                <i class="ti ti-variable"></i> Platzhalter-Info
+            </button>
+
+            <a href="{{ url_for('mailing_admin.editor', id=mailing.id) }}" class="btn btn-sm btn-primary">
                 <i class="ti ti-edit"></i> Editor
             </a>
-            <a href="{{ url_for('mailing_admin.detail', id=mailing.id) }}" class="btn btn-outline-secondary">
+            <a href="{{ url_for('mailing_admin.detail', id=mailing.id) }}" class="btn btn-sm btn-outline-secondary">
                 <i class="ti ti-arrow-left"></i> Zurück
             </a>
         </div>
     </div>
 
-    <div class="row">
-        <!-- Email Preview -->
-        <div class="col-lg-8">
-            <div class="card">
-                <div class="card-header d-flex justify-content-between align-items-center">
-                    <span><i class="ti ti-mail"></i> E-Mail-Inhalt</span>
-                    <div class="btn-group btn-group-sm" role="group">
-                        <button type="button" class="btn btn-outline-secondary active" id="btn-desktop">
-                            <i class="ti ti-device-desktop"></i>
-                        </button>
-                        <button type="button" class="btn btn-outline-secondary" id="btn-mobile">
-                            <i class="ti ti-device-mobile"></i>
-                        </button>
-                    </div>
-                </div>
-                <div class="card-body p-0 bg-light">
-                    <div class="d-flex justify-content-center py-4">
-                        <iframe id="preview-frame"
-                                srcdoc="{{ email_html|e }}"
-                                style="width: 620px; height: 600px; border: 1px solid #dee2e6; border-radius: 8px; background: white;"
-                                title="E-Mail-Vorschau">
-                        </iframe>
-                    </div>
-                </div>
+    <!-- Betreff über dem Preview (B) -->
+    <div class="card mb-4">
+        <div class="card-body py-3">
+            <div class="d-flex align-items-center">
+                <span class="text-muted me-2"><i class="ti ti-mail-fast"></i> Betreff:</span>
+                <code class="fs-5 text-dark">{{ mailing.betreff }}</code>
             </div>
         </div>
+    </div>
 
-        <!-- Info Panel -->
-        <div class="col-lg-4">
-            <!-- Betreff -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <span><i class="ti ti-mail-fast"></i> Betreff</span>
-                </div>
-                <div class="card-body">
-                    <code class="fs-6">{{ mailing.betreff }}</code>
-                </div>
+    <!-- Email Preview - jetzt volle Breite (E: Sektionen-Karte entfernt) -->
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="ti ti-mail"></i> E-Mail-Inhalt</span>
+            <div class="btn-group btn-group-sm" role="group">
+                <button type="button" class="btn btn-outline-secondary active" id="btn-desktop">
+                    <i class="ti ti-device-desktop"></i>
+                </button>
+                <button type="button" class="btn btn-outline-secondary" id="btn-mobile">
+                    <i class="ti ti-device-mobile"></i>
+                </button>
             </div>
-
-            <!-- Sample-Daten -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <span><i class="ti ti-database"></i> Verwendete Beispieldaten</span>
-                </div>
-                <div class="card-body p-0">
-                    <table class="table table-sm mb-0">
-                        <tbody>
-                            {% for key, value in sample_context.items() %}
-                            <tr>
-                                <td class="text-muted" style="width: 40%;">
-                                    <code>{{ '{{' }} {{ key }} {{ '}}' }}</code>
-                                </td>
-                                <td>{{ value }}</td>
-                            </tr>
-                            {% endfor %}
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-
-            <!-- Sektionen -->
-            <div class="card mb-3">
-                <div class="card-header">
-                    <span><i class="ti ti-layout"></i> Sektionen ({{ mailing.sektionen|length }})</span>
-                </div>
-                <div class="card-body">
-                    {% if mailing.sektionen %}
-                    <ol class="list-group list-group-numbered">
-                        {% for sektion in mailing.sektionen %}
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <span>{{ sektion.typ }}</span>
-                            <span class="badge bg-light text-dark">{{ sektion.id[:8] }}...</span>
-                        </li>
-                        {% endfor %}
-                    </ol>
-                    {% else %}
-                    <p class="text-muted mb-0">
-                        <i class="ti ti-info-circle"></i>
-                        Keine Sektionen vorhanden.
-                        <a href="{{ url_for('mailing_admin.editor', id=mailing.id) }}">Im Editor hinzufügen</a>
-                    </p>
-                    {% endif %}
-                </div>
-            </div>
-
-            <!-- Test-Versand -->
-            {% if mailing.is_entwurf and mailing.sektionen|length > 0 %}
-            <div class="card">
-                <div class="card-header">
-                    <span><i class="ti ti-send"></i> Test-Versand</span>
-                </div>
-                <div class="card-body">
-                    <form method="POST" action="{{ url_for('mailing_admin.test_senden', id=mailing.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                        <p class="small text-muted mb-2">
-                            Test-E-Mail wird an <strong>{{ current_user.email }}</strong> gesendet.
-                        </p>
-                        <button type="submit" class="btn btn-outline-primary w-100" disabled title="Wird in Phase 3 implementiert">
-                            <i class="ti ti-send"></i> Test senden
-                        </button>
-                        <small class="text-muted d-block mt-2">
-                            Wird in Phase 3 implementiert.
-                        </small>
-                    </form>
-                </div>
-            </div>
-            {% endif %}
         </div>
+        <div class="card-body p-0 bg-light">
+            <div class="d-flex justify-content-center py-4">
+                <iframe id="preview-frame"
+                        srcdoc="{{ email_html|e }}"
+                        style="width: 620px; min-height: 800px; height: auto; border: 1px solid #dee2e6; border-radius: 8px; background: white;"
+                        title="E-Mail-Vorschau"
+                        onload="this.style.height = this.contentWindow.document.body.scrollHeight + 40 + 'px'">
+                </iframe>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Platzhalter-Info Flyout (D) #}
+<div class="offcanvas offcanvas-end" tabindex="-1" id="platzhalterFlyout" aria-labelledby="platzhalterFlyoutLabel" style="width: 450px;">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="platzhalterFlyoutLabel">
+            <i class="ti ti-variable"></i> Verwendete Beispieldaten
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
+    </div>
+    <div class="offcanvas-body">
+        <p class="text-muted small mb-3">
+            Diese Werte werden in der Vorschau für die Platzhalter verwendet.
+            Im echten Versand werden die tatsächlichen Kundendaten eingesetzt.
+        </p>
+        <table class="table table-sm">
+            <thead>
+                <tr>
+                    <th>Platzhalter</th>
+                    <th>Beispielwert</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for key, value in sample_context.items() %}
+                <tr>
+                    <td><code>{{ '{{' }} {{ key }} {{ '}}' }}</code></td>
+                    <td class="text-break small">
+                        {% if value is string %}
+                            {{ value|truncate(40) }}
+                        {% elif value is mapping %}
+                            <span class="text-muted">(Objekt)</span>
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <hr>
+
+        <h6 class="mb-2"><i class="ti ti-info-circle"></i> Hinweis</h6>
+        <p class="text-muted small mb-0">
+            Die Links in der Vorschau (Abmelden, Profil, etc.) sind funktionsfähig
+            und verwenden den Betreiber als Test-Empfänger.
+        </p>
     </div>
 </div>
 

@@ -3,6 +3,8 @@ from datetime import datetime
 from enum import Enum
 import secrets
 
+from sqlalchemy.orm.attributes import flag_modified
+
 from app import db
 
 
@@ -138,11 +140,16 @@ class Mailing(db.Model):
             'typ': typ,
             'config': config or {}
         })
+
+        # Mark JSON field as modified so SQLAlchemy commits the change
+        flag_modified(self, 'sektionen_json')
+
         return sektion_id
 
     def update_sektionen(self, sektionen: list):
         """Update all sections at once."""
         self.sektionen_json = {'sektionen': sektionen}
+        flag_modified(self, 'sektionen_json')
 
     def versenden(self):
         """Mark mailing as sent."""

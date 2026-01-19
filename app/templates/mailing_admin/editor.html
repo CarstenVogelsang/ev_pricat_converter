@@ -1,7 +1,68 @@
 {% extends "base.html" %}
 {% from "macros/breadcrumb.html" import breadcrumb %}
 
-{% block title %}Editor - {{ mailing.titel }} - {{ super() }}{% endblock %}
+{% block title %}Mailing-Editor - {{ mailing.titel }} - {{ super() }}{% endblock %}
+
+{% block styles %}
+{{ super() }}
+<style>
+    /* Media Library Modal Styles */
+    .media-card {
+        cursor: pointer;
+        transition: all 0.2s ease;
+        border: 2px solid transparent;
+    }
+    .media-card:hover {
+        border-color: var(--bs-primary);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    }
+    .media-card .card-img-top {
+        background-color: #f8f9fa;
+    }
+    #mediaTypTabs .nav-link {
+        padding: 0.5rem 1rem;
+    }
+
+    /* Responsive Offcanvas Breite (c) */
+    #editFlyout {
+        width: min(600px, 85vw);
+    }
+    @media (min-width: 992px) {
+        #editFlyout {
+            width: min(600px, 45vw);
+        }
+    }
+
+    /* Drag & Drop Styles für Sektionen-Sortierung */
+    .sortable-handle {
+        cursor: grab;
+        color: #6c757d;
+        padding: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: color 0.2s ease;
+    }
+    .sortable-handle:hover {
+        color: var(--bs-primary);
+    }
+    .sortable-handle:active {
+        cursor: grabbing;
+    }
+    .sortable-ghost {
+        opacity: 0.4;
+        background-color: #e9ecef;
+    }
+    .sortable-chosen {
+        background-color: #f8f9fa;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .sortable-drag {
+        opacity: 1;
+    }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container py-4">
@@ -9,13 +70,13 @@
         {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
         {'label': 'Kunden-Mailing', 'url': url_for('mailing_admin.index'), 'icon': 'ti-mail'},
         {'label': mailing.titel, 'url': url_for('mailing_admin.detail', id=mailing.id)},
-        {'label': 'Editor'}
+        {'label': 'Mailing-Editor'}
     ]) }}
 
     <div class="d-flex justify-content-between align-items-center mb-4">
         <div>
             <h2 class="mb-0">
-                <i class="ti ti-layout"></i> Baukasten-Editor
+                <i class="ti ti-layout"></i> Mailing-Editor
             </h2>
             <p class="text-muted mb-0 mt-1">{{ mailing.titel }}</p>
         </div>
@@ -42,6 +103,7 @@
                         </button>
                         <ul class="dropdown-menu dropdown-menu-end">
                             {% for typ_key, typ_info in sektion_typen.items() %}
+                            {% if not typ_info.deprecated %}
                             <li>
                                 <button type="button" class="dropdown-item"
                                         onclick="addSektion('{{ typ_key }}')">
@@ -49,31 +111,21 @@
                                     <small class="text-muted d-block">{{ typ_info.beschreibung }}</small>
                                 </button>
                             </li>
+                            {% endif %}
                             {% endfor %}
                         </ul>
                     </div>
                 </div>
                 <div class="card-body p-0" id="sektionen-container">
                     {% if mailing.sektionen %}
-                    <ul class="list-group list-group-flush" id="sektionen-list">
+                    <ul class="list-group list-group-flush sortable-list" id="sektionen-list">
                         {% for sektion in mailing.sektionen %}
                         {% set loop_index = loop.index0 %}
                         <li class="list-group-item" data-sektion-id="{{ sektion.id }}">
                             <div class="d-flex align-items-center">
-                                <!-- Reorder Buttons -->
-                                <div class="btn-group btn-group-sm me-3">
-                                    <button type="button" class="btn btn-outline-secondary"
-                                            onclick="moveSektion('{{ sektion.id }}', 'up')"
-                                            {% if loop.first %}disabled{% endif %}
-                                            title="Nach oben">
-                                        <i class="ti ti-arrow-up"></i>
-                                    </button>
-                                    <button type="button" class="btn btn-outline-secondary"
-                                            onclick="moveSektion('{{ sektion.id }}', 'down')"
-                                            {% if loop.last %}disabled{% endif %}
-                                            title="Nach unten">
-                                        <i class="ti ti-arrow-down"></i>
-                                    </button>
+                                <!-- Drag Handle für Sortierung -->
+                                <div class="sortable-handle me-3" title="Zum Sortieren ziehen">
+                                    <i class="ti ti-grip-vertical fs-5"></i>
                                 </div>
 
                                 <!-- Section Info -->
@@ -86,20 +138,26 @@
                                     <small class="text-muted">
                                         {% if sektion.typ == 'text_bild' and sektion.config.inhalt_html %}
                                         {{ sektion.config.inhalt_html|striptags|truncate(50) }}
+                                        {% elif sektion.typ == 'hero' %}
+                                        "{{ sektion.config.headline|default('Headline')|truncate(40) }}"
+                                        {% elif sektion.typ == 'cta_button' %}
+                                        {{ sektion.config.link_typ|default('fragebogen')|title }}: "{{ sektion.config.button_text|default('Jetzt teilnehmen') }}"
                                         {% elif sektion.typ == 'fragebogen_cta' %}
                                         Button: "{{ sektion.config.button_text|default('Jetzt teilnehmen') }}"
                                         {% elif sektion.typ == 'header' %}
-                                        Logo: {{ 'Ja' if sektion.config.zeige_logo else 'Nein' }}
+                                        Logo: {{ 'Ja' if sektion.config.zeige_logo else 'Nein' }}, Tel: {{ 'Ja' if sektion.config.zeige_telefon else 'Nein' }}
                                         {% elif sektion.typ == 'footer' %}
-                                        Abmelde-Link: {{ 'Ja' if sektion.config.zeige_abmelde_link else 'Nein' }}
+                                        Links: {{ [sektion.config.zeige_abmelde_link, sektion.config.zeige_persoenliche_daten_link, sektion.config.zeige_weiterempfehlen_link]|select|list|length }}/3 aktiv
                                         {% endif %}
                                     </small>
                                 </div>
 
                                 <!-- Action Buttons -->
                                 <div class="btn-group btn-group-sm">
-                                    <button type="button" class="btn btn-outline-primary"
-                                            onclick="editSektion('{{ sektion.id }}', '{{ sektion.typ }}', {{ sektion.config|tojson|e }})"
+                                    <button type="button" class="btn btn-outline-primary btn-edit-sektion"
+                                            data-sektion-id="{{ sektion.id }}"
+                                            data-sektion-typ="{{ sektion.typ }}"
+                                            data-sektion-config='{{ sektion.config|tojson }}'
                                             title="Bearbeiten">
                                         <i class="ti ti-edit"></i>
                                     </button>
@@ -194,24 +252,24 @@
     </div>
 </div>
 
-<!-- Edit Modal -->
-<div class="modal fade" id="editModal" tabindex="-1" aria-labelledby="editModalLabel" aria-hidden="true">
-    <div class="modal-dialog modal-lg">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="editModalLabel">Sektion bearbeiten</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
-            </div>
-            <div class="modal-body" id="editModalBody">
-                <!-- Dynamic content loaded by JavaScript -->
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
-                <button type="button" class="btn btn-primary" id="saveSektion">
-                    <i class="ti ti-check"></i> Speichern
-                </button>
-            </div>
+<!-- Edit Flyout (Offcanvas) - (c) responsive width via CSS, (d) buttons in header -->
+<div class="offcanvas offcanvas-end" tabindex="-1" id="editFlyout" aria-labelledby="editFlyoutLabel">
+    <div class="offcanvas-header border-bottom">
+        <h5 class="offcanvas-title" id="editFlyoutLabel">
+            <i class="ti ti-edit"></i> Sektion bearbeiten
+        </h5>
+        <div class="d-flex gap-2 align-items-center">
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="offcanvas">
+                <i class="ti ti-x"></i> Abbrechen
+            </button>
+            <button type="button" class="btn btn-sm btn-primary" id="saveSektion">
+                <i class="ti ti-check"></i> Speichern
+            </button>
+            <button type="button" class="btn-close ms-2" data-bs-dismiss="offcanvas" aria-label="Schließen"></button>
         </div>
+    </div>
+    <div class="offcanvas-body" id="editFlyoutBody">
+        <!-- Dynamic content loaded by JavaScript -->
     </div>
 </div>
 
@@ -239,6 +297,97 @@
     </div>
 </div>
 
+<!-- Media Selection Modal -->
+<div class="modal fade" id="mediaModal" tabindex="-1" aria-labelledby="mediaModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="mediaModalLabel">
+                    <i class="ti ti-photo"></i> Bild auswählen
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Schließen"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Filter Tabs -->
+                <ul class="nav nav-pills mb-3" id="mediaTypTabs">
+                    <li class="nav-item">
+                        <button class="nav-link active" data-typ="alle" onclick="filterMedien('alle')">
+                            <i class="ti ti-photo"></i> Alle
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-typ="banner" onclick="filterMedien('banner')">
+                            <i class="ti ti-photo-filled"></i> Banner
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-typ="bild" onclick="filterMedien('bild')">
+                            <i class="ti ti-photo-square-rounded"></i> Bilder
+                        </button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link" data-typ="logo" onclick="filterMedien('logo')">
+                            <i class="ti ti-brand-codesandbox"></i> Logos
+                        </button>
+                    </li>
+                </ul>
+
+                <!-- Media Grid -->
+                <div id="mediaGrid" class="row g-3">
+                    <div class="col-12 text-center py-5">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Lade Medien...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Upload Section -->
+                <hr class="my-4">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title"><i class="ti ti-upload"></i> Neues Bild hochladen</h6>
+                        <div class="row g-2">
+                            <div class="col-md-4">
+                                <input type="text" class="form-control form-control-sm" id="uploadTitel" placeholder="Titel *">
+                            </div>
+                            <div class="col-md-3">
+                                <select class="form-select form-select-sm" id="uploadTyp">
+                                    <option value="banner">Banner</option>
+                                    <option value="bild" selected>Bild</option>
+                                    <option value="logo">Logo</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <input type="file" class="form-control form-control-sm" id="uploadFile" accept="image/*">
+                            </div>
+                            <div class="col-md-1">
+                                <button type="button" class="btn btn-sm btn-primary w-100" onclick="uploadMedium()">
+                                    <i class="ti ti-upload"></i>
+                                </button>
+                            </div>
+                        </div>
+                        <div class="mt-2">
+                            <small class="text-muted">Oder externe URL:</small>
+                            <div class="input-group input-group-sm mt-1">
+                                <input type="url" class="form-control" id="externeUrl" placeholder="https://...">
+                                <button type="button" class="btn btn-outline-primary" onclick="addExterneUrl()">
+                                    <i class="ti ti-plus"></i> Hinzufügen
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Abbrechen</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- SortableJS für Drag & Drop Sortierung -->
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+
 <script>
 const MAILING_ID = {{ mailing.id }};
 const CSRF_TOKEN = '{{ csrf_token() }}';
@@ -247,6 +396,22 @@ let currentSektionTyp = null;
 
 // Section type definitions (from server)
 const SEKTION_TYPEN = {{ sektion_typen|tojson|safe }};
+
+// Available Fragebögen for CTA dropdown
+const FRAGEBOEGEN = [
+    {% for fb in frageboegen %}
+    { id: {{ fb.id }}, titel: "{{ fb.titel|e }}" }{% if not loop.last %},{% endif %}
+    {% endfor %}
+];
+
+// Escape string for use in template literals (prevents backtick/$ injection)
+function escapeForTemplate(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+        .replace(/\\/g, '\\\\')     // Backslash first
+        .replace(/`/g, '\\`')       // Backticks
+        .replace(/\$/g, '\\$');     // Dollar signs (${})
+}
 
 // ========== Add Section ==========
 
@@ -280,24 +445,42 @@ async function addSektion(typ) {
 
 // ========== Edit Section ==========
 
+// Event delegation for edit buttons (safer than inline onclick with JSON)
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('.btn-edit-sektion').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const sektionId = this.dataset.sektionId;
+            const typ = this.dataset.sektionTyp;
+            let config = {};
+            try {
+                config = JSON.parse(this.dataset.sektionConfig || '{}');
+            } catch (e) {
+                console.error('Error parsing config:', e, this.dataset.sektionConfig);
+            }
+            editSektion(sektionId, typ, config);
+        });
+    });
+});
+
 function editSektion(sektionId, typ, config) {
     currentSektionId = sektionId;
     currentSektionTyp = typ;
 
     // Build form based on section type
     const formHtml = buildEditForm(typ, config);
-    document.getElementById('editModalBody').innerHTML = formHtml;
-    document.getElementById('editModalLabel').textContent = `${SEKTION_TYPEN[typ].name} bearbeiten`;
+    document.getElementById('editFlyoutBody').innerHTML = formHtml;
+    document.getElementById('editFlyoutLabel').innerHTML = `<i class="ti ti-edit"></i> ${SEKTION_TYPEN[typ].name} bearbeiten`;
 
-    // Show modal
-    const modal = new bootstrap.Modal(document.getElementById('editModal'));
-    modal.show();
+    // Show flyout (Offcanvas)
+    const flyout = new bootstrap.Offcanvas(document.getElementById('editFlyout'));
+    flyout.show();
 }
 
 function buildEditForm(typ, config) {
     switch (typ) {
         case 'header':
             return `
+                <h6 class="text-muted mb-3"><i class="ti ti-photo"></i> Logo</h6>
                 <div class="mb-3">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="zeige_logo"
@@ -309,44 +492,217 @@ function buildEditForm(typ, config) {
                 </div>
                 <div class="mb-3">
                     <label for="logo_url" class="form-label">Logo-URL (optional)</label>
-                    <input type="text" class="form-control" id="logo_url"
-                           value="${config.logo_url || ''}"
-                           placeholder="https://example.com/logo.png">
-                    <div class="form-text">Leer lassen für Text-Logo</div>
+                    <input type="text" class="form-control form-control-sm" id="logo_url"
+                           value="${escapeForTemplate(config.logo_url)}"
+                           placeholder="Leer = Betreiber-Logo">
+                </div>
+                <hr>
+                <h6 class="text-muted mb-3"><i class="ti ti-link"></i> Kontakt-Links</h6>
+                <div class="mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="zeige_telefon"
+                               ${config.zeige_telefon !== false ? 'checked' : ''}>
+                        <label class="form-check-label" for="zeige_telefon">
+                            Telefonnummer anzeigen
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="zeige_email_link"
+                               ${config.zeige_email_link !== false ? 'checked' : ''}>
+                        <label class="form-check-label" for="zeige_email_link">
+                            E-Mail-Link anzeigen
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="zeige_browser_link"
+                               ${config.zeige_browser_link !== false ? 'checked' : ''}>
+                        <label class="form-check-label" for="zeige_browser_link">
+                            "Im Browser öffnen"-Link
+                        </label>
+                    </div>
+                </div>
+            `;
+
+        case 'hero':
+            return `
+                <div class="mb-3">
+                    <label for="headline" class="form-label">Headline</label>
+                    <input type="text" class="form-control" id="headline"
+                           value="${escapeForTemplate(config.headline)}"
+                           placeholder="Wichtige Information">
+                </div>
+                <div class="mb-3">
+                    <label for="subline" class="form-label">Subline (optional)</label>
+                    <input type="text" class="form-control" id="subline"
+                           value="${escapeForTemplate(config.subline)}"
+                           placeholder="Für alle Anwender">
+                </div>
+                <hr>
+                <h6 class="text-muted mb-3"><i class="ti ti-photo"></i> Banner-Bild</h6>
+                <div class="mb-3">
+                    <label for="bild_url" class="form-label">Bild-URL</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="bild_url"
+                               value="${escapeForTemplate(config.bild_url)}"
+                               placeholder="URL oder aus Medienbibliothek wählen">
+                        <button class="btn btn-outline-secondary" type="button" onclick="openMediaModal('bild_url', 'banner')">
+                            <i class="ti ti-photo"></i> Auswählen
+                        </button>
+                    </div>
+                    ${config.bild_url ? `<img src="${escapeForTemplate(config.bild_url)}" class="img-thumbnail mt-2" style="max-height: 100px;">` : ''}
+                </div>
+                <div class="mb-3">
+                    <label for="hintergrund_farbe" class="form-label">Hintergrundfarbe</label>
+                    <div class="input-group">
+                        <input type="color" class="form-control form-control-color" id="hintergrund_farbe"
+                               value="${config.hintergrund_farbe || '#f8f9fa'}">
+                        <input type="text" class="form-control" id="hintergrund_farbe_hex"
+                               value="${config.hintergrund_farbe || '#f8f9fa'}"
+                               onchange="document.getElementById('hintergrund_farbe').value = this.value">
+                    </div>
                 </div>
             `;
 
         case 'text_bild':
             return `
                 <div class="mb-3">
-                    <label for="inhalt_html" class="form-label">Inhalt (HTML)</label>
-                    <textarea class="form-control" id="inhalt_html" rows="8">${config.inhalt_html || ''}</textarea>
-                    <div class="form-text">Nutze {{ briefanrede }}, {{ firmenname }}, etc. für Personalisierung</div>
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label for="inhalt_html" class="form-label mb-0">Inhalt (Markdown)</label>
+                        <div class="dropdown">
+                            <button class="btn btn-sm btn-outline-primary dropdown-toggle" type="button" data-bs-toggle="dropdown">
+                                <i class="ti ti-variable"></i> Platzhalter
+                            </button>
+                            <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="#" onclick="insertPlaceholder('briefanrede'); return false;">
+                                    <code>{{ '{{' }} briefanrede {{ '}}' }}</code> - Anrede
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="insertPlaceholder('firmenname'); return false;">
+                                    <code>{{ '{{' }} firmenname {{ '}}' }}</code> - Firmenname
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="insertPlaceholder('vorname'); return false;">
+                                    <code>{{ '{{' }} vorname {{ '}}' }}</code> - Vorname
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="insertPlaceholder('nachname'); return false;">
+                                    <code>{{ '{{' }} nachname {{ '}}' }}</code> - Nachname
+                                </a></li>
+                                <li><a class="dropdown-item" href="#" onclick="insertPlaceholder('email'); return false;">
+                                    <code>{{ '{{' }} email {{ '}}' }}</code> - E-Mail
+                                </a></li>
+                            </ul>
+                        </div>
+                    </div>
+                    <textarea class="form-control" id="inhalt_html" rows="12">${escapeForTemplate(config.inhalt_html)}</textarea>
+                    <small class="form-text text-muted">
+                        Markdown: **fett**, *kursiv*, [Link](url), - Liste
+                    </small>
+                </div>
+                <hr>
+                <h6 class="text-muted mb-3"><i class="ti ti-photo"></i> Bild (optional)</h6>
+                <div class="mb-3">
+                    <label for="bild_url" class="form-label">Bild-URL</label>
+                    <div class="input-group">
+                        <input type="text" class="form-control" id="bild_url"
+                               value="${escapeForTemplate(config.bild_url)}"
+                               placeholder="URL oder aus Medienbibliothek wählen">
+                        <button class="btn btn-outline-secondary" type="button" onclick="openMediaModal('bild_url', 'bild')">
+                            <i class="ti ti-photo"></i> Auswählen
+                        </button>
+                    </div>
+                    ${config.bild_url ? `<img src="${escapeForTemplate(config.bild_url)}" class="img-thumbnail mt-2" style="max-height: 100px;">` : ''}
                 </div>
                 <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="bild_url" class="form-label">Bild-URL (optional)</label>
-                        <input type="text" class="form-control" id="bild_url"
-                               value="${config.bild_url || ''}"
-                               placeholder="https://example.com/bild.jpg">
-                    </div>
-                    <div class="col-md-6 mb-3">
-                        <label for="bild_position" class="form-label">Bild-Position</label>
+                    <div class="col-6 mb-3">
+                        <label for="bild_position" class="form-label">Position</label>
                         <select class="form-select" id="bild_position">
                             <option value="rechts" ${config.bild_position === 'rechts' ? 'selected' : ''}>Rechts</option>
                             <option value="links" ${config.bild_position === 'links' ? 'selected' : ''}>Links</option>
                         </select>
                     </div>
+                    <div class="col-6 mb-3">
+                        <label for="bild_alt_text" class="form-label">Alt-Text</label>
+                        <input type="text" class="form-control" id="bild_alt_text"
+                               value="${escapeForTemplate(config.bild_alt_text)}"
+                               placeholder="Bildbeschreibung">
+                    </div>
+                </div>
+            `;
+
+        case 'cta_button':
+            // Build Fragebogen options
+            let fbOptions = '<option value="">-- Fragebogen wählen --</option>';
+            FRAGEBOEGEN.forEach(fb => {
+                const selected = config.fragebogen_id == fb.id ? 'selected' : '';
+                fbOptions += `<option value="${fb.id}" ${selected}>${fb.titel}</option>`;
+            });
+
+            return `
+                <div class="mb-3">
+                    <label class="form-label">Link-Typ</label>
+                    <div class="d-flex gap-3">
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="link_typ" id="link_typ_fragebogen"
+                                   value="fragebogen" ${config.link_typ !== 'extern' ? 'checked' : ''}
+                                   onchange="toggleLinkTyp()">
+                            <label class="form-check-label" for="link_typ_fragebogen">
+                                Fragebogen
+                            </label>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="radio" name="link_typ" id="link_typ_extern"
+                                   value="extern" ${config.link_typ === 'extern' ? 'checked' : ''}
+                                   onchange="toggleLinkTyp()">
+                            <label class="form-check-label" for="link_typ_extern">
+                                Externe URL
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div id="fragebogen_container" class="mb-3" style="display: ${config.link_typ !== 'extern' ? 'block' : 'none'}">
+                    <label for="fragebogen_id" class="form-label">Fragebogen auswählen</label>
+                    <select class="form-select" id="fragebogen_id">${fbOptions}</select>
+                </div>
+                <div id="externe_url_container" class="mb-3" style="display: ${config.link_typ === 'extern' ? 'block' : 'none'}">
+                    <label for="externe_url" class="form-label">Externe URL</label>
+                    <input type="url" class="form-control" id="externe_url"
+                           value="${escapeForTemplate(config.externe_url)}"
+                           placeholder="https://www.example.de/aktion">
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <label for="teaser_text" class="form-label">Teaser-Text (optional)</label>
+                    <textarea class="form-control" id="teaser_text" rows="2"
+                              placeholder="Motivationstext über dem Button">${escapeForTemplate(config.teaser_text)}</textarea>
+                </div>
+                <div class="row">
+                    <div class="col-8 mb-3">
+                        <label for="button_text" class="form-label">Button-Text</label>
+                        <input type="text" class="form-control" id="button_text"
+                               value="${escapeForTemplate(config.button_text || 'Jetzt teilnehmen')}">
+                    </div>
+                    <div class="col-4 mb-3">
+                        <label for="button_farbe" class="form-label">Farbe</label>
+                        <input type="color" class="form-control form-control-color w-100" id="button_farbe"
+                               value="${config.button_farbe || '#e83e8c'}">
+                    </div>
                 </div>
             `;
 
         case 'fragebogen_cta':
+            // Legacy support - redirect to cta_button handling
             return `
+                <div class="alert alert-warning mb-3">
+                    <i class="ti ti-info-circle"></i>
+                    Dieser Sektionstyp wurde durch "CTA-Button" ersetzt.
+                </div>
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label for="button_text" class="form-label">Button-Text</label>
                         <input type="text" class="form-control" id="button_text"
-                               value="${config.button_text || 'Jetzt teilnehmen'}">
+                               value="${escapeForTemplate(config.button_text || 'Jetzt teilnehmen')}">
                     </div>
                     <div class="col-md-6 mb-3">
                         <label for="button_farbe" class="form-label">Button-Farbe</label>
@@ -354,26 +710,46 @@ function buildEditForm(typ, config) {
                                value="${config.button_farbe || '#0066cc'}">
                     </div>
                 </div>
-                <div class="alert alert-info mb-0">
-                    <i class="ti ti-info-circle"></i>
-                    Der Button verlinkt automatisch auf den verknüpften Fragebogen.
-                </div>
             `;
 
         case 'footer':
             return `
-                <div class="mb-3">
+                <h6 class="text-muted mb-3"><i class="ti ti-link"></i> Footer-Links</h6>
+                <div class="mb-2">
                     <div class="form-check">
                         <input class="form-check-input" type="checkbox" id="zeige_abmelde_link"
                                ${config.zeige_abmelde_link !== false ? 'checked' : ''}>
                         <label class="form-check-label" for="zeige_abmelde_link">
-                            Abmelde-Link anzeigen (empfohlen)
+                            Newsletter abmelden
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-2">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="zeige_persoenliche_daten_link"
+                               ${config.zeige_persoenliche_daten_link !== false ? 'checked' : ''}>
+                        <label class="form-check-label" for="zeige_persoenliche_daten_link">
+                            Persönliche Daten
                         </label>
                     </div>
                 </div>
                 <div class="mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" id="zeige_weiterempfehlen_link"
+                               ${config.zeige_weiterempfehlen_link !== false ? 'checked' : ''}>
+                        <label class="form-check-label" for="zeige_weiterempfehlen_link">
+                            Weiterempfehlen
+                        </label>
+                    </div>
+                </div>
+                <hr>
+                <div class="mb-3">
                     <label for="zusatz_text" class="form-label">Zusätzlicher Text (optional)</label>
-                    <textarea class="form-control" id="zusatz_text" rows="3">${config.zusatz_text || ''}</textarea>
+                    <textarea class="form-control" id="zusatz_text" rows="2">${escapeForTemplate(config.zusatz_text)}</textarea>
+                </div>
+                <div class="alert alert-info small mb-0">
+                    <i class="ti ti-info-circle"></i>
+                    Impressum-Daten werden automatisch aus den Betreiber-Einstellungen geladen.
                 </div>
             `;
 
@@ -382,22 +758,66 @@ function buildEditForm(typ, config) {
     }
 }
 
+// Toggle CTA link type visibility
+function toggleLinkTyp() {
+    const isExtern = document.getElementById('link_typ_extern').checked;
+    document.getElementById('fragebogen_container').style.display = isExtern ? 'none' : 'block';
+    document.getElementById('externe_url_container').style.display = isExtern ? 'block' : 'none';
+}
+
+// Insert placeholder at cursor position in textarea
+function insertPlaceholder(placeholder) {
+    const textarea = document.getElementById('inhalt_html');
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const text = textarea.value;
+    // Unicode-Escaping für {{ und }} damit Jinja2 es nicht interpretiert
+    const insert = '\u007B\u007B ' + placeholder + ' \u007D\u007D';
+    textarea.value = text.substring(0, start) + insert + text.substring(end);
+    textarea.selectionStart = textarea.selectionEnd = start + insert.length;
+    textarea.focus();
+}
+
 function getEditFormData() {
     switch (currentSektionTyp) {
         case 'header':
             return {
                 zeige_logo: document.getElementById('zeige_logo').checked,
-                logo_url: document.getElementById('logo_url').value || null
+                logo_url: document.getElementById('logo_url').value || null,
+                zeige_telefon: document.getElementById('zeige_telefon').checked,
+                zeige_email_link: document.getElementById('zeige_email_link').checked,
+                zeige_browser_link: document.getElementById('zeige_browser_link').checked
+            };
+
+        case 'hero':
+            return {
+                headline: document.getElementById('headline').value,
+                subline: document.getElementById('subline').value || '',
+                bild_url: document.getElementById('bild_url').value || null,
+                hintergrund_farbe: document.getElementById('hintergrund_farbe').value
             };
 
         case 'text_bild':
             return {
                 inhalt_html: document.getElementById('inhalt_html').value,
                 bild_url: document.getElementById('bild_url').value || null,
-                bild_position: document.getElementById('bild_position').value
+                bild_position: document.getElementById('bild_position').value,
+                bild_alt_text: document.getElementById('bild_alt_text').value || ''
+            };
+
+        case 'cta_button':
+            const linkTyp = document.querySelector('input[name="link_typ"]:checked').value;
+            return {
+                link_typ: linkTyp,
+                fragebogen_id: linkTyp === 'fragebogen' ? (document.getElementById('fragebogen_id').value || null) : null,
+                externe_url: linkTyp === 'extern' ? document.getElementById('externe_url').value : '',
+                button_text: document.getElementById('button_text').value,
+                button_farbe: document.getElementById('button_farbe').value,
+                teaser_text: document.getElementById('teaser_text').value || ''
             };
 
         case 'fragebogen_cta':
+            // Legacy support
             return {
                 button_text: document.getElementById('button_text').value,
                 button_farbe: document.getElementById('button_farbe').value
@@ -406,6 +826,8 @@ function getEditFormData() {
         case 'footer':
             return {
                 zeige_abmelde_link: document.getElementById('zeige_abmelde_link').checked,
+                zeige_persoenliche_daten_link: document.getElementById('zeige_persoenliche_daten_link').checked,
+                zeige_weiterempfehlen_link: document.getElementById('zeige_weiterempfehlen_link').checked,
                 zusatz_text: document.getElementById('zusatz_text').value || null
             };
 
@@ -475,9 +897,15 @@ document.getElementById('confirmDelete').addEventListener('click', async functio
     }
 });
 
-// ========== Move Section ==========
+// ========== Drag & Drop Sortierung ==========
 
-async function moveSektion(sektionId, direction) {
+async function saveSektionenOrder() {
+    // Sammle alle Sektion-IDs in der aktuellen Reihenfolge
+    const sektionenList = document.getElementById('sektionen-list');
+    if (!sektionenList) return;
+
+    const ordnung = Array.from(sektionenList.children).map(li => li.dataset.sektionId);
+
     try {
         const response = await fetch(`/admin/mailing/${MAILING_ID}/editor/reorder`, {
             method: 'POST',
@@ -485,22 +913,268 @@ async function moveSektion(sektionId, direction) {
                 'Content-Type': 'application/json',
                 'X-CSRFToken': CSRF_TOKEN
             },
-            body: JSON.stringify({
-                sektion_id: sektionId,
-                direction: direction
-            })
+            body: JSON.stringify({ ordnung: ordnung })
+        });
+
+        const data = await response.json();
+
+        if (!data.success) {
+            alert(data.error || 'Fehler beim Speichern der Reihenfolge');
+            window.location.reload(); // Reload bei Fehler, um ursprüngliche Reihenfolge wiederherzustellen
+        }
+        // Bei Erfolg: Keine Aktion nötig, DOM ist bereits aktualisiert
+    } catch (error) {
+        console.error('Error saving section order:', error);
+        alert('Fehler beim Speichern der Reihenfolge');
+        window.location.reload();
+    }
+}
+
+// Sortable initialisieren wenn DOM bereit
+document.addEventListener('DOMContentLoaded', function() {
+    const sektionenList = document.getElementById('sektionen-list');
+    if (sektionenList) {
+        new Sortable(sektionenList, {
+            handle: '.sortable-handle',
+            animation: 150,
+            ghostClass: 'sortable-ghost',
+            chosenClass: 'sortable-chosen',
+            dragClass: 'sortable-drag',
+            onEnd: function(evt) {
+                // Nach dem Drag die neue Reihenfolge speichern
+                saveSektionenOrder();
+
+                // Optisch: Positions-Badges aktualisieren
+                const items = sektionenList.querySelectorAll('.list-group-item');
+                items.forEach((item, index) => {
+                    const badge = item.querySelector('.badge');
+                    if (badge) {
+                        badge.textContent = index + 1;
+                    }
+                });
+            }
+        });
+    }
+});
+
+// ========== Media Library ==========
+
+let currentMediaInputId = null;
+let currentMediaFilter = 'alle';
+let allMediaItems = [];
+
+function openMediaModal(inputId, defaultTyp = 'alle') {
+    currentMediaInputId = inputId;
+    currentMediaFilter = defaultTyp;
+
+    // Reset tabs
+    document.querySelectorAll('#mediaTypTabs .nav-link').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.typ === defaultTyp) {
+            tab.classList.add('active');
+        }
+    });
+
+    // Load media
+    loadMedien();
+
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('mediaModal'));
+    modal.show();
+}
+
+async function loadMedien() {
+    const grid = document.getElementById('mediaGrid');
+    grid.innerHTML = `
+        <div class="col-12 text-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Lade Medien...</span>
+            </div>
+        </div>
+    `;
+
+    try {
+        const response = await fetch('/admin/mailing/api/medien');
+        const data = await response.json();
+
+        if (data.success) {
+            allMediaItems = data.medien || [];
+            renderMedien();
+        } else {
+            grid.innerHTML = '<div class="col-12 text-danger">Fehler beim Laden</div>';
+        }
+    } catch (error) {
+        console.error('Error loading media:', error);
+        grid.innerHTML = '<div class="col-12 text-danger">Fehler beim Laden der Medien</div>';
+    }
+}
+
+function filterMedien(typ) {
+    currentMediaFilter = typ;
+
+    // Update tabs
+    document.querySelectorAll('#mediaTypTabs .nav-link').forEach(tab => {
+        tab.classList.remove('active');
+        if (tab.dataset.typ === typ) {
+            tab.classList.add('active');
+        }
+    });
+
+    renderMedien();
+}
+
+function renderMedien() {
+    const grid = document.getElementById('mediaGrid');
+
+    // Filter items
+    const filtered = currentMediaFilter === 'alle'
+        ? allMediaItems
+        : allMediaItems.filter(m => m.typ === currentMediaFilter);
+
+    if (filtered.length === 0) {
+        grid.innerHTML = `
+            <div class="col-12 text-center py-5 text-muted">
+                <i class="ti ti-photo-off" style="font-size: 3rem;"></i>
+                <p class="mt-2">Keine Medien vorhanden</p>
+            </div>
+        `;
+        return;
+    }
+
+    // Render grid
+    grid.innerHTML = filtered.map(medium => `
+        <div class="col-6 col-md-4">
+            <div class="card h-100 media-card" onclick="selectMedium('${escapeForTemplate(medium.url)}')">
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 120px; overflow: hidden;">
+                    <img src="${escapeForTemplate(medium.thumbnail_url || medium.url)}"
+                         alt="${escapeForTemplate(medium.titel)}"
+                         style="max-width: 100%; max-height: 120px; object-fit: contain;">
+                </div>
+                <div class="card-body p-2">
+                    <small class="text-truncate d-block fw-medium">${escapeForTemplate(medium.titel)}</small>
+                    <small class="text-muted">${medium.typ}</small>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function selectMedium(url) {
+    if (currentMediaInputId) {
+        const input = document.getElementById(currentMediaInputId);
+        if (input) {
+            input.value = url;
+
+            // Update preview if exists
+            const previewContainer = input.closest('.mb-3');
+            if (previewContainer) {
+                let preview = previewContainer.querySelector('img.img-thumbnail');
+                if (!preview) {
+                    preview = document.createElement('img');
+                    preview.className = 'img-thumbnail mt-2';
+                    preview.style.maxHeight = '100px';
+                    previewContainer.appendChild(preview);
+                }
+                preview.src = url;
+            }
+        }
+    }
+
+    // Close modal
+    bootstrap.Modal.getInstance(document.getElementById('mediaModal')).hide();
+}
+
+async function uploadMedium() {
+    const titel = document.getElementById('uploadTitel').value.trim();
+    const typ = document.getElementById('uploadTyp').value;
+    const fileInput = document.getElementById('uploadFile');
+
+    if (!titel) {
+        alert('Bitte gib einen Titel ein');
+        return;
+    }
+
+    if (!fileInput.files.length) {
+        alert('Bitte wähle eine Datei aus');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('titel', titel);
+    formData.append('typ', typ);
+    formData.append('datei', fileInput.files[0]);
+
+    try {
+        const response = await fetch('/admin/mailing/api/medien/upload', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: formData
         });
 
         const data = await response.json();
 
         if (data.success) {
-            window.location.reload();
+            // Clear form
+            document.getElementById('uploadTitel').value = '';
+            fileInput.value = '';
+
+            // Reload media
+            loadMedien();
         } else {
-            alert(data.error || 'Fehler beim Verschieben');
+            alert(data.error || 'Fehler beim Hochladen');
         }
     } catch (error) {
-        console.error('Error moving section:', error);
-        alert('Fehler beim Verschieben der Sektion');
+        console.error('Error uploading:', error);
+        alert('Fehler beim Hochladen');
+    }
+}
+
+async function addExterneUrl() {
+    const titel = document.getElementById('uploadTitel').value.trim();
+    const typ = document.getElementById('uploadTyp').value;
+    const url = document.getElementById('externeUrl').value.trim();
+
+    if (!titel) {
+        alert('Bitte gib einen Titel ein');
+        return;
+    }
+
+    if (!url) {
+        alert('Bitte gib eine URL ein');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('titel', titel);
+    formData.append('typ', typ);
+    formData.append('externe_url', url);
+
+    try {
+        const response = await fetch('/admin/mailing/api/medien/upload', {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': CSRF_TOKEN
+            },
+            body: formData
+        });
+
+        const data = await response.json();
+
+        if (data.success) {
+            // Clear form
+            document.getElementById('uploadTitel').value = '';
+            document.getElementById('externeUrl').value = '';
+
+            // Reload media
+            loadMedien();
+        } else {
+            alert(data.error || 'Fehler beim Hinzufügen');
+        }
+    } catch (error) {
+        console.error('Error adding URL:', error);
+        alert('Fehler beim Hinzufügen');
     }
 }
 </script>

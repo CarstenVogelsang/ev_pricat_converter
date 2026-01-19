@@ -268,8 +268,10 @@ def teilnehmer(id):
     # Get available kunden/leads (those who can receive questionnaires and not yet added)
     # - Kunden with user account (user_id is set)
     # - Leads with email address (typ='lead' and email is set)
+    # - Always exclude test customers
     existing_kunde_ids = [t.kunde_id for t in fragebogen.teilnahmen]
     verfuegbare_kunden = Kunde.query.filter(
+        Kunde.typ != 'testkunde',  # Exclude test customers
         or_(
             Kunde.user_id.isnot(None),  # Kunden with user account
             and_(

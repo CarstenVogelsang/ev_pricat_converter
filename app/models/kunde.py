@@ -6,9 +6,10 @@ from app import db
 
 
 class KundeTyp(Enum):
-    """Type of Kunde record - distinguishes customers from leads."""
-    KUNDE = 'kunde'    # Full customer with user accounts
-    LEAD = 'lead'      # Prospect without user account (can receive questionnaires via email)
+    """Type of Kunde record - distinguishes customers from leads and test customers."""
+    KUNDE = 'kunde'        # Full customer with user accounts
+    LEAD = 'lead'          # Prospect without user account (can receive questionnaires via email)
+    TESTKUNDE = 'testkunde'  # Test customer for mailing tests (hidden in normal lists)
 
 
 class Kunde(db.Model):
@@ -36,6 +37,10 @@ class Kunde(db.Model):
     # Contact information (company-level, not user-level)
     telefon = db.Column(db.String(50))
     email = db.Column(db.String(200))
+
+    # Legal information for Impressum (PRD-013 Phase 5)
+    handelsregister_info = db.Column(db.String(200))  # e.g. "HRB 94083 B, AG Charlottenburg"
+    umsatzsteuer_id = db.Column(db.String(50))        # e.g. "DE812373677"
 
     notizen = db.Column(db.Text)
     aktiv = db.Column(db.Boolean, default=True)
@@ -178,6 +183,11 @@ class Kunde(db.Model):
     def is_kunde(self) -> bool:
         """Check if this is a full Kunde (customer with user account)."""
         return self.typ == KundeTyp.KUNDE.value
+
+    @property
+    def is_testkunde(self) -> bool:
+        """Check if this is a test customer (for mailing tests, hidden in normal lists)."""
+        return self.typ == KundeTyp.TESTKUNDE.value
 
     @property
     def kontakt_email(self) -> str | None:
@@ -341,6 +351,8 @@ class Kunde(db.Model):
             'shop_url': self.shop_url,
             'telefon': self.telefon,
             'email': self.email,
+            'handelsregister_info': self.handelsregister_info,
+            'umsatzsteuer_id': self.umsatzsteuer_id,
             'notizen': self.notizen,
             'aktiv': self.aktiv,
             'typ': self.typ,

@@ -18,6 +18,10 @@ class BrandingConfig:
     font_weights: str
     secondary_font_family: str  # Optional, can be empty
     secondary_font_weights: str
+    # PRD-013: Legal URLs for E-Mail Footer
+    impressum_url: str
+    datenschutz_url: str
+    kontaktformular_url: str
 
 
 class BrandingService:
@@ -90,6 +94,10 @@ class BrandingService:
             font_weights=Config.get_value('brand_font_weights', self.DEFAULT_FONT_WEIGHTS),
             secondary_font_family=Config.get_value('brand_secondary_font_family', ''),
             secondary_font_weights=Config.get_value('brand_secondary_font_weights', ''),
+            # PRD-013: Legal URLs
+            impressum_url=Config.get_value('betreiber_impressum_url', ''),
+            datenschutz_url=Config.get_value('betreiber_datenschutz_url', ''),
+            kontaktformular_url=Config.get_value('betreiber_kontaktformular_url', ''),
         )
 
     def get_selected_fonts(self) -> list[dict]:
@@ -198,4 +206,20 @@ class BrandingService:
             'google_fonts_url': self.get_google_fonts_url(),  # Loads web fonts (empty if system only)
             'selected_fonts': self.get_selected_fonts(),
             'font_css_for_email': self.get_font_css_for_email(),  # CSS for email templates
+            # PRD-013: Legal URLs
+            'impressum_url': branding.impressum_url,
+            'datenschutz_url': branding.datenschutz_url,
+            'kontaktformular_url': branding.kontaktformular_url,
         }
+
+
+# Factory function for service instantiation
+_branding_service = None
+
+
+def get_branding_service() -> BrandingService:
+    """Get or create the BrandingService singleton."""
+    global _branding_service
+    if _branding_service is None:
+        _branding_service = BrandingService()
+    return _branding_service
