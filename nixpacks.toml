@@ -3,8 +3,7 @@
 
 providers = ["python"]
 
-[phases.setup]
-aptGet = false
+# [phases.setup] entfernt - apt-get wird für psycopg2/cryptography benötigt
 
 [start]
 # DB wird mit dem Repo deployed - nur Migrationen ausführen falls nötig
