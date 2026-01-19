@@ -30,12 +30,13 @@ cd ev_pricat_converter
 # Dependencies installieren
 uv sync
 
-# Datenbank initialisieren und Testdaten laden
+# Datenbank initialisieren
 uv run flask init-db
-uv run flask seed
 
-# Benutzer anlegen (optional)
-uv run flask seed-users
+# Seed-Befehle (3-Stufen-System)
+uv run flask seed-essential    # Rollen + Admin-User (PFLICHT)
+uv run flask seed-stammdaten   # Branchen, Verbände, Hilfetexte
+uv run flask seed-demo         # Test-Daten (nur Entwicklung)
 ```
 
 ### Server starten
@@ -89,12 +90,43 @@ Die SQLite-Datenbank liegt im Container unter `/app/instance/pricat.db`. Für pe
 ## Datenbank-Befehle
 
 ```bash
-uv run flask init-db          # Tabellen erstellen
-uv run flask seed             # Testdaten (LEGO-Lieferant, Config)
-uv run flask seed-users       # Benutzer anlegen
-uv run flask db migrate       # Migration erstellen
-uv run flask db upgrade       # Migration anwenden
+uv run flask init-db           # Tabellen erstellen
+uv run flask seed-essential    # Rollen + Admin-User (PFLICHT)
+uv run flask seed-stammdaten   # Stammdaten (Branchen, Verbände, etc.)
+uv run flask seed-demo         # Demo-Daten (nur Entwicklung)
+uv run flask db migrate        # Migration erstellen
+uv run flask db upgrade        # Migration anwenden
 ```
+
+## Troubleshooting
+
+### Port bereits belegt
+
+```text
+Address already in use
+Port 5055 is in use by another program.
+```
+
+**Lösung:** Prozess auf Port direkt beenden (Einzeiler):
+
+```bash
+# Port 5055 freigeben (ändere die Portnummer nach Bedarf)
+lsof -ti :5055 | xargs kill
+
+# Alternative: Alle Python-Prozesse mit "run.py" beenden
+pkill -f "python run.py"
+```
+
+<details>
+<summary>Erklärung der Befehle</summary>
+
+- `lsof` = **L**ist **O**pen **F**iles (zeigt welcher Prozess einen Port/Datei nutzt)
+- `-t` = nur PID ausgeben (für Piping)
+- `-i :PORT` = nach Netzwerk-Port filtern
+- `xargs kill` = PID an `kill` weitergeben
+- `pkill -f` = Prozesse nach Kommandozeilen-Pattern beenden
+
+</details>
 
 ## Dokumentation
 
