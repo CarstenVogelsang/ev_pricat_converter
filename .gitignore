@@ -19,7 +19,8 @@ ENV/
 .env.local
 
 # Database & Instance data (runtime files, not for repo)
-instance/
+# TEMPORARILY COMMENTED OUT FOR DEPLOYMENT - RE-ENABLE AFTER!
+# instance/
 *.sqlite
 
 # Data directories (keep structure, ignore content)

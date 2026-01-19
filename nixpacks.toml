@@ -7,6 +7,5 @@ providers = ["python"]
 aptGet = false
 
 [start]
-# DB_RESET=true triggers full database reset (drop all tables, recreate, seed)
-# Without DB_RESET: normal migration workflow
-cmd = "if [ \"$DB_RESET\" = \"true\" ]; then echo '=== DB_RESET=true: Resetting database... ===' && flask reset-db && flask seed && flask seed-users; else flask db upgrade && flask seed && flask seed-users; fi && gunicorn -w 4 -b 0.0.0.0:3000 'app:create_app()'"
+# DB wird mit dem Repo deployed - nur Migrationen ausführen falls nötig
+cmd = "flask db upgrade && gunicorn -w 4 -b 0.0.0.0:3000 'app:create_app()'"
