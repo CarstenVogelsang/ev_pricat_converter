@@ -108,8 +108,30 @@
                             <td><span class="badge bg-secondary">Nein</span></td>
                             <td>Messe-Kontakt 2024</td>
                         </tr>
+                        <tr class="table-info">
+                            <td><code>branchen</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>Spielwaren|Modellbahn</td>
+                        </tr>
+                        <tr class="table-info">
+                            <td><code>verbaende</code></td>
+                            <td><span class="badge bg-secondary">Nein</span></td>
+                            <td>VEDES|EK</td>
+                        </tr>
                     </tbody>
                 </table>
+
+                <div class="alert alert-warning mb-3">
+                    <i class="ti ti-info-circle"></i>
+                    <strong>Branchen &amp; Verbände:</strong>
+                    <ul class="mb-0 mt-2">
+                        <li>Mehrere Werte mit <code>|</code> (Pipe) trennen</li>
+                        <li>Branchen: Per <strong>Name</strong> oder <strong>UUID</strong> angeben</li>
+                        <li>Verbände: Per <strong>Kürzel</strong> angeben (z.B. VEDES, EK)</li>
+                        <li>Erste Branche wird automatisch als <strong>primär</strong> markiert</li>
+                        <li>Alle Branchen müssen zur <strong>gleichen Hauptbranche</strong> gehören</li>
+                    </ul>
+                </div>
 
                 <div class="alert alert-info mb-0">
                     <i class="ti ti-bulb"></i>
@@ -124,9 +146,10 @@
                 <i class="ti ti-download"></i> Beispiel-CSV
             </div>
             <div class="card-body">
-                <pre class="bg-light p-3 rounded mb-0"><code>firmierung;email;telefon;strasse;plz;ort;website_url;notizen
-Musterfirma GmbH;info@muster.de;030-12345;Musterstr. 1;12345;Berlin;;Messe-Kontakt
-Beispiel AG;kontakt@beispiel.de;;;;Hamburg;https://beispiel.de;</code></pre>
+                <pre class="bg-light p-3 rounded mb-0" style="font-size: 0.75rem; overflow-x: auto;"><code>firmierung;email;telefon;strasse;plz;ort;website_url;notizen;branchen;verbaende
+Musterfirma GmbH;info@muster.de;030-12345;Musterstr. 1;12345;Berlin;;Messe 2024;Spielwaren|Modellbahn;VEDES|EK
+Beispiel AG;kontakt@beispiel.de;;;;Hamburg;https://beispiel.de;;Bürobedarf;
+Test KG;test@test.de;;;10115;Berlin;;;;VEDES</code></pre>
             </div>
         </div>
     </div>

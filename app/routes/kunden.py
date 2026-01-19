@@ -58,8 +58,8 @@ def liste():
     status = request.args.get('status', 'alle')
     typ_filter = request.args.get('typ', 'alle')  # kunde, lead, alle
 
-    # Base query
-    query = Kunde.query
+    # Base query - always exclude test customers
+    query = Kunde.query.filter(Kunde.typ != KundeTyp.TESTKUNDE.value)
 
     # Apply filters
     if branche_id:
@@ -1021,19 +1021,90 @@ def set_hauptbenutzer(id, user_id):
 
 # ===== Lead Import & Conversion =====
 
+def _resolve_branche(identifier: str) -> Branche | None:
+    """Resolve branche by UUID or name (case-insensitive)."""
+    identifier = identifier.strip()
+    if not identifier:
+        return None
+
+    # Try UUID first (format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx)
+    if len(identifier) == 36 and identifier.count('-') == 4:
+        branche = Branche.query.filter_by(uuid=identifier).first()
+        if branche:
+            return branche
+
+    # Fallback to name (case-insensitive)
+    return Branche.query.filter(
+        func.lower(Branche.name) == func.lower(identifier)
+    ).first()
+
+
+def _resolve_verband(kuerzel: str) -> Verband | None:
+    """Resolve verband by Kürzel (case-insensitive)."""
+    kuerzel = kuerzel.strip()
+    if not kuerzel:
+        return None
+
+    return Verband.query.filter(
+        func.lower(Verband.kuerzel) == func.lower(kuerzel)
+    ).first()
+
+
+def _validate_branchen_consistency(branchen: list[Branche]) -> tuple[bool, str | None]:
+    """Check if all branches belong to the same Hauptbranche.
+
+    Returns:
+        (is_valid, error_message)
+    """
+    if not branchen:
+        return True, None
+
+    parent_ids = {b.parent_id for b in branchen}
+
+    # All branches must be Unterbranchen (have a parent)
+    if None in parent_ids:
+        hauptbranchen = [b.name for b in branchen if b.parent_id is None]
+        return False, f"Hauptbranche(n) nicht erlaubt: {', '.join(hauptbranchen)}"
+
+    # All must have the same parent
+    if len(parent_ids) > 1:
+        parents = {Branche.query.get(pid).name for pid in parent_ids}
+        return False, f"Inkonsistente Hauptbranchen: {', '.join(parents)}"
+
+    return True, None
+
+
 @kunden_bp.route('/import', methods=['GET', 'POST'])
 @login_required
 @mitarbeiter_required
 def lead_import():
-    """Import leads from CSV file.
+    """Import leads from CSV file with Branchen and Verbände support.
 
     CSV format (semicolon-separated, UTF-8):
-    firmierung;email;telefon;strasse;plz;ort;website_url;notizen
+    firmierung;email;telefon;strasse;plz;ort;website_url;notizen;branchen;verbaende
 
-    Only firmierung is required, other fields are optional.
+    - firmierung is required, other fields are optional
+    - branchen: Pipe-separated list of branch UUIDs or names (e.g., "Spielwaren|Modellbahn")
+    - verbaende: Pipe-separated list of association abbreviations (e.g., "VEDES|EK")
+    - First branch is marked as primary (ist_primaer=True)
     """
+    from flask import session
+    import csv
+    import io
+
     if request.method == 'GET':
-        return render_template('kunden/import.html')
+        # Load available Branchen and Verbände for documentation
+        branchen = Branche.query.filter(
+            Branche.aktiv == True,
+            Branche.parent_id.isnot(None)  # Only Unterbranchen
+        ).order_by(Branche.name).all()
+        verbaende = Verband.query.filter_by(aktiv=True).order_by(Verband.name).all()
+
+        return render_template(
+            'kunden/import.html',
+            branchen=branchen,
+            verbaende=verbaende
+        )
 
     # POST: Process CSV upload
     if 'csv_file' not in request.files:
@@ -1050,51 +1121,121 @@ def lead_import():
         return redirect(url_for('kunden.lead_import'))
 
     try:
-        # Read CSV content
-        import csv
-        import io
-
         content = file.read().decode('utf-8')
         reader = csv.DictReader(io.StringIO(content), delimiter=';')
 
         # Track import results
-        created_count = 0
-        skipped_count = 0
-        errors = []
+        imported = []  # Successfully imported leads
+        skipped = []   # Duplicates
+        failed = []    # Errors (with details)
 
         for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
-            firmierung = row.get('firmierung', '').strip()
+            errors = []
+            firmierung = (row.get('firmierung') or '').strip()
 
+            # 1. Validate firmierung (required)
             if not firmierung:
-                errors.append(f'Zeile {row_num}: Firmierung fehlt')
-                skipped_count += 1
+                failed.append({
+                    'line': row_num,
+                    'row': row,
+                    'errors': ['Firmierung fehlt']
+                })
                 continue
 
-            # Check if Kunde with same firmierung already exists
+            # 2. Check for duplicates
             existing = Kunde.query.filter(
                 func.lower(Kunde.firmierung) == func.lower(firmierung)
             ).first()
 
             if existing:
-                errors.append(f'Zeile {row_num}: "{firmierung}" existiert bereits')
-                skipped_count += 1
+                skipped.append({
+                    'line': row_num,
+                    'row': row,
+                    'reason': f'Existiert bereits (ID: {existing.id})'
+                })
                 continue
 
-            # Create new Lead
+            # 3. Resolve Branchen
+            branchen_resolved = []
+            branchen_str = (row.get('branchen') or '').strip()
+            if branchen_str:
+                for b_str in branchen_str.split('|'):
+                    b_str = b_str.strip()
+                    if not b_str:
+                        continue
+                    branche = _resolve_branche(b_str)
+                    if not branche:
+                        errors.append(f"Branche '{b_str}' nicht gefunden")
+                    else:
+                        branchen_resolved.append(branche)
+
+            # 4. Validate Branchen consistency (all must have same parent)
+            if branchen_resolved:
+                is_valid, consistency_error = _validate_branchen_consistency(branchen_resolved)
+                if not is_valid:
+                    errors.append(consistency_error)
+
+            # 5. Resolve Verbände
+            verbaende_resolved = []
+            verbaende_str = (row.get('verbaende') or '').strip()
+            if verbaende_str:
+                for v_str in verbaende_str.split('|'):
+                    v_str = v_str.strip()
+                    if not v_str:
+                        continue
+                    verband = _resolve_verband(v_str)
+                    if not verband:
+                        errors.append(f"Verband '{v_str}' nicht gefunden")
+                    else:
+                        verbaende_resolved.append(verband)
+
+            # 6. If errors, add to failed list
+            if errors:
+                failed.append({
+                    'line': row_num,
+                    'row': row,
+                    'errors': errors
+                })
+                continue
+
+            # 7. Create new Lead
             lead = Kunde(
                 firmierung=firmierung,
-                email=row.get('email', '').strip() or None,
-                telefon=row.get('telefon', '').strip() or None,
-                strasse=row.get('strasse', '').strip() or None,
-                plz=row.get('plz', '').strip() or None,
-                ort=row.get('ort', '').strip() or None,
-                website_url=row.get('website_url', '').strip() or None,
-                notizen=row.get('notizen', '').strip() or None,
+                email=(row.get('email') or '').strip() or None,
+                telefon=(row.get('telefon') or '').strip() or None,
+                strasse=(row.get('strasse') or '').strip() or None,
+                plz=(row.get('plz') or '').strip() or None,
+                ort=(row.get('ort') or '').strip() or None,
+                website_url=(row.get('website_url') or '').strip() or None,
+                notizen=(row.get('notizen') or '').strip() or None,
                 typ=KundeTyp.LEAD.value,
                 aktiv=True
             )
             db.session.add(lead)
-            created_count += 1
+            db.session.flush()  # Get ID for associations
+
+            # 8. Create Branchen associations
+            for i, branche in enumerate(branchen_resolved):
+                kb = KundeBranche(
+                    kunde_id=lead.id,
+                    branche_id=branche.id,
+                    ist_primaer=(i == 0)  # First is primary
+                )
+                db.session.add(kb)
+
+            # 9. Create Verbands associations
+            for verband in verbaende_resolved:
+                kv = KundeVerband(
+                    kunde_id=lead.id,
+                    verband_id=verband.id
+                )
+                db.session.add(kv)
+
+            imported.append({
+                'lead': lead,
+                'branchen': [b.name for b in branchen_resolved],
+                'verbaende': [v.kuerzel for v in verbaende_resolved]
+            })
 
         db.session.commit()
 
@@ -1102,28 +1243,113 @@ def lead_import():
         log_mittel(
             modul='kunden',
             aktion='leads_importiert',
-            details=f'{created_count} Leads importiert, {skipped_count} übersprungen',
+            details=f'{len(imported)} importiert, {len(skipped)} Duplikate, {len(failed)} Fehler',
             entity_type='Kunde',
             entity_id=None
         )
 
-        # Flash result
-        if created_count > 0:
-            flash(f'{created_count} Lead(s) erfolgreich importiert', 'success')
-        if skipped_count > 0:
-            flash(f'{skipped_count} Zeile(n) übersprungen', 'warning')
-        if errors:
-            # Show first 5 errors
-            for error in errors[:5]:
-                flash(error, 'danger')
-            if len(errors) > 5:
-                flash(f'... und {len(errors) - 5} weitere Fehler', 'danger')
+        # Store failed rows in session for XLSX download
+        if failed:
+            session['import_failed_rows'] = failed
 
-        return redirect(url_for('kunden.liste', typ='lead'))
+        # Prepare data for result template
+        failed_rows = [
+            {
+                'line_number': f['line'],
+                'row': f['row'],
+                'errors': f['errors']
+            }
+            for f in failed
+        ]
+
+        skipped_rows = [
+            {
+                'line_number': s['line'],
+                'row': s['row'],
+                'reason': s['reason']
+            }
+            for s in skipped
+        ]
+
+        # Render result page
+        return render_template(
+            'kunden/import_result.html',
+            imported_count=len(imported),
+            skipped_count=len(skipped),
+            failed_count=len(failed),
+            failed_rows=failed_rows,
+            skipped_rows=skipped_rows
+        )
 
     except Exception as e:
+        db.session.rollback()
         flash(f'Fehler beim Import: {str(e)}', 'danger')
         return redirect(url_for('kunden.lead_import'))
+
+
+@kunden_bp.route('/import/fehler-xlsx')
+@login_required
+@mitarbeiter_required
+def lead_import_fehler_xlsx():
+    """Download failed import rows as XLSX."""
+    from flask import session, Response
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    import io
+
+    failed_rows = session.get('import_failed_rows', [])
+    if not failed_rows:
+        flash('Keine fehlerhaften Zeilen vorhanden', 'info')
+        return redirect(url_for('kunden.lead_import'))
+
+    # Create workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Import-Fehler"
+
+    # Header styling
+    header_font = Font(bold=True, color="FFFFFF")
+    header_fill = PatternFill(start_color="DC3545", end_color="DC3545", fill_type="solid")
+
+    # Headers
+    headers = ['Zeile', 'Firmierung', 'Email', 'Branchen', 'Verbände', 'Fehler']
+    for col, header in enumerate(headers, start=1):
+        cell = ws.cell(row=1, column=col, value=header)
+        cell.font = header_font
+        cell.fill = header_fill
+        cell.alignment = Alignment(horizontal='center')
+
+    # Data rows
+    for i, item in enumerate(failed_rows, start=2):
+        row = item.get('row', {})
+        ws.cell(row=i, column=1, value=item.get('line', ''))
+        ws.cell(row=i, column=2, value=row.get('firmierung', ''))
+        ws.cell(row=i, column=3, value=row.get('email', ''))
+        ws.cell(row=i, column=4, value=row.get('branchen', ''))
+        ws.cell(row=i, column=5, value=row.get('verbaende', ''))
+        ws.cell(row=i, column=6, value='; '.join(item.get('errors', [])))
+
+    # Adjust column widths
+    ws.column_dimensions['A'].width = 8
+    ws.column_dimensions['B'].width = 30
+    ws.column_dimensions['C'].width = 25
+    ws.column_dimensions['D'].width = 30
+    ws.column_dimensions['E'].width = 20
+    ws.column_dimensions['F'].width = 50
+
+    # Save to bytes
+    output = io.BytesIO()
+    wb.save(output)
+    output.seek(0)
+
+    # Clear session data
+    session.pop('import_failed_rows', None)
+
+    return Response(
+        output.getvalue(),
+        mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        headers={'Content-Disposition': 'attachment; filename=import_fehler.xlsx'}
+    )
 
 
 @kunden_bp.route('/<int:id>/konvertieren', methods=['POST'])

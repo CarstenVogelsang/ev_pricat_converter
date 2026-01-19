@@ -1,0 +1,182 @@
+{% extends "base.html" %}
+{% from "macros/module_header.html" import module_header %}
+{% from "macros/breadcrumb.html" import breadcrumb %}
+
+{% block title %}Import-Ergebnis - {{ branding.app_title }}{% endblock %}
+
+{% set module = module_colors.get('kunden', {'color_hex': '#198754', 'icon': 'ti-users'}) %}
+
+{% block content %}
+{{ breadcrumb([
+    {'label': 'Dashboard', 'url': url_for('main.dashboard'), 'icon': 'ti-home'},
+    {'label': 'Kunden', 'url': url_for('kunden.liste'), 'icon': 'ti-users'},
+    {'label': 'Import-Ergebnis'}
+]) }}
+{% call module_header(
+    title="Import-Ergebnis",
+    icon="ti-checklist",
+    color_hex=module.color_hex
+) %}
+    <a href="{{ url_for('kunden.lead_import') }}" class="btn btn-outline-secondary">
+        <i class="ti ti-upload"></i> Neuer Import
+    </a>
+    <a href="{{ url_for('kunden.liste') }}" class="btn btn-primary">
+        <i class="ti ti-users"></i> Zur Lead-Liste
+    </a>
+{% endcall %}
+
+{# Zusammenfassung #}
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card border-success">
+            <div class="card-body text-center">
+                <div class="display-4 text-success">{{ imported_count }}</div>
+                <div class="text-muted">
+                    <i class="ti ti-check"></i> Erfolgreich importiert
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-warning">
+            <div class="card-body text-center">
+                <div class="display-4 text-warning">{{ skipped_count }}</div>
+                <div class="text-muted">
+                    <i class="ti ti-minus"></i> Duplikate übersprungen
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card border-danger">
+            <div class="card-body text-center">
+                <div class="display-4 text-danger">{{ failed_count }}</div>
+                <div class="text-muted">
+                    <i class="ti ti-x"></i> Fehler
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Erfolgsmeldung wenn keine Fehler #}
+{% if failed_count == 0 and imported_count > 0 %}
+<div class="alert alert-success">
+    <i class="ti ti-check"></i>
+    <strong>Import erfolgreich!</strong>
+    Alle {{ imported_count }} Leads wurden erfolgreich importiert.
+</div>
+{% endif %}
+
+{# Fehlerhafte Datensätze #}
+{% if failed_rows %}
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="ti ti-alert-triangle text-danger"></i> Fehlerhafte Datensätze</span>
+        <a href="{{ url_for('kunden.lead_import_fehler_xlsx') }}" class="btn btn-sm btn-outline-primary">
+            <i class="ti ti-file-spreadsheet"></i> XLSX herunterladen
+        </a>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 60px;">Zeile</th>
+                        <th>Firmierung</th>
+                        <th>Email</th>
+                        <th>Branchen</th>
+                        <th>Verbände</th>
+                        <th>Fehler</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in failed_rows %}
+                    <tr>
+                        <td class="text-muted">{{ item.line_number }}</td>
+                        <td>
+                            {% if item.row.firmierung %}
+                                {{ item.row.firmierung }}
+                            {% else %}
+                                <span class="text-danger">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.row.email %}
+                                <span class="text-muted small">{{ item.row.email }}</span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.row.branchen %}
+                                <code class="small">{{ item.row.branchen }}</code>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.row.verbaende %}
+                                <code class="small">{{ item.row.verbaende }}</code>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% for error in item.errors %}
+                            <span class="badge bg-danger mb-1">{{ error }}</span>
+                            {% endfor %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div class="card-footer">
+        <small class="text-muted">
+            <i class="ti ti-info-circle"></i>
+            Laden Sie die XLSX-Datei herunter, um die fehlerhaften Datensätze zu korrigieren und erneut zu importieren.
+        </small>
+    </div>
+</div>
+{% endif %}
+
+{# Übersprungene Duplikate #}
+{% if skipped_rows %}
+<div class="card mt-4">
+    <div class="card-header">
+        <span><i class="ti ti-minus text-warning"></i> Übersprungene Duplikate</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-sm table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="width: 60px;">Zeile</th>
+                        <th>Firmierung</th>
+                        <th>Grund</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in skipped_rows[:10] %}
+                    <tr>
+                        <td class="text-muted">{{ item.line_number }}</td>
+                        <td>{{ item.row.firmierung }}</td>
+                        <td><span class="badge bg-warning">Firmierung existiert bereits</span></td>
+                    </tr>
+                    {% endfor %}
+                    {% if skipped_rows|length > 10 %}
+                    <tr>
+                        <td colspan="3" class="text-center text-muted">
+                            ... und {{ skipped_rows|length - 10 }} weitere Duplikate
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
