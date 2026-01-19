@@ -12,6 +12,27 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
 
 ### Added
 
+- **Globale Medienverwaltung:** Neues `Medium`-Model für plattformweite Medienbibliothek
+  - Unterstützt Datei-Uploads und externe URLs (z.B. Unsplash)
+  - Typen: Banner, Bild, Logo, Dokument
+  - Model: `app/models/medium.py` mit `MediumTyp` Enum
+  - Factory-Methoden: `create_from_upload()`, `create_from_url()`
+  - Migration: `bdb466fd8e04_add_medium_model_for_global_media_library.py`
+  - Export: `Medium`, `MediumTyp` in `app/models/__init__.py`
+  - Nutzung: Aktuell im Mailing-Editor für Banner- und Bild-Auswahl
+
+- **BrandingService: Legal-URLs für E-Mail-Footer:** (PRD-013 Phase 5)
+  - Neue Felder in `BrandingConfig`: `impressum_url`, `datenschutz_url`, `kontaktformular_url`
+  - Config-Keys: `betreiber_impressum_url`, `betreiber_datenschutz_url`, `betreiber_kontaktformular_url`
+  - Neue Factory-Funktion: `get_branding_service()` für Singleton-Zugriff
+  - Betreiber-Admin erweitert: Eingabefelder für Impressum- und Datenschutz-URLs
+  - Dateien: `branding_service.py`, `admin.py`, `betreiber.html`
+
+- **Kunde-Model erweitert:** Handelsregister und USt-ID (PRD-013 Phase 5)
+  - Neue Felder: `handelsregister_info` (z.B. "HRB 94083 B, AG Charlottenburg"), `umsatzsteuer_id` (z.B. "DE812373677")
+  - Migration: `008c5f01f9c7_add_mailing_module_prd_013.py`
+  - Dateien: `kunde.py`
+
 - **Stammdaten-CRUD für Partner & Marken:** Vollständige CRUD-Administration für Geschäftspartner
   - **Lieferanten:** `/admin/lieferanten` mit Liste, Formular, Löschen
     - Felder: Kurzbezeichnung, VEDES-ID (unique), GLN (optional), Aktiv-Status
@@ -43,6 +64,16 @@ Das Format basiert auf [Keep a Changelog](https://keepachangelog.com/de/1.0.0/).
   - Pattern für alle Detail-Seiten der Plattform
 
 ### Changed
+
+- **Seeding-Konzept überarbeitet:** 3-Stufen-System für granulare Kontrolle
+  - Neuer Befehl `flask seed-essential`: Nur Rollen + 1 Admin-User aus ENV (Pflicht für Login)
+  - `flask seed` umbenannt zu `flask seed-stammdaten`: Nur Stammdaten (Branchen, Verbände, Hilfetexte)
+  - Neuer Befehl `flask seed-demo`: Demo-Daten für Entwicklung (LEGO, e-vendo Users, Test-Kunden)
+  - LEGO-Lieferant verschoben: Von `seed` nach `seed-demo`
+  - Neue ENV-Variable `INITIAL_ADMIN_EMAIL` (Pflicht für `seed-essential`)
+  - Alte Befehle `flask seed` und `flask seed-users` bleiben als Kompatibilitäts-Aliase
+  - Fake-Verbände "Spielwaren-Ring" und "expert" entfernt aus Seed-Daten
+  - Dateien: `app/__init__.py`, `CLAUDE.md`, `.env.example`
 
 - **Stammdaten-Gruppe umbenannt:** "PRICAT-Stammdaten" → "Partner & Marken"
   - Icon geändert: `ti-file-spreadsheet` → `ti-building-store`

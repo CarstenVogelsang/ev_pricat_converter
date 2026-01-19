@@ -74,6 +74,7 @@ def create_app(config_name=None):
     from app.routes.projekte_admin import projekte_admin_bp
     from app.routes.api_upload import api_upload_bp
     from app.routes.mailing_admin import mailing_admin_bp
+    from app.routes.mailing import mailing_bp
 
     app.register_blueprint(main_bp)
     app.register_blueprint(admin_bp, url_prefix='/admin')
@@ -102,6 +103,137 @@ def create_app(config_name=None):
     app.register_blueprint(api_upload_bp)
     # PRD-013: Kunden-Mailing
     app.register_blueprint(mailing_admin_bp)
+    app.register_blueprint(mailing_bp)  # Öffentliche Routes (Tracking, Abmeldung)
+
+    # =========================================================================
+    # Admin Page Visit Tracking (for "Recently Visited" Quick Links)
+    # =========================================================================
+    # Page title mapping for human-readable display
+    ADMIN_PAGE_TITLES = {
+        # Main sections
+        'admin.system': 'System',
+        'admin.module_uebersicht': 'Module',
+        'admin.stammdaten_uebersicht': 'Stammdaten',
+        'admin.einstellungen_uebersicht': 'Einstellungen',
+        # Stammdaten
+        'admin.betreiber': 'Betreiber',
+        'admin.branding': 'Branding',
+        'admin.lieferanten': 'Lieferanten',
+        'admin.rollen': 'Rollen',
+        'admin.branchen': 'Branchen',
+        'admin.verbaende': 'Verbände',
+        'admin.hilfetexte': 'Hilfetexte',
+        # Modules
+        'admin.pricat': 'PRICAT Converter',
+        'admin.kunden_report': 'Lead & Kundenreport',
+        'admin.lieferanten_auswahl': 'Meine Lieferanten',
+        'admin.content_generator': 'Content Generator',
+        # Dialog module
+        'dialog_admin.index': 'Fragebögen',
+        'dialog_admin.einstellungen': 'Dialog-Einstellungen',
+        'dialog_admin.edit': 'Fragebogen bearbeiten',
+        'dialog_admin.detail': 'Fragebogen-Details',
+        # Schulungen module
+        'schulungen_admin.index': 'Schulungen',
+        'schulungen_admin.einstellungen': 'Schulungen-Einstellungen',
+        'schulungen_admin.detail': 'Schulung-Details',
+        # Projektverwaltung module
+        'projekte_admin.index': 'Projekte',
+        'projekte_admin.einstellungen': 'Projekt-Einstellungen',
+        'projekte_admin.projekt_detail': 'Projekt-Details',
+        'projekte_admin.komponente_detail': 'Komponente-Details',
+        # Mailing module
+        'mailing_admin.index': 'Mailings',
+        'mailing_admin.einstellungen': 'Mailing-Einstellungen',
+        'mailing_admin.detail': 'Mailing-Details',
+        'mailing_admin.editor': 'Mailing-Editor',
+        'mailing_admin.senden': 'Mailing senden',
+        'mailing_admin.statistik': 'Mailing-Statistik',
+        # Kunden
+        'kunden.liste': 'Kunden-Liste',
+        'kunden.detail': 'Kunden-Details',
+        # Support
+        'support_admin.index': 'Anwender-Support',
+        # Benutzer
+        'benutzer.liste': 'Benutzer-Liste',
+        'benutzer.detail': 'Benutzer-Details',
+    }
+
+    def get_admin_page_title(endpoint):
+        """Get human-readable title for an admin endpoint."""
+        if not endpoint:
+            return 'Unbekannt'
+        if endpoint in ADMIN_PAGE_TITLES:
+            return ADMIN_PAGE_TITLES[endpoint]
+        # Fallback: Create title from endpoint name
+        parts = endpoint.split('.')
+        if len(parts) >= 2:
+            return parts[-1].replace('_', ' ').title()
+        return endpoint.title()
+
+    @app.before_request
+    def track_admin_page_visit():
+        """Track page visits in admin area for 'Recently Visited' feature."""
+        from flask_login import current_user
+        from flask import request
+        from app.models import AdminPageVisit
+
+        # Skip if not authenticated
+        if not current_user.is_authenticated:
+            return
+        # Skip non-GET requests (only track page views)
+        if request.method != 'GET':
+            return
+        # Skip if no endpoint (static files, etc.)
+        if not request.endpoint:
+            return
+        # Only track admin-related endpoints
+        admin_prefixes = ('admin.', 'dialog_admin.', 'schulungen_admin.',
+                          'projekte_admin.', 'mailing_admin.', 'support_admin.',
+                          'benutzer.', 'kunden.', 'dbadmin.')
+        if not any(request.endpoint.startswith(prefix) for prefix in admin_prefixes):
+            return
+        # Skip API and AJAX endpoints
+        if 'api' in request.endpoint or request.is_json:
+            return
+
+        try:
+            # Check if last visit was same endpoint (avoid duplicates)
+            last_visit = AdminPageVisit.query.filter_by(
+                user_id=current_user.id
+            ).order_by(AdminPageVisit.timestamp.desc()).first()
+
+            if last_visit and last_visit.endpoint == request.endpoint:
+                # Same page as last visit - update timestamp instead of creating new
+                last_visit.timestamp = datetime.utcnow()
+                last_visit.page_url = request.path  # URL might have changed (query params)
+                db.session.commit()
+                return
+
+            # Create new visit entry
+            visit = AdminPageVisit(
+                user_id=current_user.id,
+                endpoint=request.endpoint,
+                page_url=request.path,
+                page_title=get_admin_page_title(request.endpoint)
+            )
+            db.session.add(visit)
+            db.session.commit()
+
+            # Cleanup old entries (keep max 50 per user)
+            visit_count = AdminPageVisit.query.filter_by(
+                user_id=current_user.id
+            ).count()
+            if visit_count > 50:
+                old_visits = AdminPageVisit.query.filter_by(
+                    user_id=current_user.id
+                ).order_by(AdminPageVisit.timestamp.asc()).limit(visit_count - 50).all()
+                for old_visit in old_visits:
+                    db.session.delete(old_visit)
+                db.session.commit()
+        except Exception:
+            # Don't let tracking errors break the app
+            db.session.rollback()
 
     # Initialize Flask-Admin (under /db-admin, requires admin role)
     from app.admin import init_admin
@@ -182,53 +314,144 @@ def create_app(config_name=None):
                 return None
         return {'get_help_text': get_help_text}
 
+    # Context processor for recently visited admin pages
+    @app.context_processor
+    def inject_recent_admin_pages():
+        """Inject recently visited admin pages into all templates."""
+        from flask_login import current_user
+        from app.models import AdminPageVisit
+        from sqlalchemy import func
+
+        if not current_user.is_authenticated:
+            return {'recent_admin_pages': []}
+
+        try:
+            # Get unique recent pages (deduplicated by endpoint, ordered by most recent)
+            # Using a subquery to get the latest visit per endpoint
+            subquery = db.session.query(
+                AdminPageVisit.endpoint,
+                func.max(AdminPageVisit.timestamp).label('latest_timestamp')
+            ).filter_by(
+                user_id=current_user.id
+            ).group_by(
+                AdminPageVisit.endpoint
+            ).subquery()
+
+            recent = db.session.query(AdminPageVisit).join(
+                subquery,
+                db.and_(
+                    AdminPageVisit.endpoint == subquery.c.endpoint,
+                    AdminPageVisit.timestamp == subquery.c.latest_timestamp
+                )
+            ).filter(
+                AdminPageVisit.user_id == current_user.id
+            ).order_by(
+                AdminPageVisit.timestamp.desc()
+            ).limit(3).all()
+
+            return {'recent_admin_pages': recent}
+        except Exception:
+            return {'recent_admin_pages': []}
+
     return app
 
 
 def register_cli_commands(app):
     """Register CLI commands."""
 
-    @app.cli.command('seed')
-    def seed_command():
-        """Seed the database with initial data."""
-        from app.models import (
-            Lieferant, Config as ConfigModel, Rolle,
-            Branche, Verband, HelpText
-        )
+    @app.cli.command('seed-essential')
+    def seed_essential_command():
+        """Seed minimum required data (roles + 1 admin user from ENV).
 
-        # Create roles
+        This is the FIRST command to run on a fresh installation.
+        Creates only what's needed to log in.
+
+        Required ENV variables:
+            INITIAL_ADMIN_EMAIL: Email for the initial admin user
+
+        Optional ENV variables:
+            INITIAL_ADMIN_PASSWORD: Password (default: admin123)
+        """
+        from app.models import Rolle, User
+
+        click.echo('=' * 50)
+        click.echo('Seeding ESSENTIAL data (roles + admin)...')
+        click.echo('=' * 50)
+
+        # 1. Create roles (absolute minimum)
         roles_data = [
             ('admin', 'Vollzugriff auf alle Funktionen'),
             ('mitarbeiter', 'e-vendo Mitarbeiter'),
             ('kunde', 'Externer Kunde'),
         ]
-        roles = {}
         for name, beschreibung in roles_data:
-            rolle = Rolle.query.filter_by(name=name).first()
-            if not rolle:
+            if not Rolle.query.filter_by(name=name).first():
                 rolle = Rolle(name=name, beschreibung=beschreibung)
                 db.session.add(rolle)
-                click.echo(f'Created role: {name}')
-            roles[name] = rolle
-        db.session.flush()  # Get IDs
+                click.echo(f'✓ Created role: {name}')
+            else:
+                click.echo(f'  Role exists: {name}')
+        db.session.flush()
 
-        # Create test supplier (LEGO)
-        # Note: vedes_id is stored without leading zeros
-        lego = Lieferant.query.filter_by(vedes_id='1872').first()
-        if not lego:
-            lego = Lieferant(
-                gln='4023017000005',
-                vedes_id='1872',
-                kurzbezeichnung='LEGO Spielwaren GmbH',
-                aktiv=True,
-                ftp_quelldatei='pricat_1872_Lego Spielwaren GmbH_0.csv',
-                elena_startdir='lego',
-                elena_base_url='https://direct.e-vendo.de'
+        # 2. Create admin user from ENV
+        admin_email = os.environ.get('INITIAL_ADMIN_EMAIL')
+        if not admin_email:
+            click.echo('')
+            click.echo('WARNING: INITIAL_ADMIN_EMAIL not set!')
+            click.echo('No admin user created. Set this ENV variable and run again.')
+            click.echo('')
+            db.session.commit()
+            return
+
+        if not User.query.filter_by(email=admin_email).first():
+            admin_rolle = Rolle.query.filter_by(name='admin').first()
+            password = os.environ.get('INITIAL_ADMIN_PASSWORD', 'admin123')
+
+            user = User(
+                email=admin_email,
+                vorname='Admin',
+                nachname='User',
+                rolle_id=admin_rolle.id,
+                aktiv=True
             )
-            db.session.add(lego)
-            click.echo('Created test supplier: LEGO Spielwaren GmbH')
+            user.set_password(password)
+            db.session.add(user)
+            click.echo(f'✓ Created admin user: {admin_email}')
+
+            if password == 'admin123':
+                click.echo('')
+                click.echo('⚠️  Using default password "admin123"')
+                click.echo('   Set INITIAL_ADMIN_PASSWORD for production!')
         else:
-            click.echo('Test supplier already exists: LEGO Spielwaren GmbH')
+            click.echo(f'  Admin user exists: {admin_email}')
+
+        db.session.commit()
+        click.echo('')
+        click.echo('Essential seeding complete!')
+        click.echo('Next: Run "flask seed-stammdaten" for production data.')
+
+    @app.cli.command('seed-stammdaten')
+    def seed_stammdaten_command():
+        """Seed production master data (Branchen, Verbände, Hilfetexte, Config).
+
+        Run AFTER seed-essential. Does NOT create:
+        - Roles (use seed-essential)
+        - Users (use seed-essential or seed-demo)
+        - Test data (use seed-demo)
+        """
+        from app.models import (
+            Config as ConfigModel, Rolle,
+            Branche, Verband, HelpText
+        )
+
+        click.echo('=' * 50)
+        click.echo('Seeding STAMMDATEN (master data)...')
+        click.echo('=' * 50)
+
+        # Check if essential seed was run
+        if not Rolle.query.filter_by(name='admin').first():
+            click.echo('ERROR: Roles not found. Run "flask seed-essential" first!')
+            return
 
         # Create default config entries
         config_defaults = [
@@ -331,11 +554,9 @@ Falls "Bei Erledigung Changelog-Eintrag erstellen" aktiviert ist, wird automatis
 
         # Create Verbände (Associations)
         verbaende_data = [
-            ('VEDES', 'VEDES', 'https://www.vedes.com', None),
-            ('idee+spiel', 'I+S', 'https://www.idee-und-spiel.de', None),
-            ('Spielwaren-Ring', 'SWR', 'https://www.spielwarenring.de', None),
-            ('EK/servicegroup', 'EK', 'https://www.ek-servicegroup.de', None),
-            ('expert', 'expert', 'https://www.expert.de', None),
+            ('VEDES', 'vedes', 'https://www.vedes.com', None),
+            ('idee+spiel', 'ius', 'https://www.idee-und-spiel.de', None),
+            ('EK/servicegroup', 'ek', 'https://www.ek-servicegroup.de', None),
         ]
         for name, kuerzel, website, logo in verbaende_data:
             existing = Verband.query.filter_by(name=name).first()
@@ -1840,6 +2061,9 @@ Bei Fragen stehen wir Ihnen gerne zur Verfügung.
             # PRD-011: Projektverwaltung Modul (intern)
             ('projekte', 'Projektverwaltung', 'PRDs, Tasks und Changelogs verwalten',
              'ti-folder', 'danger', '#dc3545', 'projekte_admin.index', 80, ModulTyp.BASIS.value, False),
+            # PRD-013: Kunden-Mailing Modul
+            ('mailing', 'Kunden-Mailing', 'Marketing-E-Mails an Kunden versenden',
+             'ti-mail-forward', 'pink', '#e83e8c', 'mailing_admin.index', 90, ModulTyp.KUNDENPROJEKT.value, True),
         ]
         for code, name, beschreibung, icon, color, color_hex, route_endpoint, sort_order, typ, zeige_dashboard in module_data:
             existing = Modul.query.filter_by(code=code).first()
@@ -2231,48 +2455,84 @@ Bei Fragen stehen wir Ihnen gerne zur Verfügung.
 
         click.echo('')
         click.echo('Database reset complete!')
-        click.echo('Run "flask seed" and "flask seed-users" to populate data.')
+        click.echo('')
+        click.echo('Next steps:')
+        click.echo('  flask seed-essential    # Roles + admin user (required)')
+        click.echo('  flask seed-stammdaten   # Master data (Branchen, etc.)')
+        click.echo('  flask seed-demo         # Demo data (development only)')
 
-    @app.cli.command('seed-users')
-    def seed_users_command():
-        """Create initial users."""
-        from app.models import User, Rolle
+    @app.cli.command('seed-demo')
+    def seed_demo_command():
+        """Seed demo/test data for development environments.
 
-        # Ensure roles exist first
+        Creates:
+        - Test supplier (LEGO)
+        - e-vendo admin users (Carsten, Rainer)
+        - Claude AI user
+        - test_benutzer role
+        - Test customers with users (for mailing tests)
+
+        Run AFTER seed-essential and seed-stammdaten.
+        NOT for production use!
+        """
+        from app.models import User, Rolle, Kunde, KundeBenutzer, Lieferant, UserTyp
+        from app.models.kunde import KundeTyp
+
+        click.echo('=' * 50)
+        click.echo('Seeding DEMO data (for development only)...')
+        click.echo('=' * 50)
+
+        # Check if essential seed was run
         admin_rolle = Rolle.query.filter_by(name='admin').first()
         if not admin_rolle:
-            click.echo('ERROR: Roles not found. Run "flask seed" first.')
+            click.echo('ERROR: Roles not found. Run "flask seed-essential" first!')
             return
 
-        # Use environment variable for production, fallback to dev password
-        initial_password = os.environ.get('INITIAL_ADMIN_PASSWORD', 'admin123')
-        if initial_password != 'admin123':
-            click.echo('Using INITIAL_ADMIN_PASSWORD from environment')
+        # ─────────────────────────────────────────────────
+        # 1. Create test supplier (LEGO)
+        # ─────────────────────────────────────────────────
+        click.echo('\n--- Test-Lieferant ---')
+        lego = Lieferant.query.filter_by(vedes_id='1872').first()
+        if not lego:
+            lego = Lieferant(
+                gln='4023017000005',
+                vedes_id='1872',
+                kurzbezeichnung='LEGO Spielwaren GmbH',
+                aktiv=True,
+                ftp_quelldatei='pricat_1872_Lego Spielwaren GmbH_0.csv',
+                elena_startdir='lego',
+                elena_base_url='https://direct.e-vendo.de'
+            )
+            db.session.add(lego)
+            click.echo('✓ Created test supplier: LEGO Spielwaren GmbH')
+        else:
+            click.echo('  Test supplier exists: LEGO Spielwaren GmbH')
 
-        users = [
+        # ─────────────────────────────────────────────────
+        # 2. Create e-vendo admin users
+        # ─────────────────────────────────────────────────
+        click.echo('\n--- e-vendo Admin-Users ---')
+        initial_password = os.environ.get('INITIAL_ADMIN_PASSWORD', 'admin123')
+
+        evendo_users = [
             {
                 'email': 'carsten.vogelsang@e-vendo.de',
                 'vorname': 'Carsten',
                 'nachname': 'Vogelsang',
                 'rolle_name': 'admin',
-                'password': initial_password
             },
             {
                 'email': 'rainer.raschka@e-vendo.de',
                 'vorname': 'Rainer',
                 'nachname': 'Raschka',
                 'rolle_name': 'admin',
-                'password': initial_password
             }
         ]
 
-        for user_data in users:
+        for user_data in evendo_users:
             existing = User.query.filter_by(email=user_data['email']).first()
             if not existing:
                 rolle = Rolle.query.filter_by(name=user_data['rolle_name']).first()
-                if not rolle:
-                    click.echo(f"Role not found: {user_data['rolle_name']}")
-                    continue
                 user = User(
                     email=user_data['email'],
                     vorname=user_data['vorname'],
@@ -2280,24 +2540,20 @@ Bei Fragen stehen wir Ihnen gerne zur Verfügung.
                     rolle_id=rolle.id,
                     aktiv=True
                 )
-                user.set_password(user_data['password'])
+                user.set_password(initial_password)
                 db.session.add(user)
-                click.echo(f"Created user: {user_data['email']} ({user_data['rolle_name']})")
+                click.echo(f"✓ Created user: {user_data['email']}")
             else:
-                click.echo(f"User already exists: {user_data['email']}")
+                click.echo(f"  User exists: {user_data['email']}")
 
-        db.session.commit()
-        click.echo('Users seeded successfully!')
-
-        # Create Claude AI user and assign to Betreiber
-        from app.models import Kunde, KundeBenutzer, UserTyp
-
+        # ─────────────────────────────────────────────────
+        # 3. Create Claude AI user
+        # ─────────────────────────────────────────────────
+        click.echo('\n--- Claude AI User ---')
         claude = User.query.filter_by(email='claude@anthropic.com').first()
         if not claude:
             mitarbeiter_rolle = Rolle.query.filter_by(name='mitarbeiter').first()
-            if not mitarbeiter_rolle:
-                click.echo('WARNING: mitarbeiter role not found, cannot create Claude user')
-            else:
+            if mitarbeiter_rolle:
                 claude = User(
                     email='claude@anthropic.com',
                     vorname='Claude',
@@ -2306,13 +2562,12 @@ Bei Fragen stehen wir Ihnen gerne zur Verfügung.
                     user_typ=UserTyp.KI_CLAUDE.value,
                     aktiv=True
                 )
-                # KI users don't need a real password, but field is required
                 claude.set_password('ki-user-no-login')
                 db.session.add(claude)
-                db.session.commit()
-                click.echo('Created KI user: Claude (Anthropic)')
+                db.session.flush()
+                click.echo('✓ Created KI user: Claude (Anthropic)')
 
-                # Assign Claude to Betreiber (system operator)
+                # Assign Claude to Betreiber if exists
                 betreiber = Kunde.query.filter_by(ist_systemkunde=True).first()
                 if betreiber:
                     zuordnung = KundeBenutzer(
@@ -2321,9 +2576,157 @@ Bei Fragen stehen wir Ihnen gerne zur Verfügung.
                         ist_hauptbenutzer=False
                     )
                     db.session.add(zuordnung)
-                    db.session.commit()
-                    click.echo(f'Assigned Claude to Betreiber: {betreiber.firmierung}')
-                else:
-                    click.echo('WARNING: No Betreiber found (ist_systemkunde=True)')
+                    click.echo(f'  Assigned to Betreiber: {betreiber.firmierung}')
         else:
-            click.echo('KI user Claude already exists')
+            click.echo('  Claude AI user exists')
+
+        # ─────────────────────────────────────────────────
+        # 4. Create test_benutzer role
+        # ─────────────────────────────────────────────────
+        click.echo('\n--- Test-Rolle ---')
+        test_rolle = Rolle.query.filter_by(name='test_benutzer').first()
+        if not test_rolle:
+            test_rolle = Rolle(name='test_benutzer', beschreibung='Test-Benutzer für Mailing-Tests')
+            db.session.add(test_rolle)
+            db.session.flush()
+            click.echo('✓ Created role: test_benutzer')
+        else:
+            click.echo('  Role exists: test_benutzer')
+
+        # ─────────────────────────────────────────────────
+        # 5. Create test customers with users
+        # ─────────────────────────────────────────────────
+        click.echo('\n--- Test-Kunden und Test-Users ---')
+        test_data = [
+            {
+                'user': {
+                    'email': 'carsten.vogelsang+testuser1@gmail.com',
+                    'vorname': 'Max',
+                    'nachname': 'Mustermann',
+                    'anrede': 'herr',
+                    'kommunikation_stil': 'foermlich',
+                },
+                'kunde': {
+                    'firmierung': 'Mustermann GmbH',
+                    'strasse': 'Musterstraße 123',
+                    'plz': '12345',
+                    'ort': 'Musterstadt',
+                    'telefon': '+49 123 456789',
+                    'email': 'info@mustermann-gmbh.de',
+                }
+            },
+            {
+                'user': {
+                    'email': 'carsten.vogelsang+testuser2@gmail.com',
+                    'vorname': 'Erika',
+                    'nachname': 'Musterfrau',
+                    'anrede': 'frau',
+                    'kommunikation_stil': 'locker',
+                },
+                'kunde': {
+                    'firmierung': 'Musterfrau & Co. KG',
+                    'strasse': 'Beispielweg 42',
+                    'plz': '54321',
+                    'ort': 'Beispielstadt',
+                    'telefon': '+49 987 654321',
+                    'email': 'kontakt@musterfrau-kg.de',
+                }
+            },
+            {
+                'user': {
+                    'email': 'carsten.vogelsang+testuser3@gmail.com',
+                    'vorname': 'Hans',
+                    'nachname': 'Testmann',
+                    'anrede': 'herr',
+                    'kommunikation_stil': 'foermlich',
+                },
+                'kunde': {
+                    'firmierung': 'Testmann IT Solutions',
+                    'strasse': 'Technikring 7',
+                    'plz': '99999',
+                    'ort': 'Techstadt',
+                    'telefon': '+49 555 123456',
+                    'email': 'hello@testmann-it.de',
+                }
+            }
+        ]
+
+        for data in test_data:
+            # Create or get user
+            user = User.query.filter_by(email=data['user']['email']).first()
+            if not user:
+                user = User(
+                    email=data['user']['email'],
+                    vorname=data['user']['vorname'],
+                    nachname=data['user']['nachname'],
+                    anrede=data['user']['anrede'],
+                    kommunikation_stil=data['user']['kommunikation_stil'],
+                    rolle_id=test_rolle.id,
+                    aktiv=True
+                )
+                user.set_password('test-user-no-login-' + str(hash(data['user']['email'])))
+                db.session.add(user)
+                db.session.flush()
+                click.echo(f"✓ Created test user: {data['user']['vorname']} {data['user']['nachname']}")
+
+            # Create or get kunde
+            kunde = Kunde.query.filter_by(firmierung=data['kunde']['firmierung']).first()
+            if not kunde:
+                kunde = Kunde(
+                    firmierung=data['kunde']['firmierung'],
+                    strasse=data['kunde']['strasse'],
+                    plz=data['kunde']['plz'],
+                    ort=data['kunde']['ort'],
+                    telefon=data['kunde']['telefon'],
+                    email=data['kunde']['email'],
+                    typ=KundeTyp.TESTKUNDE.value,
+                    aktiv=True
+                )
+                db.session.add(kunde)
+                db.session.flush()
+                click.echo(f"✓ Created test customer: {data['kunde']['firmierung']}")
+
+            # Link user to customer
+            zuordnung = KundeBenutzer.query.filter_by(
+                kunde_id=kunde.id, user_id=user.id
+            ).first()
+            if not zuordnung:
+                zuordnung = KundeBenutzer(
+                    kunde_id=kunde.id,
+                    user_id=user.id,
+                    ist_hauptbenutzer=True
+                )
+                db.session.add(zuordnung)
+
+        db.session.commit()
+        click.echo('')
+        click.echo('Demo seeding complete!')
+
+    # ─────────────────────────────────────────────────────────
+    # Compatibility aliases for old commands
+    # ─────────────────────────────────────────────────────────
+    @app.cli.command('seed')
+    @click.pass_context
+    def seed_legacy_command(ctx):
+        """DEPRECATED: Use seed-essential + seed-stammdaten instead."""
+        click.echo('⚠️  DEPRECATED: "flask seed" is deprecated.')
+        click.echo('')
+        click.echo('Please use the new commands:')
+        click.echo('  flask seed-essential    # Roles + admin user (required)')
+        click.echo('  flask seed-stammdaten   # Master data (Branchen, etc.)')
+        click.echo('  flask seed-demo         # Demo data (development only)')
+        click.echo('')
+        click.echo('Running seed-stammdaten for backwards compatibility...')
+        click.echo('')
+        ctx.invoke(seed_stammdaten_command)
+
+    @app.cli.command('seed-users')
+    @click.pass_context
+    def seed_users_legacy_command(ctx):
+        """DEPRECATED: Use seed-demo instead."""
+        click.echo('⚠️  DEPRECATED: "flask seed-users" is deprecated.')
+        click.echo('Please use: flask seed-demo')
+        click.echo('')
+        click.echo('Running seed-demo for backwards compatibility...')
+        click.echo('')
+        ctx.invoke(seed_demo_command)

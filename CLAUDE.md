@@ -22,9 +22,13 @@ uv run python run.py
 # Produktion
 uv run gunicorn -w 4 -b 0.0.0.0:5001 'app:create_app()'
 
-# Datenbank
-uv run flask init-db       # Tabellen erstellen (nur bei neuer DB)
-uv run flask seed          # Testdaten einfügen
+# Datenbank Setup (Produktion)
+uv run flask init-db           # Tabellen erstellen
+uv run flask seed-essential    # Rollen + Admin-User (PFLICHT!)
+uv run flask seed-stammdaten   # Branchen, Verbände, Hilfetexte
+
+# Datenbank Setup (Entwicklung) - zusätzlich:
+uv run flask seed-demo         # Test-Lieferant, Demo-Users
 
 # Datenbank-Migrationen (bei Schema-Änderungen)
 uv run flask db migrate -m "Beschreibung"  # Migration generieren
