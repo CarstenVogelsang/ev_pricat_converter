@@ -52,10 +52,10 @@ def track_click(token):
 
     # Determine redirect target based on link type
     if link_typ == 'fragebogen':
-        # Get the fragebogen teilnahme magic token
-        if empfaenger.fragebogen_teilnahme and empfaenger.fragebogen_teilnahme.magic_token:
+        # Get the fragebogen teilnahme token
+        if empfaenger.fragebogen_teilnahme and empfaenger.fragebogen_teilnahme.token:
             target_url = url_for('dialog.magic_link',
-                                 token=empfaenger.fragebogen_teilnahme.magic_token,
+                                 token=empfaenger.fragebogen_teilnahme.token,
                                  _external=True)
         else:
             # No fragebogen linked or no teilnahme created
